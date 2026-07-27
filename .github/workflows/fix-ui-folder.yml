@@ -1,0 +1,26 @@
+name: Fix UI folder structure
+on: workflow_dispatch
+
+jobs:
+  move-files:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          mkdir -p src/components/ui
+          for f in src/components/*.tsx; do
+            base=$(basename "$f")
+            case "$base" in
+              AudioButton.tsx|GoldenText.tsx|IslamicDivider.tsx|Layout.tsx|StorySlideshow.tsx)
+                ;;
+              *)
+                git mv "$f" "src/components/ui/$base"
+                ;;
+            esac
+          done
+          git commit -m "Move shadcn ui components into src/components/ui"
+          git push
