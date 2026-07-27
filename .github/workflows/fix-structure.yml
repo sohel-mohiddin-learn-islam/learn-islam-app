@@ -1,0 +1,32 @@
+name: Fix structure
+on: workflow_dispatch
+
+jobs:
+  fix:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - run: |
+          git config user.name "github-actions"
+          git config user.email "actions@github.com"
+          if [ -f "src/lib/.utils.ts" ]; then
+            git mv "src/lib/.utils.ts" "src/lib/utils.ts"
+          fi
+          if [ -f "src/contextsLanguageContext.tsx" ]; then
+            mkdir -p src/contexts
+            git mv "src/contextsLanguageContext.tsx" "src/contexts/LanguageContext.tsx"
+          fi
+          if [ -d "src/src/data" ]; then
+            mkdir -p src/data
+            git mv src/src/data/* src/data/
+          fi
+          if [ -d "src/src/hooks" ]; then
+            mkdir -p src/hooks
+            git mv src/src/hooks/* src/hooks/
+          fi
+          rm -rf src/src
+          git add -A
+          git commit -m "Fix misplaced folder/file structure"
+          git push
