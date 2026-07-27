@@ -1,0 +1,16 @@
+{
+  "name": "Learn Islam",
+  "short_name": "Learn Islam",
+  "description": "Learn Islam — built on Replit.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#ffffff",
+  "theme_color": "#1a7a4c",
+  "icons": [
+    {
+      "src": "/icon-512.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
