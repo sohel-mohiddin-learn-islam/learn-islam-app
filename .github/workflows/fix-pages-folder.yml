@@ -23,4 +23,4 @@ jobs:
             esac
           done
           git commit -m "Move page files into src/pages"
-          git pushw
+          git push
