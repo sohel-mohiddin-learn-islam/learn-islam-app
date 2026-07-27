@@ -1,0 +1,437 @@
+export type DuaOccasion =
+  | 'morning'
+  | 'evening'
+  | 'sleep'
+  | 'wakeup'
+  | 'eating'
+  | 'home'
+  | 'mosque'
+  | 'wudu'
+  | 'travel'
+  | 'distress'
+  | 'gratitude'
+  | 'rain'
+  | 'protection';
+
+export interface Dua {
+  id: string;
+  occasion: DuaOccasion;
+  titleEn: string;
+  titleHi: string;
+  titleTe: string;
+  arabic: string;
+  transliteration: string;
+  english: string;
+  romanHindi: string;
+  romanTelugu: string;
+  reference: string;
+  highlight: string;
+}
+
+export const occasionLabels: Record<DuaOccasion, { en: string; hi: string; te: string; icon: string }> = {
+  morning:    { en: 'Morning',          hi: 'Subah',          te: 'Udayam',       icon: '🌅' },
+  evening:    { en: 'Evening',          hi: 'Shaam',          te: 'Saayantram',   icon: '🌆' },
+  sleep:      { en: 'Before Sleep',     hi: 'Sone Se Pehle',  te: 'Padukovadam', icon: '🌙' },
+  wakeup:     { en: 'Waking Up',        hi: 'Uthne Par',      te: 'Nadhustunam',  icon: '☀️' },
+  eating:     { en: 'Eating & Drinking',hi: 'Khana Peena',    te: 'Thaagadam',    icon: '🍽️' },
+  home:       { en: 'Home',             hi: 'Ghar',           te: 'Illu',         icon: '🏠' },
+  mosque:     { en: 'Mosque',           hi: 'Masjid',         te: 'Masjid',       icon: '🕌' },
+  wudu:       { en: 'Wudu',            hi: 'Wuzu',           te: 'Wuzu',         icon: '💧' },
+  travel:     { en: 'Travel',           hi: 'Safar',          te: 'Prayaanam',    icon: '✈️' },
+  distress:   { en: 'Distress & Worry', hi: 'Pareshani',      te: 'Beejaram',     icon: '🤲' },
+  gratitude:  { en: 'Gratitude',        hi: 'Shukar',         te: 'Krutagnaata',  icon: '❤️' },
+  rain:       { en: 'Rain',             hi: 'Baarish',        te: 'Varsha',       icon: '🌧️' },
+  protection: { en: 'Protection',       hi: 'Hifazat',        te: 'Suraksha',     icon: '🛡️' },
+};
+
+export const duas: Dua[] = [
+  // MORNING
+  {
+    id: 'dua001',
+    occasion: 'morning',
+    titleEn: 'Morning Remembrance — Gratitude for Life',
+    titleHi: 'Subah ki Dua — Zindagi ke Liye Shukar',
+    titleTe: 'Subah Dua — Jeevitaniki Krutagnaata',
+    arabic: 'أَصْبَحْنَا وَأَصْبَحَ الْمُلْكُ لِلَّهِ، وَالْحَمْدُ لِلَّهِ، لَا إِلَٰهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ',
+    transliteration: 'Asbahna wa asbahal mulku lillah, walhamdu lillah, la ilaha illallahu wahdahu la shareeka lah',
+    english: 'We have reached the morning and the whole Kingdom belongs to Allah. All praise is due to Allah. There is no god but Allah, Alone, without any partner.',
+    romanHindi: 'Hum ne subah ki aur poori kayanat Allah ki hai. Tamam taarif Allah ke liye hai. Allah ke siwa koi maabood nahi, woh akela hai, koi shareek nahi.',
+    romanTelugu: 'Meeru udayaaniki vachaamu, poorti saampraajyam Allah ki. Sakala prasamsa Allah ki. Allah kaakapothe ela daivamu ledu — Ekudu, Orthariki ledu.',
+    reference: 'Sahih Muslim 2723',
+    highlight: 'the whole Kingdom belongs to Allah',
+  },
+  {
+    id: 'dua002',
+    occasion: 'morning',
+    titleEn: 'Morning Protection — 100 Times',
+    titleHi: 'Subah 100 Baar ki Hifazat',
+    titleTe: 'Subah 100 Saarlau Suraksha',
+    arabic: 'سُبْحَانَ اللَّهِ وَبِحَمْدِهِ',
+    transliteration: 'Subhanallahi wa bihamdihi',
+    english: 'Glory be to Allah and praise be to Him. (Whoever says this 100 times in the morning and 100 times in the evening — no one will come on the Day of Resurrection with anything better, except someone who said the same or more.)',
+    romanHindi: 'Allah paak hai aur uski taarif hai. Jo subah shaam 100 baar yeh kahe — qiyamat mein isse zyada koi achcha amal nahi hoga.',
+    romanTelugu: 'Allah pavisthrudu — prashamsaku paatrau. Evaru rozu udayamu saayantramu 100 saarlau annaaro — praabhu dina naraku manca maelu leka vastaaadu.',
+    reference: 'Sahih Muslim 2692',
+    highlight: 'Glory be to Allah and praise be to Him',
+  },
+  {
+    id: 'dua003',
+    occasion: 'morning',
+    titleEn: 'Morning — Seeking Protection from the Day\'s Trials',
+    titleHi: 'Subah — Din Ki Azmaishon Se Hifazat',
+    titleTe: 'Subah — Rojante Parikshanal Nunchi Suraksha',
+    arabic: 'اللَّهُمَّ بِكَ أَصْبَحْنَا وَبِكَ أَمْسَيْنَا وَبِكَ نَحْيَا وَبِكَ نَمُوتُ وَإِلَيْكَ النُّشُورُ',
+    transliteration: 'Allahumma bika asbahna, wa bika amsayna, wa bika nahya, wa bika namutu, wa ilaykan-nushur',
+    english: 'O Allah, by You we enter the morning, by You we enter the evening, by You we live and by You we die, and to You is the resurrection.',
+    romanHindi: 'Ya Allah, tere sahare subah ki, tere sahare shaam ki, tere sahare jeete hain, tere sahare marte hain, aur tere paas hi uthna hai.',
+    romanTelugu: 'Ya Allah, Neeto paatu udayamavutunnam, Neeto paatu saayantramavutunnam, Neeto paatu jeevistunnam, Neeto paatu maranam choosthunnam, mariyu Neeke thiriga vasthunnam.',
+    reference: 'Sunan Abu Dawud 5068',
+    highlight: 'by You we live and by You we die',
+  },
+
+  // EVENING
+  {
+    id: 'dua004',
+    occasion: 'evening',
+    titleEn: 'Evening Remembrance',
+    titleHi: 'Shaam ki Zikr',
+    titleTe: 'Saayantram Zikr',
+    arabic: 'أَمْسَيْنَا وَأَمْسَى الْمُلْكُ لِلَّهِ وَالْحَمْدُ لِلَّهِ',
+    transliteration: 'Amsayna wa amsal mulku lillah walhamdu lillah',
+    english: 'We have reached the evening and the whole Kingdom belongs to Allah. All praise is due to Allah.',
+    romanHindi: 'Hum ne shaam ki aur poori kayanat Allah ki hai. Tamam taarif Allah ke liye hai.',
+    romanTelugu: 'Meeru saayantramaki vachaamu, poorti saampraajyam Allah ki. Sakala prasamsa Allah ki.',
+    reference: 'Sahih Muslim 2723',
+    highlight: 'the whole Kingdom belongs to Allah',
+  },
+  {
+    id: 'dua005',
+    occasion: 'evening',
+    titleEn: 'Sayyidul Istighfar — Master of Seeking Forgiveness',
+    titleHi: 'Sayyidul Istighfar',
+    titleTe: 'Sayyidul Istighfar — Kshamaapanam',
+    arabic: 'اللَّهُمَّ أَنْتَ رَبِّي لَا إِلَهَ إِلَّا أَنتَ خَلَقْتَنِي وَأَنَا عَبْدُكَ وَأَنَا عَلَى عَهْدِكَ وَوَعْدِكَ مَا اسْتَطَعْتُ',
+    transliteration: 'Allahumma anta rabbi la ilaha illa anta, khalaqtani wa ana abduka, wa ana ala ahdika wa wadika mastata\'tu',
+    english: 'O Allah, You are my Lord. There is no god but You. You created me and I am Your slave. I am bound to Your covenant and promise to the best of my ability. I seek refuge in You from the evil of what I have done. I acknowledge Your blessing upon me and I acknowledge my sins, so forgive me, for none forgives sins but You.',
+    romanHindi: 'Ya Allah, tu mera Rabb hai. Tere siwa koi ilah nahi. Tune mujhe banaya, main tera banda hoon. Main tere ahd aur wade par qaim hoon. Tu ne mujh par ehsan kiya — main apne gunaah qubool karta hoon — mujhe maaf kar.',
+    romanTelugu: 'Ya Allah, Neevu naaku Prabhuvu. Neeto kaakupothe ela daivam ledu. Neevnu nannu nirminchaayu, naenu Mee baanudu. Mee swasthicharya mariyu maataku kaట్టubadi unnaanu. Mee anugrahaam adaristhunnaanu — paapamunu odhulukunnaanu — nannu kshaminchu.',
+    reference: 'Sahih Bukhari 6306',
+    highlight: 'none forgives sins but You',
+  },
+
+  // SLEEP
+  {
+    id: 'dua006',
+    occasion: 'sleep',
+    titleEn: 'Before Sleeping — Ayat ul Kursi',
+    titleHi: 'Sone Se Pehle — Ayat ul Kursi',
+    titleTe: 'Padukovadam Mundu — Ayat ul Kursi',
+    arabic: 'اللَّهُ لَا إِلَٰهَ إِلَّا هُوَ الْحَيُّ الْقَيُّومُ',
+    transliteration: 'Allahu la ilaha illa Huwal Hayyul Qayyum',
+    english: 'Allah — there is no god except Him, the Ever-Living, the Sustainer of all. (Whoever recites Ayat ul Kursi before sleep, a guardian from Allah will protect him until morning.)',
+    romanHindi: 'Allah — koi ilah nahi siwaaye uske, Zinda Rehne Wala, Sambhalane Wala. Jo sone se pehle Ayat ul Kursi padhe — Allah ek hifazat karne wala farishta bhejtaa hai.',
+    romanTelugu: 'Allah — Aayana kaakapothe ela daivamu ledu, Sarvada Jeevinchevaadu, Sakalatniki Aadharamu. Evaru Ayat ul Kursi ni padukovalamu mundu padithe — Allah oka rakshakaruda saayantramvaren kaapaaadataadu.',
+    reference: 'Sahih Bukhari 2311',
+    highlight: 'a guardian from Allah will protect him until morning',
+  },
+  {
+    id: 'dua007',
+    occasion: 'sleep',
+    titleEn: 'Before Sleeping — Tasbih of Fatimah',
+    titleHi: 'Sone Se Pehle — Tasbeeh-e-Fatimah',
+    titleTe: 'Padukovadam Mundu — Tasbih-e-Fatima',
+    arabic: 'سُبْحَانَ اللَّهِ (٣٣) الْحَمْدُ لِلَّهِ (٣٣) اللَّهُ أَكْبَرُ (٣٤)',
+    transliteration: 'SubhanAllah x33, Alhamdulillah x33, Allahu Akbar x34',
+    english: 'Say SubhanAllah 33 times, Alhamdulillah 33 times, and Allahu Akbar 34 times before sleeping. The Prophet (SAW) said this is better for you than a servant.',
+    romanHindi: 'Sone se pehle 33 baar SubhanAllah, 33 baar Alhamdulillah, 34 baar Allahu Akbar kaho. Nabi (SAW) ne farmaya yeh tumhare liye khadim se behtar hai.',
+    romanTelugu: 'Padukovalamu mundu 33 saarlau SubhanAllah, 33 saarlau Alhamdulillah, 34 saarlau Allahu Akbar cheyyandi. Nabi (SAW) annaru idi meekai oka sevaku kante uttamamu.',
+    reference: 'Sahih Bukhari 3113',
+    highlight: 'SubhanAllah x33, Alhamdulillah x33, Allahu Akbar x34',
+  },
+  {
+    id: 'dua008',
+    occasion: 'sleep',
+    titleEn: 'Sleeping — Placing Trust in Allah',
+    titleHi: 'Sote Waqt — Allah Par Bharosa',
+    titleTe: 'Padukovadam — Allah Pai Aadharamu',
+    arabic: 'اللَّهُمَّ بِاسْمِكَ أَمُوتُ وَأَحْيَا',
+    transliteration: 'Allahumma bismika amutu wa ahya',
+    english: 'O Allah, in Your name I die and I live.',
+    romanHindi: 'Ya Allah, tere naam se marta hoon aur jeeta hoon.',
+    romanTelugu: 'Ya Allah, Mee perutho naenu marinaanu mariyu Mee perutho jeevistunnaanu.',
+    reference: 'Sahih Bukhari 6312',
+    highlight: 'in Your name I die and I live',
+  },
+
+  // WAKING UP
+  {
+    id: 'dua009',
+    occasion: 'wakeup',
+    titleEn: 'Upon Waking Up',
+    titleHi: 'Uthne Par',
+    titleTe: 'Nadhustae',
+    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي أَحْيَانَا بَعْدَ مَا أَمَاتَنَا وَإِلَيْهِ النُّشُورُ',
+    transliteration: 'Alhamdu lillahilladhi ahyana ba\'da ma amatana wa ilayhin-nushur',
+    english: 'All praise is due to Allah who gave us life after He had caused us to die (sleep), and to Him is the resurrection.',
+    romanHindi: 'Tamam taarif Allah ke liye jo marne (sone) ke baad zindagi di, aur usi ki taraf lautna hai.',
+    romanTelugu: 'Allah ki sakala prasamsa, aayana maranamantu (nidra) tarvata manamalni jeevingajoopaaadu, mariyu aayanaki thiriga vasthunnam.',
+    reference: 'Sahih Bukhari 6312',
+    highlight: 'All praise is due to Allah who gave us life after sleep',
+  },
+
+  // EATING
+  {
+    id: 'dua010',
+    occasion: 'eating',
+    titleEn: 'Before Eating',
+    titleHi: 'Khane Se Pehle',
+    titleTe: 'Thaagadam Mundu',
+    arabic: 'بِسْمِ اللَّهِ وَعَلَى بَرَكَةِ اللَّهِ',
+    transliteration: 'Bismillahi wa \'ala barakatillah',
+    english: 'In the name of Allah and with the blessings of Allah.',
+    romanHindi: 'Allah ke naam se aur Allah ki barkat ke saath.',
+    romanTelugu: 'Allah peyaruna mariyu Allah asheervaadamuna.',
+    reference: 'Sunan Abu Dawud 3767',
+    highlight: 'In the name of Allah and with the blessings of Allah',
+  },
+  {
+    id: 'dua011',
+    occasion: 'eating',
+    titleEn: 'After Eating',
+    titleHi: 'Khane Ke Baad',
+    titleTe: 'Thagimatarvata',
+    arabic: 'الْحَمْدُ لِلَّهِ الَّذِي أَطْعَمَنِي هَذَا وَرَزَقَنِيهِ مِنْ غَيْرِ حَوْلٍ مِنِّي وَلَا قُوَّةٍ',
+    transliteration: 'Alhamdu lillahilladhi at\'amani hadha wa razaqanihi min ghayri hawlim minni wa la quwwah',
+    english: 'All praise is due to Allah who fed me this and provided it for me without any power or strength on my part. (Whoever says this after eating, his past sins will be forgiven.)',
+    romanHindi: 'Tamam taarif Allah ke liye jisne yeh khana khilaya aur bina meri kisi koshish ke rozi di. Jo yeh padhega, uske gunaah maaf ho jayenge.',
+    romanTelugu: 'Allah ki sakala prasamsa, aayana naaku ee annam pettinaadu, naa shakti balamu leni naaku ichchinaadu. Evaru daanini thagimatarvata antaaro, vaatiki paata paapaalu kshaminchababataayyi.',
+    reference: 'Sunan Abu Dawud 4023',
+    highlight: 'his past sins will be forgiven',
+  },
+  {
+    id: 'dua012',
+    occasion: 'eating',
+    titleEn: 'Forgot Bismillah — Said Mid-Meal',
+    titleHi: 'Bismillah Bhool Jaane Par',
+    titleTe: 'Bismillah Marchipoyite',
+    arabic: 'بِسْمِ اللَّهِ أَوَّلَهُ وَآخِرَهُ',
+    transliteration: 'Bismillahi awwalahu wa akhirahu',
+    english: 'In the name of Allah at its beginning and at its end. (If you forget to say Bismillah before eating, say this when you remember, even in the middle of the meal.)',
+    romanHindi: 'Allah ke naam se — shuru mein bhi aur aakhir mein bhi. Agar Bismillah bhool jaye to khaate waqt bhi yeh padh lo.',
+    romanTelugu: 'Allah peyaruna — praarambhamulo mariyu ante lo kuda. Thaagadam mundu Bismillah marchipoyite, gurthu vastinattu ee dua cheyyandi.',
+    reference: 'Sunan Abu Dawud 3767',
+    highlight: 'In the name of Allah at its beginning and at its end',
+  },
+
+  // HOME
+  {
+    id: 'dua013',
+    occasion: 'home',
+    titleEn: 'Entering the Home',
+    titleHi: 'Ghar Mein Daakhil Hone Par',
+    titleTe: 'Illu Lo Praveshinchedam',
+    arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ خَيْرَ الْمَوْلِجِ وَخَيْرَ الْمَخْرَجِ',
+    transliteration: 'Allahumma inni as\'aluka khayral mawliji wa khayral makhraj',
+    english: 'O Allah, I ask You for the best of the entrance and the best of the exit. (Say Bismillah when entering your home, give salam to your family, and send blessings upon the Prophet.)',
+    romanHindi: 'Ya Allah, main tujhse daakhil hone ki aur nikalne ki bhalai maangta hoon. Ghar mein Bismillah kaho, salam karo.',
+    romanTelugu: 'Ya Allah, naenu Mee kaakapothe inglike mariyu baikali mangalaaniki maangutunnaanu. Illu lo praveshinchedam lo Bismillah anandi.',
+    reference: 'Sunan Abu Dawud 5096',
+    highlight: 'the best of the entrance and the best of the exit',
+  },
+  {
+    id: 'dua014',
+    occasion: 'home',
+    titleEn: 'Leaving the Home',
+    titleHi: 'Ghar Se Nikalne Par',
+    titleTe: 'Illu Nundi Bayaluderam',
+    arabic: 'بِسْمِ اللَّهِ تَوَكَّلْتُ عَلَى اللَّهِ وَلَا حَوْلَ وَلَا قُوَّةَ إِلَّا بِاللَّهِ',
+    transliteration: 'Bismillahi tawakkaltu alallah, wa la hawla wa la quwwata illa billah',
+    english: 'In the name of Allah, I put my trust in Allah. There is no might and no power except with Allah. (When this is said, it is said to him: You have been guided, sufficed, and protected. And the devil is driven away from him.)',
+    romanHindi: 'Allah ke naam se, maine Allah par bharosa kiya. Koi taqat aur koi zoar nahi magar Allah ke saath. Jo yeh parhega — usse kaha jayega: guided, kaafi, aur hifazat mein.',
+    romanTelugu: 'Allah peyaruna, naenu Allah paikee nammikanu. Allah tappa shakti balamulu leva. Ee dua cheppinattu — vaatiki cheppinchabadiindi: meeru hidayatu, sativu, surakshaalu — shaytaan vaatini vadilichipotaadu.',
+    reference: 'Sunan Abu Dawud 5095',
+    highlight: 'You have been guided, sufficed, and protected',
+  },
+
+  // MOSQUE
+  {
+    id: 'dua015',
+    occasion: 'mosque',
+    titleEn: 'Entering the Mosque',
+    titleHi: 'Masjid Mein Daakhil Hone Par',
+    titleTe: 'Masjid Lo Praveshinchedam',
+    arabic: 'اللَّهُمَّ افْتَحْ لِي أَبْوَابَ رَحْمَتِكَ',
+    transliteration: 'Allahumma iftah li abwaba rahmatik',
+    english: 'O Allah, open for me the doors of Your mercy.',
+    romanHindi: 'Ya Allah, mere liye apni rahmat ke darwaze khol de.',
+    romanTelugu: 'Ya Allah, naaku Mee kaarunyamu yokka doorvaajaaalu teru.',
+    reference: 'Sahih Muslim 713',
+    highlight: 'open for me the doors of Your mercy',
+  },
+  {
+    id: 'dua016',
+    occasion: 'mosque',
+    titleEn: 'Leaving the Mosque',
+    titleHi: 'Masjid Se Nikalne Par',
+    titleTe: 'Masjid Nundi Bayaluderam',
+    arabic: 'اللَّهُمَّ إِنِّي أَسْأَلُكَ مِنْ فَضْلِكَ',
+    transliteration: 'Allahumma inni as\'aluka min fadlik',
+    english: 'O Allah, I ask of You from Your bounty.',
+    romanHindi: 'Ya Allah, main tujhse teri fazl maangta hoon.',
+    romanTelugu: 'Ya Allah, naenu Mee kaarunyamunu maangutunnaanu.',
+    reference: 'Sahih Muslim 713',
+    highlight: 'I ask of You from Your bounty',
+  },
+
+  // WUDU
+  {
+    id: 'dua017',
+    occasion: 'wudu',
+    titleEn: 'Before Wudu',
+    titleHi: 'Wuzu Se Pehle',
+    titleTe: 'Wuzu Mundu',
+    arabic: 'بِسْمِ اللَّهِ',
+    transliteration: 'Bismillah',
+    english: 'In the name of Allah. (It is compulsory to say Bismillah before making Wudu. The Prophet said: There is no Wudu for one who does not mention the name of Allah over it.)',
+    romanHindi: 'Allah ke naam se. Wuzu se pehle Bismillah kehna zaroori hai.',
+    romanTelugu: 'Allah peyaruna. Wuzu mundu Bismillah cheppadam avasaramu.',
+    reference: 'Sunan Abu Dawud 101',
+    highlight: 'There is no Wudu for one who does not mention the name of Allah',
+  },
+  {
+    id: 'dua018',
+    occasion: 'wudu',
+    titleEn: 'After Completing Wudu',
+    titleHi: 'Wuzu Ke Baad',
+    titleTe: 'Wuzu Tarvata',
+    arabic: 'أَشْهَدُ أَنْ لَا إِلَهَ إِلَّا اللَّهُ وَحْدَهُ لَا شَرِيكَ لَهُ وَأَشْهَدُ أَنَّ مُحَمَّدًا عَبْدُهُ وَرَسُولُهُ',
+    transliteration: 'Ash-hadu an la ilaha illallahu wahdahu la sharika lahu, wa ash-hadu anna Muhammadan abduhu wa rasuluh',
+    english: 'I testify that there is no god but Allah alone, with no partner, and I testify that Muhammad is His slave and His Messenger. (Whoever says this after wudu, the eight gates of Paradise are opened for him, and he may enter through whichever of them he wishes.)',
+    romanHindi: 'Main gawahi deta hoon ke Allah ke siwa koi ilah nahi, aur Muhammad (SAW) uske bande aur rasool hain. Jo wuzu ke baad yeh padhe — jannat ke aath darwaze khul jaate hain.',
+    romanTelugu: 'Naenu saakshyamistunnaanu Allah kaakapothe ela daivamu ledu — Aayana ortha kuu Orthariki ledu, mariyu Muhammad Aayana baanudu mariyu Rasool. Wuzu tarvata ee dua cheppinattu — swargamu yokka enimidi doorvaajaaalu tirustaayyi.',
+    reference: 'Sahih Muslim 234',
+    highlight: 'the eight gates of Paradise are opened for him',
+  },
+
+  // TRAVEL
+  {
+    id: 'dua019',
+    occasion: 'travel',
+    titleEn: 'Du\'a for Travel',
+    titleHi: 'Safar ki Dua',
+    titleTe: 'Prayaanam Dua',
+    arabic: 'اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، اللَّهُ أَكْبَرُ، سُبْحَانَ الَّذِي سَخَّرَ لَنَا هَذَا وَمَا كُنَّا لَهُ مُقْرِنِينَ وَإِنَّا إِلَى رَبِّنَا لَمُنْقَلِبُونَ',
+    transliteration: 'Allahu akbar, Allahu akbar, Allahu akbar, subhanalladhi sakhkhara lana hadha wa ma kunna lahu muqrinin, wa inna ila rabbina lamunqalibun',
+    english: 'Allah is the Greatest (x3). Glory be to the One who has subjected this to us, for we could never have done this ourselves. Surely, to our Lord we will return.',
+    romanHindi: 'Allah sabse bada hai (x3). Paak hai woh jo ne yeh hamara kabu mein kiya — yeh hamse nahi ho sakta tha. Aur hum apne Rabb ki taraf lautne wale hain.',
+    romanTelugu: 'Allah Goppavaaadu (x3). Pavisthrudu aayana yee vasthuvunu maa kosamai niyamishichinaadu — memu idi swayangaa cheyalagalame kaadu. Nishchayamugaa memu maara Prabhuuni daggara ki thirigipotunnam.',
+    reference: 'Sahih Muslim 1342',
+    highlight: 'Glory be to the One who has subjected this to us',
+  },
+
+  // DISTRESS
+  {
+    id: 'dua020',
+    occasion: 'distress',
+    titleEn: 'Du\'a of Yunus — In the Belly of the Whale',
+    titleHi: 'Yunus ki Dua — Machli ke Paet Mein',
+    titleTe: 'Yunus Dua — Cheppa Udara Gamdhyamulo',
+    arabic: 'لَا إِلَٰهَ إِلَّا أَنتَ سُبْحَانَكَ إِنِّي كُنتُ مِنَ الظَّالِمِينَ',
+    transliteration: 'La ilaha illa anta, subhanaka, inni kuntu minaz-zalimin',
+    english: 'There is no god but You, glory be to You. Indeed, I was among the wrongdoers. (The Prophet said: No Muslim who is in distress calls upon Allah with this du\'a except that Allah will answer him.)',
+    romanHindi: 'Tere siwa koi ilah nahi, tu paak hai. Beshak main zalimoon mein se tha. Nabi (SAW) ne farmaya jo koi bhi musalman takleef mein yeh dua kare — Allah zaroor sun-ta hai.',
+    romanTelugu: 'Neevo kaakapothe ela daivamu ledu, pavisthrudu Neevnu. Nishchayamugaa naenu zaalumulaalo okkadinaa. Nabi (SAW) annaru: oka Muslim beejaaramulo ee dua cheppinattu — Allah nizamgaa vaatiki jawaabistaaadu.',
+    reference: 'Quran 21:87, Sahih Tirmidhi 3505',
+    highlight: 'No Muslim in distress calls upon Allah with this du\'a except that Allah will answer him',
+  },
+  {
+    id: 'dua021',
+    occasion: 'distress',
+    titleEn: 'Du\'a for Anxiety and Grief',
+    titleHi: 'Gham aur Pareshan ke Waqt',
+    titleTe: 'Dukhamu Beejaaramulo',
+    arabic: 'اللَّهُمَّ إِنِّي أَعُوذُ بِكَ مِنَ الْهَمِّ وَالْحَزَنِ وَالْعَجْزِ وَالْكَسَلِ',
+    transliteration: 'Allahumma inni a\'udhu bika minal hammi wal-hazan, wal-\'ajzi wal-kasal, wal-jubni wal-bukhl, wa dhala\'id-dayni wa ghalabatir-rijal',
+    english: 'O Allah, I seek refuge with You from anxiety and grief, from weakness and laziness, from miserliness and cowardice, from being heavily in debt and from being overcome by men.',
+    romanHindi: 'Ya Allah, main tujhse panah maangta hoon — gham se, dard se, kamzori se, sust se, bakhili se, darr se, qarz ke bojh se, aur logon ke zulm se.',
+    romanTelugu: 'Ya Allah, naenu Mee daggara sharagukontunnaanu — beejaaranundi, dukhamnundi, balaheenata nundi, sasyonundi, lalobhyanindi, bhayam nundi, runo bojha nundi, mariyu vyaktula aadipatyanundi.',
+    reference: 'Sahih Bukhari 2893',
+    highlight: 'O Allah, I seek refuge with You from anxiety and grief',
+  },
+  {
+    id: 'dua022',
+    occasion: 'distress',
+    titleEn: 'Du\'a of Ayyub — In Illness',
+    titleHi: 'Ayyub ki Dua — Bimari Mein',
+    titleTe: 'Ayyub Dua — Vyadhilo',
+    arabic: 'أَنِّي مَسَّنِيَ الضُّرُّ وَأَنتَ أَرْحَمُ الرَّاحِمِينَ',
+    transliteration: 'Anni massaniyad-durru wa anta arhamur-rahimin',
+    english: 'Adversity has touched me, and You are the Most Merciful of the merciful. (This is the du\'a of Prophet Ayyub, who was ill for 18 years. Allah healed him when He heard this sincere call.)',
+    romanHindi: 'Mujhe takleef pahunchi hai aur tu sab se zyada rehm karne wala hai. Yeh Hazrat Ayyub ki dua hai — jo 18 saal beemar rahe aur Allah ne shunn kar shifa di.',
+    romanTelugu: 'Naaku baadhaga undi, mariyu Neevnu karunaalu lo uttama karunaalu gala. Ee Hazrat Ayyub dua — aayana 18 samvatsaraaluuu vaapadiu, Allah aayana illusunu sindhi vaastuvununni mariyu arogaanniki tirigichchinaadu.',
+    reference: 'Quran 21:83',
+    highlight: 'Adversity has touched me, and You are the Most Merciful',
+  },
+
+  // GRATITUDE
+  {
+    id: 'dua023',
+    occasion: 'gratitude',
+    titleEn: 'Du\'a of Gratitude — Sulayman\'s Prayer',
+    titleHi: 'Shukar ki Dua — Sulayman ki Dua',
+    titleTe: 'Krutagnaata Dua — Sulayman Dua',
+    arabic: 'رَبِّ أَوْزِعْنِي أَنْ أَشْكُرَ نِعْمَتَكَ الَّتِي أَنْعَمْتَ عَلَيَّ وَعَلَىٰ وَالِدَيَّ',
+    transliteration: 'Rabbi awzi\'ni an ashkura ni\'matakal-lati an\'amta \'alayya wa \'ala walidayya',
+    english: 'My Lord, enable me to be grateful for Your favor which You have bestowed upon me and upon my parents, and to do righteousness of which You approve.',
+    romanHindi: 'Mere Rabb, mujhe taufeeq de ke main teri un nematoon ka shukar ada karoon jo tune mujh par aur mere walidain par ki hain, aur woh nek kaam karoon jo tujhe pasand ho.',
+    romanTelugu: 'Naaru Prabhuvu, Mee anugrahaaniki meekai mariyu naaa talli tandrilaki krutagnaata choopiinchegaa naanu cheyagalugutaanu anee naakunai samarthyaaniki ivvu.',
+    reference: 'Quran 27:19',
+    highlight: 'enable me to be grateful for Your favor',
+  },
+
+  // RAIN
+  {
+    id: 'dua024',
+    occasion: 'rain',
+    titleEn: 'When It Rains',
+    titleHi: 'Baarish Ke Waqt',
+    titleTe: 'Varsha Kuraristhenattu',
+    arabic: 'اللَّهُمَّ صَيِّبًا نَافِعًا',
+    transliteration: 'Allahumma sayyiban nafi\'a',
+    english: 'O Allah, make it a beneficial rain.',
+    romanHindi: 'Ya Allah, ise faidemand baarish bana.',
+    romanTelugu: 'Ya Allah, idi upayokaramaina varsha gaavuchi cheyyumu.',
+    reference: 'Sahih Bukhari 1032',
+    highlight: 'make it a beneficial rain',
+  },
+
+  // PROTECTION
+  {
+    id: 'dua025',
+    occasion: 'protection',
+    titleEn: 'Morning & Evening — Three Times for Protection',
+    titleHi: 'Subah Shaam — Teen Baar Hifazat',
+    titleTe: 'Subah Saayantram — Mudu Saarlau Suraksha',
+    arabic: 'بِسْمِ اللَّهِ الَّذِي لَا يَضُرُّ مَعَ اسْمِهِ شَيْءٌ فِي الْأَرْضِ وَلَا فِي السَّمَاءِ وَهُوَ السَّمِيعُ الْعَلِيمُ',
+    transliteration: 'Bismillahilladhi la yadurru ma\'asmihi shay\'un fil-ardi wa la fis-sama\'i wa huwas-sami\'ul-\'alim',
+    english: 'In the name of Allah, with whose name nothing on earth or in heaven can cause harm. He is the All-Hearing, the All-Knowing. (Whoever says this 3 times in the morning and 3 times in the evening — nothing will harm him.)',
+    romanHindi: 'Allah ke naam se, jiske naam ke saath zameen aur aasman mein koi cheez nuqsan nahi pahuncha sakti. Jo yeh subah shaam teen baar kahe — koi cheez use nuqsan nahi pahuncha sakti.',
+    romanTelugu: 'Allah peyaruna, aayana perutho bhoomipai kaaana aakashamulolona ela haani cheyyaledu. Evaru daanini subah saayantram mudu saarlau antaaro — vaatiki ela haani jarugadu.',
+    reference: 'Sunan Abu Dawud 5088',
+    highlight: 'nothing on earth or in heaven can cause harm',
+  },
+  {
+    id: 'dua026',
+    occasion: 'protection',
+    titleEn: 'Seeking Refuge from Evil Eye (Ruqyah)',
+    titleHi: 'Nazar Buri Se Hifazat',
+    titleTe: 'Chada Drishti Nundi Suraksha',
+    arabic: 'أَعُوذُ بِكَلِمَاتِ اللَّهِ التَّامَّاتِ مِنْ شَرِّ مَا خَلَقَ',
+    transliteration: 'A\'udhu bikalimatillahit-tammati min sharri ma khalaq',
+    english: 'I seek refuge in the perfect words of Allah from the evil of what He has created. (Whoever says this 3 times in the evening — no poison or venomous creature will harm him that night.)',
+    romanHindi: 'Main Allah ke mukammal kalmaat se us ki tamam makhlooq ki burai se panah maangta hoon. Jo shaam mein teen baar padhe — us raat koi zeher ya haqnaaak jaanwar nuqsan nahi pahuncha sakta.',
+    romanTelugu: 'Naenu Allah yokka poorna maatala lo aayana nirminchina ee jagattu yokka chetta nundi sharagukuntunnaanu. Evaru daanini saayantram mudu saarlau antaaro — aa raat ela zeheraaru praanika haani cheyyadu.',
+    reference: 'Sahih Muslim 2709',
+    highlight: 'no poison or venomous creature will harm him that night',
+  },
+];
