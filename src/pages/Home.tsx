@@ -38,14 +38,29 @@ function calcPrayerTimes(lat: number, lng: number, date: Date) {
   const params = CalculationMethod.MuslimWorldLeague();
   const prayerTimes = new PrayerTimes(coordinates, date, params);
 
+  function calcPrayerTimes(lat: number, lng: number, date: Date, offsetMinutes: number = 0) {
+  const coordinates = new Coordinates(lat, lng);
+  const params = CalculationMethod.MuslimWorldLeague();
+  const prayerTimes = new PrayerTimes(coordinates, date, params);
+
   const formatTime = (d: Date) => {
-    let hours = d.getHours();
-    const minutes = d.getMinutes();
+    const adjusted = new Date(d.getTime() + offsetMinutes * 60000);
+    let hours = adjusted.getHours();
+    const minutes = adjusted.getMinutes();
     const ampm = hours >= 12 ? "PM" : "AM";
     hours = hours % 12;
     if (hours === 0) hours = 12;
     return `${hours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
   };
+
+  return [
+    formatTime(prayerTimes.fajr),
+    formatTime(prayerTimes.dhuhr),
+    formatTime(prayerTimes.asr),
+    formatTime(prayerTimes.maghrib),
+    formatTime(prayerTimes.isha),
+  ];
+  }
 
   return [
     formatTime(prayerTimes.fajr),
@@ -88,6 +103,16 @@ export default function HomePage() {
   const [currentPrayer, setCurrentPrayer] = useState(0);
   const [prayerTimes, setPrayerTimes] = useState(['5:00 AM','12:30 PM','3:45 PM','6:30 PM','8:00 PM']);
   const [notifPermission, setNotifPermission] = useState('idle');
+  const [timeOffset, setTimeOffset] = useState<number>(() => {
+  const saved = localStorage.getItem('prayerTimeOffset');
+  return saved ? parseInt(saved) : 0;
+});
+
+const adjustOffset = (delta: number) => {
+  const newOffset = timeOffset + delta;
+  setTimeOffset(newOffset);
+  localStorage.setItem('prayerTimeOffset', newOffset.toString());
+};
   const hijri = getHijriDate();
   const today = new Date();
   const prayers = ['Fajr','Dhuhr','Asr','Maghrib','Isha'];
@@ -95,7 +120,7 @@ export default function HomePage() {
   useEffect(() => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
-        const times = calcPrayerTimes(pos.coords.latitude, pos.coords.longitude, new Date());
+      const times = calcPrayerTimes(pos.coords.latitude, pos.coords.longitude, new Date(), timeOffset);
         setPrayerTimes(times);
         
         // Find current prayer
@@ -144,7 +169,12 @@ export default function HomePage() {
             </div>
           ))}
         </div>
-
+<div className="mt-2 flex items-center justify-center gap-2 text-xs text-yellow-300">
+  <span>Adjust time:</span>
+  <button onClick={() => adjustOffset(-1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">-1 min</button>
+  <span>{timeOffset > 0 ? `+${timeOffset}` : timeOffset} min</span>
+  <button onClick={() => adjustOffset(1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">+1 min</button>
+</div>
         {notifPermission === 'idle' && (
           <button onClick={requestNotifications}
             className="mt-3 w-full text-xs text-yellow-300 border border-yellow-400/30 rounded-lg py-1.5 hover:bg-yellow-400/10 transition-colors">
