@@ -69,5 +69,6 @@
     "vite": "latest",
     "wouter": "^3.3.5",
     "zod": "latest"
+    "adhan": "^4.4.3",
   }
 }
