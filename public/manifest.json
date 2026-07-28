@@ -1,16 +1,17 @@
 {
   "name": "Learn Islam",
   "short_name": "Learn Islam",
-  "description": "Learn Islam — built on Replit.",
-  "start_url": "/",
+  "description": "Learn Islam — Islamic education app",
+  "start_url": "/learn-islam-app/",
   "display": "standalone",
   "background_color": "#ffffff",
   "theme_color": "#1a7a4c",
   "icons": [
     {
-      "src": "/icon-512.png",
+      "src": "/learn-islam-app/icon-512.png",
       "sizes": "512x512",
-      "type": "image/png"
+      "type": "image/png",
+      "purpose": "any maskable"
     }
   ]
 }
