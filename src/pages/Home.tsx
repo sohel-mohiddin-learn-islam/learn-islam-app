@@ -1,7 +1,7 @@
 import { useState, useEffect } from "react";
-import { Link } from "wouter";
 import { BookOpen, BookText, Heart, Scroll, Hand, Star, Users, Calendar, Compass, Hash, MessageCircle, Flame, Info } from "lucide-react";
-
+import { Link } from "wouter";
+import { CalculationMethod, Coordinates, PrayerTimes } from "adhan";
 const features = [
   { href: "/prophets", icon: BookOpen, label: "Prophet Stories", color: "bg-emerald-800" },
   { href: "/surahs", icon: BookText, label: "Qur'an", color: "bg-emerald-700" },
@@ -34,50 +34,25 @@ function getHijriDate() {
 }
 
 function calcPrayerTimes(lat: number, lng: number, date: Date) {
-  const toRad = (d: number) => d * Math.PI / 180;
-  const toDeg = (r: number) => r * 180 / Math.PI;
-  const julianDate = Math.floor(date.getTime() / 86400000) + 2440587.5;
-  const d = julianDate - 2451545.0;
-  const g = 357.529 + 0.98560028 * d;
-  const q = 280.459 + 0.98564736 * d;
-  const L = q + 1.915 * Math.sin(toRad(g)) + 0.020 * Math.sin(toRad(2 * g));
-  const e = 23.439 - 0.00000036 * d;
-  const RA = toDeg(Math.atan2(Math.cos(toRad(e)) * Math.sin(toRad(L)), Math.cos(toRad(L)))) / 15;
-  const SD = toDeg(Math.asin(Math.sin(toRad(e)) * Math.sin(toRad(L))));
-  const EqT = q / 15 - RA;
-  const Tnoon = 12 - lng / 15 - EqT;
-  
-  const getAngleTime = (angle: number, before: boolean) => {
-    const cosH = (Math.sin(toRad(angle)) - Math.sin(toRad(lat)) * Math.sin(toRad(SD))) / (Math.cos(toRad(lat)) * Math.cos(toRad(SD)));
-    if (Math.abs(cosH) > 1) return null;
-    const H = toDeg(Math.acos(cosH)) / 15;
-    return before ? Tnoon - H : Tnoon + H;
-  };
+  const coordinates = new Coordinates(lat, lng);
+  const params = CalculationMethod.MuslimWorldLeague();
+  const prayerTimes = new PrayerTimes(coordinates, date, params);
 
-  const shadow = (factor: number) => {
-    const angle = toDeg(Math.atan(1 / (factor + Math.tan(toRad(Math.abs(lat - SD))))));
-    return getAngleTime(-angle, false);
-  };
-
-  const toTime = (h: number | null) => {
-    if (!h) return '12:00 PM';
-    const offset = date.getTimezoneOffset() / -60;
-    let total = h + offset;
-    if (total < 0) total += 24;
-    if (total >= 24) total -= 24;
-    const hours = Math.floor(total);
-    const mins = Math.round((total - hours) * 60);
-    const h12 = hours % 12 || 12;
-    const ampm = hours < 12 ? 'AM' : 'PM';
-    return `${h12}:${mins.toString().padStart(2,'0')} ${ampm}`;
+  const formatTime = (d: Date) => {
+    let hours = d.getHours();
+    const minutes = d.getMinutes();
+    const ampm = hours >= 12 ? "PM" : "AM";
+    hours = hours % 12;
+    if (hours === 0) hours = 12;
+    return `${hours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
   };
 
   return [
-    toTime(getAngleTime(-18, true)),   // Fajr
-    toTime(Tnoon),                      // Dhuhr
-    toTime(shadow(1)),                  // Asr
-    toTime(getAngleTime(-0.833, false)),// Maghrib
-    toTime(getAngleTime(-17, false)),   // Isha
+    formatTime(prayerTimes.fajr),
+    formatTime(prayerTimes.dhuhr),
+    formatTime(prayerTimes.asr),
+    formatTime(prayerTimes.maghrib),
+    formatTime(prayerTimes.isha),
   ];
 }
 
