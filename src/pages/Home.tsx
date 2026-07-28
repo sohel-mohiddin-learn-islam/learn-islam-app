@@ -104,6 +104,7 @@ export default function HomePage() {
   const [prayerTimes, setPrayerTimes] = useState(['5:00 AM','12:30 PM','3:45 PM','6:30 PM','8:00 PM']);
   const [notifPermission, setNotifPermission] = useState('idle');
   const [timeOffset, setTimeOffset] = useState<number>(() => {
+    const [coords, setCoords] = useState<{lat: number, lng: number} | null>(null);
   const saved = localStorage.getItem('prayerTimeOffset');
   return saved ? parseInt(saved) : 0;
 });
@@ -121,6 +122,7 @@ const adjustOffset = (delta: number) => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
       const times = calcPrayerTimes(pos.coords.latitude, pos.coords.longitude, new Date(), timeOffset);
+        setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
         setPrayerTimes(times);
         
         // Find current prayer
@@ -142,7 +144,22 @@ const adjustOffset = (delta: number) => {
       () => {}
     );
   }, []);
+useEffect(() => {
+  if (!coords) return;
+  const times = calcPrayerTimes(coords.lat, coords.lng, new Date(), timeOffset);
+  setPrayerTimes(times);
 
+  const now = new Date();
+  const nowMin = now.getHours() * 60 + now.getMinutes();
+  times.forEach((t, i) => {
+    const [timePart, ampm] = t.split(' ');
+    const [h, m] = timePart.split(':').map(Number);
+    let hours = h;
+    if (ampm === 'PM' && h !== 12) hours += 12;
+    if (ampm === 'AM' && h === 12) hours = 0;
+    if (hours * 60 + m <= nowMin) setCurrentPrayer(i);
+  });
+}, [timeOffset, coords]);
   const requestNotifications = async () => {
     const perm = await Notification.requestPermission();
     setNotifPermission(perm);
