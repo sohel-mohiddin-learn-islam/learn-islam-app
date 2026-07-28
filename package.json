@@ -45,6 +45,7 @@
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",
+    "adhan": "^4.4.3",
     "class-variance-authority": "latest",
     "clsx": "latest",
     "cmdk": "^1.1.1",
@@ -68,7 +69,6 @@
     "vaul": "^1.1.2",
     "vite": "latest",
     "wouter": "^3.3.5",
-    "zod": "latest",
-"adhan": "^4.4.3"
+    "zod": "latest"
   }
 }
