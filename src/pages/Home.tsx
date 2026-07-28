@@ -22,18 +22,15 @@ const hijriMonths = ["Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jum
 
 function getHijriDate() {
   const now = new Date();
-  const jd = Math.floor(now.getTime() / 86400000) + 2440587.5;
-  const l = Math.floor(jd) + 68569 - 1948440;
-  const n = Math.floor((l * 10000) / 3652501000000);
   return { day: now.getDate(), month: hijriMonths[now.getMonth()], year: now.getFullYear() };
 }
 
-function calcPrayerTimes(lat: number, lng: number, date: Date, offsetMinutes: number = 0) {
+function calcPrayerTimes(lat: number, lng: number, date: Date, offsets: number[] = [0, 0, 0, 0, 0]) {
   const coordinates = new Coordinates(lat, lng);
   const params = CalculationMethod.MuslimWorldLeague();
   const prayerTimes = new PrayerTimes(coordinates, date, params);
 
-  const formatTime = (d: Date) => {
+  const formatTime = (d: Date, offsetMinutes: number) => {
     const adjusted = new Date(d.getTime() + offsetMinutes * 60000);
     let hours = adjusted.getHours();
     const minutes = adjusted.getMinutes();
@@ -44,11 +41,11 @@ function calcPrayerTimes(lat: number, lng: number, date: Date, offsetMinutes: nu
   };
 
   return [
-    formatTime(prayerTimes.fajr),
-    formatTime(prayerTimes.dhuhr),
-    formatTime(prayerTimes.asr),
-    formatTime(prayerTimes.maghrib),
-    formatTime(prayerTimes.isha),
+    formatTime(prayerTimes.fajr, offsets[0]),
+    formatTime(prayerTimes.dhuhr, offsets[1]),
+    formatTime(prayerTimes.asr, offsets[2]),
+    formatTime(prayerTimes.maghrib, offsets[3]),
+    formatTime(prayerTimes.isha, offsets[4]),
   ];
 }
 
@@ -85,15 +82,19 @@ export default function HomePage() {
   const [prayerTimes, setPrayerTimes] = useState(['5:00 AM', '12:30 PM', '3:45 PM', '6:30 PM', '8:00 PM']);
   const [notifPermission, setNotifPermission] = useState('idle');
   const [coords, setCoords] = useState<{ lat: number, lng: number } | null>(null);
-  const [timeOffset, setTimeOffset] = useState<number>(() => {
-    const saved = localStorage.getItem('prayerTimeOffset');
-    return saved ? parseInt(saved) : 0;
+  const [selectedPrayer, setSelectedPrayer] = useState<number | null>(null);
+
+  const [offsets, setOffsets] = useState<number[]>(() => {
+    const saved = localStorage.getItem('prayerTimeOffsets');
+    return saved ? JSON.parse(saved) : [0, 0, 0, 0, 0];
   });
 
   const adjustOffset = (delta: number) => {
-    const newOffset = timeOffset + delta;
-    setTimeOffset(newOffset);
-    localStorage.setItem('prayerTimeOffset', newOffset.toString());
+    if (selectedPrayer === null) return;
+    const newOffsets = [...offsets];
+    newOffsets[selectedPrayer] += delta;
+    setOffsets(newOffsets);
+    localStorage.setItem('prayerTimeOffsets', JSON.stringify(newOffsets));
   };
 
   const hijri = getHijriDate();
@@ -104,7 +105,7 @@ export default function HomePage() {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        const times = calcPrayerTimes(pos.coords.latitude, pos.coords.longitude, new Date(), timeOffset);
+        const times = calcPrayerTimes(pos.coords.latitude, pos.coords.longitude, new Date(), offsets);
         setPrayerTimes(times);
 
         const now = new Date();
@@ -128,7 +129,7 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!coords) return;
-    const times = calcPrayerTimes(coords.lat, coords.lng, new Date(), timeOffset);
+    const times = calcPrayerTimes(coords.lat, coords.lng, new Date(), offsets);
     setPrayerTimes(times);
 
     const now = new Date();
@@ -141,7 +142,7 @@ export default function HomePage() {
       if (ampm === 'AM' && h === 12) hours = 0;
       if (hours * 60 + m <= nowMin) setCurrentPrayer(i);
     });
-  }, [timeOffset, coords]);
+  }, [offsets, coords]);
 
   const requestNotifications = async () => {
     const perm = await Notification.requestPermission();
@@ -162,18 +163,30 @@ export default function HomePage() {
 
         <div className="mt-4 flex gap-2 overflow-x-auto pb-1">
           {prayers.map((p, i) => (
-            <div key={p} className={`flex-shrink-0 px-3 py-2 rounded-xl text-center ${i === currentPrayer ? 'bg-yellow-400 text-emerald-900' : 'bg-white/10 text-white'}`}>
+            <button
+              key={p}
+              onClick={() => setSelectedPrayer(i)}
+              className={`flex-shrink-0 px-3 py-2 rounded-xl text-center border-2 transition-colors ${
+                i === currentPrayer ? 'bg-yellow-400 text-emerald-900' : 'bg-white/10 text-white'
+              } ${selectedPrayer === i ? 'border-yellow-300' : 'border-transparent'}`}
+            >
               <p className="text-xs font-medium">{p}</p>
               <p className="text-sm font-bold">{prayerTimes[i]}</p>
-            </div>
+            </button>
           ))}
         </div>
 
         <div className="mt-2 flex items-center justify-center gap-2 text-xs text-yellow-300">
-          <span>Adjust time:</span>
-          <button onClick={() => adjustOffset(-1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">-1 min</button>
-          <span>{timeOffset > 0 ? `+${timeOffset}` : timeOffset} min</span>
-          <button onClick={() => adjustOffset(1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">+1 min</button>
+          {selectedPrayer === null ? (
+            <span>Tap a prayer above to adjust its time</span>
+          ) : (
+            <>
+              <span>Adjust {prayers[selectedPrayer]}:</span>
+              <button onClick={() => adjustOffset(-1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">-1 min</button>
+              <span>{offsets[selectedPrayer] > 0 ? `+${offsets[selectedPrayer]}` : offsets[selectedPrayer]} min</span>
+              <button onClick={() => adjustOffset(1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">+1 min</button>
+            </>
+          )}
         </div>
 
         {notifPermission === 'idle' && (
@@ -218,4 +231,4 @@ export default function HomePage() {
       </div>
     </div>
   );
-      }
+}
