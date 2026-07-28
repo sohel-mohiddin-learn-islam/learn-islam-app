@@ -49,7 +49,7 @@ function calcPrayerTimes(lat: number, lng: number, date: Date, offsets: number[]
   ];
 }
 
-function scheduleNotifications(prayerTimes: string[], prayerNames: string[]) {
+function scheduleNotifications(prayerTimes: string[], prayerNames: string[], soundData: string | null) {
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
 
@@ -72,6 +72,10 @@ function scheduleNotifications(prayerTimes: string[], prayerNames: string[]) {
           icon: '/icon-512.png',
           badge: '/icon-512.png',
         });
+        if (soundData) {
+          const audio = new Audio(soundData);
+          audio.play().catch(() => {});
+        }
       }, diff);
     }
   });
@@ -80,7 +84,9 @@ function scheduleNotifications(prayerTimes: string[], prayerNames: string[]) {
 export default function HomePage() {
   const [currentPrayer, setCurrentPrayer] = useState(0);
   const [prayerTimes, setPrayerTimes] = useState(['5:00 AM', '12:30 PM', '3:45 PM', '6:30 PM', '8:00 PM']);
-  const [notifPermission, setNotifPermission] = useState('idle');
+  const [notifPermission, setNotifPermission] = useState(
+    'Notification' in window ? Notification.permission : 'idle'
+  );
   const [coords, setCoords] = useState<{ lat: number, lng: number } | null>(null);
   const [selectedPrayer, setSelectedPrayer] = useState<number | null>(null);
 
@@ -89,12 +95,28 @@ export default function HomePage() {
     return saved ? JSON.parse(saved) : [0, 0, 0, 0, 0];
   });
 
+  const [soundData, setSoundData] = useState<string | null>(() => {
+    return localStorage.getItem('notifSound');
+  });
+
   const adjustOffset = (delta: number) => {
     if (selectedPrayer === null) return;
     const newOffsets = [...offsets];
     newOffsets[selectedPrayer] += delta;
     setOffsets(newOffsets);
     localStorage.setItem('prayerTimeOffsets', JSON.stringify(newOffsets));
+  };
+
+  const handleSoundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onload = () => {
+      const base64 = reader.result as string;
+      setSoundData(base64);
+      localStorage.setItem('notifSound', base64);
+    };
+    reader.readAsDataURL(file);
   };
 
   const hijri = getHijriDate();
@@ -120,7 +142,7 @@ export default function HomePage() {
         });
 
         if (Notification.permission === 'granted') {
-          scheduleNotifications(times, prayers);
+          scheduleNotifications(times, prayers, soundData);
         }
       },
       () => {}
@@ -148,7 +170,7 @@ export default function HomePage() {
     const perm = await Notification.requestPermission();
     setNotifPermission(perm);
     if (perm === 'granted') {
-      scheduleNotifications(prayerTimes, prayers);
+      scheduleNotifications(prayerTimes, prayers, soundData);
     }
   };
 
@@ -198,6 +220,16 @@ export default function HomePage() {
         {notifPermission === 'granted' && (
           <p className="mt-2 text-xs text-green-300 text-center">Prayer notifications enabled!</p>
         )}
+        {notifPermission === 'denied' && (
+          <p className="mt-2 text-xs text-red-300 text-center">Notifications blocked — enable them in your browser/app settings.</p>
+        )}
+
+        <div className="mt-2 text-center">
+          <label className="text-xs text-yellow-300 underline cursor-pointer">
+            {soundData ? 'Change notification sound' : 'Add custom notification sound'}
+            <input type="file" accept="audio/*" onChange={handleSoundUpload} className="hidden" />
+          </label>
+        </div>
       </div>
 
       <div className="px-4 py-5">
@@ -231,4 +263,4 @@ export default function HomePage() {
       </div>
     </div>
   );
-}
+      }
