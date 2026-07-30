@@ -1,4 +1,5 @@
 // v3.0 multilingual
+import { InstagramEmbed } from '../components/InstagramEmbed';
 import React, { useState } from 'react';
 import { prophets } from '../data/prophets';
 import { ScrollArea } from '../components/ui/scroll-area';
@@ -109,7 +110,17 @@ export default function Prophets() {
           </div>
         </div>
       </div>
-
+{selectedProphet.nameEn.toLowerCase().includes('muhammad') && (
+            <div className="mt-8 bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 rounded-2xl p-6 border border-yellow-400/30 shadow-lg">
+              <h3 className="text-2xl font-bold font-serif text-yellow-300 mb-2 text-center">
+                The Last Khutbah of ﷺ
+              </h3>
+              <p className="text-emerald-200 text-sm text-center mb-5 italic">
+                The final sermon of Prophet Muhammad ﷺ — timeless words that still guide us today.
+              </p>
+              <InstagramEmbed />
+            </div>
+          )}
       {showSlideshow && selectedProphet.slides && selectedProphet.slides.length > 0 && (
         <StorySlideshow prophetName={selectedProphet.nameEn} prophetNameAr={selectedProphet.nameAr} slides={selectedProphet.slides} onClose={() => setShowSlideshow(false)}/>
       )}
