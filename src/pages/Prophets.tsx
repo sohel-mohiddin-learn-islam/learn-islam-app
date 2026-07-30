@@ -129,7 +129,22 @@ export default function Prophets() {
           )}
         </div>
       </div>
-
+{selectedProphet.nameEn.toLowerCase().includes('isa') && (
+            <div className="mt-8 bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 rounded-2xl p-6 border border-yellow-400/30 shadow-lg">
+              <h3 className="text-2xl font-bold font-serif text-yellow-300 mb-2 text-center">
+                Learn More About Isa (AS)
+              </h3>
+              <div className="relative w-full rounded-xl overflow-hidden shadow-md" style={{ paddingBottom: '56.25%' }}>
+                <iframe
+                  className="absolute top-0 left-0 w-full h-full"
+                  src="https://www.youtube.com/embed/bY4iiTWZYDg"
+                  title="Isa (AS)"
+                  allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+                  allowFullScreen
+                />
+              </div>
+            </div>
+          )}
       {showSlideshow && selectedProphet.slides && selectedProphet.slides.length > 0 && (
         <StorySlideshow prophetName={selectedProphet.nameEn} prophetNameAr={selectedProphet.nameAr} slides={selectedProphet.slides} onClose={() => setShowSlideshow(false)}/>
       )}
