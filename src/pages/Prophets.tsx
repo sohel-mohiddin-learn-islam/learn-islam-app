@@ -127,9 +127,8 @@ export default function Prophets() {
               </div>
             </div>
           )}
-        </div>
-      </div>
-{selectedProphet.nameEn.toLowerCase().includes('isa') && (
+
+          {selectedProphet.nameEn.toLowerCase().includes('isa') && (
             <div className="mt-8 bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 rounded-2xl p-6 border border-yellow-400/30 shadow-lg">
               <h3 className="text-2xl font-bold font-serif text-yellow-300 mb-2 text-center">
                 Learn More About Isa (AS)
@@ -145,9 +144,12 @@ export default function Prophets() {
               </div>
             </div>
           )}
+        </div>
+      </div>
+
       {showSlideshow && selectedProphet.slides && selectedProphet.slides.length > 0 && (
         <StorySlideshow prophetName={selectedProphet.nameEn} prophetNameAr={selectedProphet.nameAr} slides={selectedProphet.slides} onClose={() => setShowSlideshow(false)}/>
       )}
     </div>
   );
-              }
+}
