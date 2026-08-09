@@ -25,6 +25,7 @@ const Contact = lazy(() => import("@/pages/Contact"));
 const Terms = lazy(() => import("@/pages/Terms"));
 const Tasbih = lazy(() => import("@/pages/Tasbih"));
 const Qibla = lazy(() => import("@/pages/Qibla"));
+const Login = lazy(() => import("@/pages/Login"));
 
 const queryClient = new QueryClient();
 
@@ -59,6 +60,7 @@ function Router() {
           <Route path="/terms" component={Terms}/>
           <Route path="/tasbih" component={Tasbih}/>
           <Route path="/qibla" component={Qibla}/>
+          <Route path="/login" component={Login}/>
           <Route component={NotFound}/>
         </Switch>
       </Suspense>
