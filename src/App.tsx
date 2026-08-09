@@ -4,6 +4,7 @@ import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/contexts/LanguageContext";
+import { AuthProvider } from "@/contexts/AuthContext";
 import { Layout } from "@/components/Layout";
 
 // Lazy load all pages for faster initial load
@@ -72,12 +73,14 @@ function App() {
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
+        <AuthProvider>
         <LanguageProvider>
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/,"")}>
             <Router />
           </WouterRouter>
           <Toaster />
         </LanguageProvider>
+        </AuthProvider>
       </TooltipProvider>
     </QueryClientProvider>
   );
