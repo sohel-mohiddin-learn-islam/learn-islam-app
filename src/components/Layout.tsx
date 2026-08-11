@@ -39,6 +39,7 @@ export function Layout({ children }: LayoutProps) {
   const [location] = useLocation();
   const [showMore, setShowMore] = useState(false);
   const { language, setLanguage } = useLanguage();
+  const { user, signOut } = useAuth();
   const [isDark, setIsDark] = useState(true);
 
   const toggleTheme = () => {
@@ -65,6 +66,19 @@ export function Layout({ children }: LayoutProps) {
           <button onClick={toggleTheme} className="p-2 rounded-full bg-muted">
           {isDark ? <Sun className="w-5 h-5 text-yellow-400"/> : <Moon className="w-5 h-5 text-primary"/>}
         </button>
+          {user ? (
+  <button onClick={() => signOut()} className="p-2 rounded-full bg-muted overflow-hidden">
+    {user.photoURL ? (
+      <img src={user.photoURL} className="w-5 h-5 rounded-full" alt="Profile" />
+    ) : (
+      <span className="w-5 h-5 flex items-center justify-center text-xs">👤</span>
+    )}
+  </button>
+) : (
+  <Link href="/login" className="p-2 rounded-full bg-muted">
+    <span className="w-5 h-5 flex items-center justify-center text-xs">👤</span>
+  </Link>
+)}
         </div>
       </header>
 
