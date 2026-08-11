@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { useAuth } from "@/contexts/AuthContext";
 import { Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun } from "lucide-react";
 
 const bottomNav = [
