@@ -26,7 +26,7 @@ const allNav = [
   { href: "/kids", icon: Heart, label: "Kids Zone" },
   { href: "/quran-values", icon: BookOpen, label: "Quran Values" },
   { href: "/about", icon: Info, label: "About" },
-
+  { href: "/reels", icon: Flame, label: "Reels" },
 { href:"/contact", icon: MessageCircle, label:"Contact" },
 { href:"/terms", icon: Info, label:"Terms" },
 ];
