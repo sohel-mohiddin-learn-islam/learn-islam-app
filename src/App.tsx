@@ -27,7 +27,7 @@ const Terms = lazy(() => import("@/pages/Terms"));
 const Tasbih = lazy(() => import("@/pages/Tasbih"));
 const Qibla = lazy(() => import("@/pages/Qibla"));
 const Login = lazy(() => import("@/pages/Login"));
-
+const Reels = lazy(() => import("@/pages/Reels"));
 const queryClient = new QueryClient();
 
 const LoadingSpinner = () => (
@@ -62,6 +62,7 @@ function Router() {
           <Route path="/tasbih" component={Tasbih}/>
           <Route path="/qibla" component={Qibla}/>
           <Route path="/login" component={Login}/>
+          <Route path="/reels" component={Reels}/>
           <Route component={NotFound}/>
         </Switch>
       </Suspense>
