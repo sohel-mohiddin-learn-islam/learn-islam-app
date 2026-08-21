@@ -3,6 +3,8 @@ import {
   onAuthStateChanged,
   signInWithEmailAndPassword,
   createUserWithEmailAndPassword,
+  signInWithCredential,
+  GoogleAuthProvider,
   signOut as firebaseSignOut,
   User,
 } from 'firebase/auth';
@@ -22,8 +24,6 @@ interface AuthContextType {
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
 
 async function ensureUserProfile(user: User) {
-  // Creates/updates a basic profile document the first time someone signs in.
-  // This is what the reels feature will later read from to show uploader names, etc.
   const ref = doc(db, 'users', user.uid);
   await setDoc(
     ref,
@@ -50,12 +50,19 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const signInWithGoogle = async () => {
-    // Google sign-in must go through the NATIVE plugin on Android —
-    // Google blocks its OAuth flow inside embedded WebViews.
+    // We deliberately do NOT rely on the plugin's built-in native->JS auth
+    // sync (skipNativeAuth must be true in capacitor.config.json for this).
+    // That automatic sync is known to hang indefinitely on some Android
+    // devices. Instead, we take the native credential the plugin gives us
+    // and manually complete the sign-in on the Firebase JS SDK ourselves.
     const result = await FirebaseAuthentication.signInWithGoogle();
-    if (result.user) {
-      await ensureUserProfile(auth.currentUser as User);
+    const idToken = result.credential?.idToken;
+    if (!idToken) {
+      throw new Error('No ID token returned from native Google sign-in.');
     }
+    const credential = GoogleAuthProvider.credential(idToken);
+    const userCred = await signInWithCredential(auth, credential);
+    await ensureUserProfile(userCred.user);
   };
 
   const signInWithEmail = async (email: string, password: string) => {
