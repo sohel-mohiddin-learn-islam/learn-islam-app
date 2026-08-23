@@ -36,7 +36,7 @@ interface LayoutProps {
 }
 
 export function Layout({ children }: LayoutProps) {
-  const [location] = useLocation();
+  const [location, setLocation] = useLocation();
   const [showMore, setShowMore] = useState(false);
   const { language, setLanguage } = useLanguage();
   const { user, signOut } = useAuth();
