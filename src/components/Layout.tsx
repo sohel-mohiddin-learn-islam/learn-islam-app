@@ -67,7 +67,7 @@ export function Layout({ children }: LayoutProps) {
           {isDark ? <Sun className="w-5 h-5 text-yellow-400"/> : <Moon className="w-5 h-5 text-primary"/>}
         </button>
           {user ? (
-  <button onClick={() => signOut()} className="p-2 rounded-full bg-muted overflow-hidden">
+  <button onClick={() => setLocation('/account')} className="p-2 rounded-full bg-muted overflow-hidden">
     {user.photoURL ? (
       <img src={user.photoURL} className="w-5 h-5 rounded-full" alt="Profile" />
     ) : (
