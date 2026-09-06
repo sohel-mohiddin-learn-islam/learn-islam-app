@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useState } from 'react';
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -40,6 +40,22 @@ const LoadingSpinner = () => (
   </div>
 );
 
+function Intro({ onFinish }: { onFinish: () => void }) {
+  return (
+    <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
+      <video
+        src={`${import.meta.env.BASE_URL}intro.mp4`}
+        className="w-full h-full object-contain"
+        autoPlay
+        muted
+        playsInline
+        onEnded={onFinish}
+        onError={onFinish}
+      />
+    </div>
+  );
+}
+
 function Router() {
   return (
     <Layout>
@@ -73,11 +89,14 @@ function Router() {
 }
 
 function App() {
+  const [showIntro, setShowIntro] = useState(true);
+
   return (
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
         <LanguageProvider>
+          {showIntro && <Intro onFinish={() => setShowIntro(false)} />}
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/,"")}>
             <Router />
           </WouterRouter>
