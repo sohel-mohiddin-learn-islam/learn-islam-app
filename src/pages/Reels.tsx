@@ -1,49 +1,61 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 
-// Add Instagram reel URLs here — just paste the reel link.
-const reels: { id: string; url: string; caption: string }[] = [
-  { id: '1', url: 'https://www.instagram.com/reel/DcYEyF9CIeR/', caption: '' },
-  { id: '2', url: 'https://www.instagram.com/reel/DcJSDx7JHZA/', caption: '' },
-  { id: '3', url: 'https://www.instagram.com/reel/Dc6VmYKu9-9/', caption: '' },
-  { id: '4', url: 'https://www.instagram.com/reel/Dc3-mnjhP7M/', caption: '' },
-  { id: '5', url: 'https://www.instagram.com/reel/Dc6TUzMoSG8/', caption: '' },
+// Direct video files uploaded to /public — filenames as uploaded.
+const reelFiles: string[] = [
+  'VID_20260905_125534_061.mp4',
+  'VID_20260905_125932_824.mp4',
+  'VID_20260905_125954_462.mp4',
+  'VID_20260905_125839_472.mp4',
+  'VID_20260905_125817_770.mp4',
+  'VID_20260905_125831_798.mp4',
+  'VID_20260905_125901_742.mp4',
+  'VID_20260905_125810_534.mp4',
+  'VID_20260905_125828_659.mp4',
+  'VID_20260905_125753_012.mp4',
 ];
 
-declare global {
-  interface Window {
-    instgrm?: { Embeds: { process: () => void } };
-  }
+const reels = reelFiles.map((file, i) => ({
+  id: String(i + 1),
+  src: `${import.meta.env.BASE_URL}${file}`,
+}));
+
+function getLiked(id: string) {
+  return localStorage.getItem(`reel-like-${id}`) === '1';
 }
 
-function useInstagramEmbed() {
+function ReelItem({ reel }: { reel: { id: string; src: string } }) {
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [muted, setMuted] = useState(true);
+  const [liked, setLiked] = useState(() => getLiked(reel.id));
+
   useEffect(() => {
-    if (window.instgrm) {
-      window.instgrm.Embeds.process();
-      return;
-    }
-    const script = document.createElement('script');
-    script.src = 'https://www.instagram.com/embed.js';
-    script.async = true;
-    script.onload = () => window.instgrm?.Embeds.process();
-    document.body.appendChild(script);
+    const video = videoRef.current;
+    const container = containerRef.current;
+    if (!video || !container) return;
+
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
+            video.play().catch(() => {});
+          } else {
+            video.pause();
+          }
+        });
+      },
+      { threshold: [0, 0.6, 1] }
+    );
+    observer.observe(container);
+    return () => observer.disconnect();
   }, []);
-}
 
-function getLikeState(id: string) {
-  const raw = localStorage.getItem(`reel-like-${id}`);
-  return raw === '1';
-}
-
-function getComments(id: string): string[] {
-  const raw = localStorage.getItem(`reel-comments-${id}`);
-  return raw ? JSON.parse(raw) : [];
-}
-
-function ReelCard({ reel }: { reel: { id: string; url: string; caption: string } }) {
-  const [liked, setLiked] = useState(() => getLikeState(reel.id));
-  const [comments, setComments] = useState<string[]>(() => getComments(reel.id));
-  const [commentText, setCommentText] = useState('');
-  const [showComments, setShowComments] = useState(false);
+  const toggleMute = () => {
+    if (videoRef.current) {
+      videoRef.current.muted = !videoRef.current.muted;
+      setMuted(videoRef.current.muted);
+    }
+  };
 
   const toggleLike = () => {
     const next = !liked;
@@ -51,60 +63,33 @@ function ReelCard({ reel }: { reel: { id: string; url: string; caption: string }
     localStorage.setItem(`reel-like-${reel.id}`, next ? '1' : '0');
   };
 
-  const addComment = () => {
-    if (!commentText.trim()) return;
-    const next = [...comments, commentText.trim()];
-    setComments(next);
-    localStorage.setItem(`reel-comments-${reel.id}`, JSON.stringify(next));
-    setCommentText('');
-  };
-
   return (
-    <div className="mb-6 bg-card rounded-2xl overflow-hidden border border-border">
-      <blockquote
-        className="instagram-media"
-        data-instgrm-permalink={reel.url}
-        data-instgrm-version="14"
-        style={{ width: '100%', margin: 0 }}
+    <div
+      ref={containerRef}
+      className="relative w-full h-full snap-start shrink-0 bg-black flex items-center justify-center"
+    >
+      <video
+        ref={videoRef}
+        src={reel.src}
+        className="w-full h-full object-contain"
+        loop
+        muted
+        playsInline
+        onClick={toggleMute}
       />
-      {reel.caption && (
-        <p className="px-4 pt-2 text-sm text-foreground/80 font-sans">{reel.caption}</p>
-      )}
-      <div className="flex items-center gap-4 px-4 py-3">
-        <button onClick={toggleLike} className="flex items-center gap-1 text-sm">
-          <span>{liked ? '❤️' : '🤍'}</span>
-          <span>{liked ? 'Liked' : 'Like'}</span>
+      <div className="absolute right-4 bottom-24 flex flex-col items-center gap-5">
+        <button onClick={toggleLike} className="flex flex-col items-center gap-1">
+          <span className="text-3xl drop-shadow-lg">{liked ? '❤️' : '🤍'}</span>
         </button>
-        <button onClick={() => setShowComments(!showComments)} className="flex items-center gap-1 text-sm">
-          💬 <span>{comments.length} Comments</span>
+        <button onClick={toggleMute} className="flex flex-col items-center gap-1">
+          <span className="text-2xl drop-shadow-lg">{muted ? '🔇' : '🔊'}</span>
         </button>
       </div>
-      {showComments && (
-        <div className="px-4 pb-4">
-          <div className="space-y-1 mb-2 max-h-32 overflow-y-auto">
-            {comments.map((c, i) => (
-              <p key={i} className="text-sm bg-muted rounded-lg px-3 py-1.5">{c}</p>
-            ))}
-          </div>
-          <div className="flex gap-2">
-            <input
-              value={commentText}
-              onChange={(e) => setCommentText(e.target.value)}
-              placeholder="Add a comment..."
-              className="flex-1 bg-muted rounded-full px-3 py-1.5 text-sm border border-border"
-              onKeyDown={(e) => e.key === 'Enter' && addComment()}
-            />
-            <button onClick={addComment} className="text-sm text-primary font-medium px-2">Post</button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
 
 export default function Reels() {
-  useInstagramEmbed();
-
   if (reels.length === 0) {
     return (
       <div className="min-h-full bg-background flex items-center justify-center p-6">
@@ -116,9 +101,9 @@ export default function Reels() {
   }
 
   return (
-    <div className="h-full w-full overflow-y-auto p-3 bg-background">
+    <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory bg-black">
       {reels.map((reel) => (
-        <ReelCard key={reel.id} reel={reel} />
+        <ReelItem key={reel.id} reel={reel} />
       ))}
     </div>
   );
