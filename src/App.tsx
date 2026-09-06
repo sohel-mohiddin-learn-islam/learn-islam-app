@@ -44,7 +44,7 @@ function Intro({ onFinish }: { onFinish: () => void }) {
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
       <video
-        src={`${import.meta.env.BASE_URL}intro.mp4`}
+        src={`${import.meta.env.BASE_URL}Myintro2.mp4`}
         className="w-full h-full object-contain"
         autoPlay
         muted
