@@ -146,12 +146,7 @@ export default function HomePage() {
     return saved ? JSON.parse(saved) : [0, 0, 0, 0, 0];
   });
 
-  const [soundData, setSoundData] = useState<string | null>(null);
-
-  useEffect(() => {
-    idbGet('notifSound').then(setSoundData).catch(() => {});
-  }, []);
-
+  const soundData = `${import.meta.env.BASE_URL}azan.mp3`;
   const adjustOffset = (delta: number) => {
     if (selectedPrayer === null) return;
     const newOffsets = [...offsets];
@@ -277,14 +272,6 @@ export default function HomePage() {
         {notifPermission === 'denied' && (
           <p className="mt-2 text-xs text-red-300 text-center">Notifications blocked — enable them in your browser/app settings.</p>
         )}
-
-        <div className="mt-2 text-center">
-          <label className="text-xs text-yellow-300 underline cursor-pointer">
-            {soundData ? 'Change notification sound' : 'Add custom notification sound'}
-            <input type="file" accept="audio/*" onChange={handleSoundUpload} className="hidden" />
-          </label>
-        </div>
-      </div>
 
       <div className="px-4 py-5">
         <div className="bg-gradient-to-r from-emerald-800 to-emerald-700 rounded-2xl p-4 mb-5 border border-yellow-400/30 shadow-md">
