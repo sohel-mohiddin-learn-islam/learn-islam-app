@@ -20,9 +20,28 @@ const features = [
 
 const hijriMonths = ["Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Ula", "Jumada al-Thani", "Rajab", "Sha'ban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah"];
 
+// Proper Gregorian -> Hijri conversion (tabular/Kuwaiti algorithm)
 function getHijriDate() {
   const now = new Date();
-  return { day: now.getDate(), month: hijriMonths[now.getMonth()], year: now.getFullYear() };
+  const day = now.getDate();
+  const month = now.getMonth() + 1;
+  const year = now.getFullYear();
+
+  let jd = Math.floor((1461 * (year + 4800 + Math.floor((month - 14) / 12))) / 4) +
+    Math.floor((367 * (month - 2 - 12 * Math.floor((month - 14) / 12))) / 12) -
+    Math.floor((3 * Math.floor((year + 4900 + Math.floor((month - 14) / 12)) / 100)) / 4) +
+    day - 32075;
+
+  let l = jd - 1948440 + 10632;
+  const n = Math.floor((l - 1) / 10631);
+  l = l - 10631 * n + 354;
+  const j = Math.floor((10985 - l) / 5316) * Math.floor((50 * l) / 17719) + Math.floor(l / 5670) * Math.floor((43 * l) / 15238);
+  l = l - Math.floor((30 - j) / 15) * Math.floor((17719 * j) / 50) - Math.floor(j / 16) * Math.floor((15238 * j) / 43) + 29;
+  const hMonth = Math.floor((24 * l) / 709);
+  const hDay = l - Math.floor((709 * hMonth) / 24);
+  const hYear = 30 * n + j - 30;
+
+  return { day: hDay, month: hijriMonths[hMonth - 1], year: hYear };
 }
 
 function calcPrayerTimes(lat: number, lng: number, date: Date, offsets: number[] = [0, 0, 0, 0, 0]) {
@@ -81,6 +100,38 @@ function scheduleNotifications(prayerTimes: string[], prayerNames: string[], sou
   });
 }
 
+// IndexedDB helpers — used instead of localStorage for the custom sound file,
+// since audio as base64 is often too large for localStorage's ~5-10MB quota.
+function idbSet(key: string, value: string): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('learn-islam-db', 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('kv'); };
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction('kv', 'readwrite');
+      tx.objectStore('kv').put(value, key);
+      tx.oncomplete = () => resolve();
+      tx.onerror = () => reject(tx.error);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+function idbGet(key: string): Promise<string | null> {
+  return new Promise((resolve, reject) => {
+    const req = indexedDB.open('learn-islam-db', 1);
+    req.onupgradeneeded = () => { req.result.createObjectStore('kv'); };
+    req.onsuccess = () => {
+      const db = req.result;
+      const tx = db.transaction('kv', 'readonly');
+      const getReq = tx.objectStore('kv').get(key);
+      getReq.onsuccess = () => resolve(getReq.result ?? null);
+      getReq.onerror = () => reject(getReq.error);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
 export default function HomePage() {
   const [currentPrayer, setCurrentPrayer] = useState(0);
   const [prayerTimes, setPrayerTimes] = useState(['5:00 AM', '12:30 PM', '3:45 PM', '6:30 PM', '8:00 PM']);
@@ -95,9 +146,11 @@ export default function HomePage() {
     return saved ? JSON.parse(saved) : [0, 0, 0, 0, 0];
   });
 
-  const [soundData, setSoundData] = useState<string | null>(() => {
-    return localStorage.getItem('notifSound');
-  });
+  const [soundData, setSoundData] = useState<string | null>(null);
+
+  useEffect(() => {
+    idbGet('notifSound').then(setSoundData).catch(() => {});
+  }, []);
 
   const adjustOffset = (delta: number) => {
     if (selectedPrayer === null) return;
@@ -114,7 +167,7 @@ export default function HomePage() {
     reader.onload = () => {
       const base64 = reader.result as string;
       setSoundData(base64);
-      localStorage.setItem('notifSound', base64);
+      idbSet('notifSound', base64).catch(() => {});
     };
     reader.readAsDataURL(file);
   };
@@ -141,7 +194,7 @@ export default function HomePage() {
           if (hours * 60 + m <= nowMin) setCurrentPrayer(i);
         });
 
-        if (Notification.permission === 'granted') {
+        if ('Notification' in window && Notification.permission === 'granted') {
           scheduleNotifications(times, prayers, soundData);
         }
       },
@@ -167,6 +220,7 @@ export default function HomePage() {
   }, [offsets, coords]);
 
   const requestNotifications = async () => {
+    if (!('Notification' in window)) return;
     const perm = await Notification.requestPermission();
     setNotifPermission(perm);
     if (perm === 'granted') {
@@ -263,4 +317,4 @@ export default function HomePage() {
       </div>
     </div>
   );
-      }
+}
