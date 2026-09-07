@@ -68,7 +68,7 @@ function calcPrayerTimes(lat: number, lng: number, date: Date, offsets: number[]
   ];
 }
 
-function scheduleNotifications(prayerTimes: string[], prayerNames: string[], soundData: string | null) {
+function scheduleNotifications(prayerTimes: string[], prayerNames: string[], soundUrl: string) {
   if (!('Notification' in window)) return;
   if (Notification.permission !== 'granted') return;
 
@@ -91,44 +91,10 @@ function scheduleNotifications(prayerTimes: string[], prayerNames: string[], sou
           icon: '/icon-512.png',
           badge: '/icon-512.png',
         });
-        if (soundData) {
-          const audio = new Audio(soundData);
-          audio.play().catch(() => {});
-        }
+        const audio = new Audio(soundUrl);
+        audio.play().catch(() => {});
       }, diff);
     }
-  });
-}
-
-// IndexedDB helpers — used instead of localStorage for the custom sound file,
-// since audio as base64 is often too large for localStorage's ~5-10MB quota.
-function idbSet(key: string, value: string): Promise<void> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('learn-islam-db', 1);
-    req.onupgradeneeded = () => { req.result.createObjectStore('kv'); };
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction('kv', 'readwrite');
-      tx.objectStore('kv').put(value, key);
-      tx.oncomplete = () => resolve();
-      tx.onerror = () => reject(tx.error);
-    };
-    req.onerror = () => reject(req.error);
-  });
-}
-
-function idbGet(key: string): Promise<string | null> {
-  return new Promise((resolve, reject) => {
-    const req = indexedDB.open('learn-islam-db', 1);
-    req.onupgradeneeded = () => { req.result.createObjectStore('kv'); };
-    req.onsuccess = () => {
-      const db = req.result;
-      const tx = db.transaction('kv', 'readonly');
-      const getReq = tx.objectStore('kv').get(key);
-      getReq.onsuccess = () => resolve(getReq.result ?? null);
-      getReq.onerror = () => reject(getReq.error);
-    };
-    req.onerror = () => reject(req.error);
   });
 }
 
@@ -146,25 +112,14 @@ export default function HomePage() {
     return saved ? JSON.parse(saved) : [0, 0, 0, 0, 0];
   });
 
-  const soundData = `${import.meta.env.BASE_URL}azan.mp3`;
+  const soundUrl = `${import.meta.env.BASE_URL}azan.mp3`;
+
   const adjustOffset = (delta: number) => {
     if (selectedPrayer === null) return;
     const newOffsets = [...offsets];
     newOffsets[selectedPrayer] += delta;
     setOffsets(newOffsets);
     localStorage.setItem('prayerTimeOffsets', JSON.stringify(newOffsets));
-  };
-
-  const handleSoundUpload = (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-    const reader = new FileReader();
-    reader.onload = () => {
-      const base64 = reader.result as string;
-      setSoundData(base64);
-      idbSet('notifSound', base64).catch(() => {});
-    };
-    reader.readAsDataURL(file);
   };
 
   const hijri = getHijriDate();
@@ -190,7 +145,7 @@ export default function HomePage() {
         });
 
         if ('Notification' in window && Notification.permission === 'granted') {
-          scheduleNotifications(times, prayers, soundData);
+          scheduleNotifications(times, prayers, soundUrl);
         }
       },
       () => {}
@@ -219,7 +174,7 @@ export default function HomePage() {
     const perm = await Notification.requestPermission();
     setNotifPermission(perm);
     if (perm === 'granted') {
-      scheduleNotifications(prayerTimes, prayers, soundData);
+      scheduleNotifications(prayerTimes, prayers, soundUrl);
     }
   };
 
@@ -272,6 +227,7 @@ export default function HomePage() {
         {notifPermission === 'denied' && (
           <p className="mt-2 text-xs text-red-300 text-center">Notifications blocked — enable them in your browser/app settings.</p>
         )}
+      </div>
 
       <div className="px-4 py-5">
         <div className="bg-gradient-to-r from-emerald-800 to-emerald-700 rounded-2xl p-4 mb-5 border border-yellow-400/30 shadow-md">
