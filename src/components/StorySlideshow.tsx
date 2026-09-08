@@ -33,8 +33,9 @@ export function StorySlideshow({ prophetName, prophetNameAr, slides, onClose }: 
   };
 
   const speak = (text: string) => {
-    window.speechSynthesis.cancel();
-    const utterance = new SpeechSynthesisUtterance(text);
+  if (!window.speechSynthesis) return;
+  window.speechSynthesis.cancel();
+  const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.85;
     utterance.pitch = 1;
     if (lang === 'hi') utterance.lang = 'hi-IN';
@@ -73,11 +74,11 @@ export function StorySlideshow({ prophetName, prophetNameAr, slides, onClose }: 
   };
 
   useEffect(() => {
-    if (slides[currentSlide]) {
-      speak(getCaption(slides[currentSlide]));
-    }
-    return () => { window.speechSynthesis.cancel(); };
-  }, [currentSlide, lang]);
+  if (slides[currentSlide]) {
+    speak(getCaption(slides[currentSlide]));
+  }
+  return () => { if (window.speechSynthesis) window.speechSynthesis.cancel(); };
+}, [currentSlide, lang]);
 
   useEffect(() => {
     if (autoPlay) {
@@ -114,7 +115,7 @@ export function StorySlideshow({ prophetName, prophetNameAr, slides, onClose }: 
             <option value="hi">हिं</option>
             <option value="te">తె</option>
           </select>
-          <button onClick={() => { window.speechSynthesis.cancel(); onClose(); }}
+          <button onClick={() => { if (window.speechSynthesis) window.speechSynthesis.cancel(); onClose(); }}
             className="text-white p-1 rounded-full bg-emerald-700">
             <X size={20} />
           </button>
@@ -177,7 +178,7 @@ export function StorySlideshow({ prophetName, prophetNameAr, slides, onClose }: 
       {/* Caption */}
       <div className="bg-gradient-to-t from-black to-black/90 p-4 shrink-0">
         <div className="flex items-start gap-2 mb-3">
-          <button onClick={() => speaking ? window.speechSynthesis.cancel() : speak(getCaption(slide))}
+          <button onClick={() => speaking && window.speechSynthesis ? window.speechSynthesis.cancel() : speak(getCaption(slide))}
             className={`mt-0.5 shrink-0 ${speaking ? 'text-yellow-400' : 'text-white/50'}`}>
             {speaking ? <Volume2 size={16}/> : <VolumeX size={16}/>}
           </button>
