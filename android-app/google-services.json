@@ -1,0 +1,47 @@
+{
+  "project_info": {
+    "project_number": "9616232938",
+    "project_id": "learn-islam-891c3",
+    "storage_bucket": "learn-islam-891c3.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:9616232938:android:f553ff8de55893c310e293",
+        "android_client_info": {
+          "package_name": "com.sohel.learnislam"
+        }
+      },
+      "oauth_client": [
+        {
+          "client_id": "9616232938-62970kn330jq8v07ph62fj0mi6lnfth2.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sohel.learnislam",
+            "certificate_hash": "69bcb91965f59fa2999583492de7c2278f3c09a1"
+          }
+        },
+        {
+          "client_id": "9616232938-04coo3coa45t6lg88f659eav9ejv8av5.apps.googleusercontent.com",
+          "client_type": 3
+        }
+      ],
+      "api_key": [
+        {
+          "current_key": "AIzaSyBCnnHx7teFW1Jn5m2QDkvIKI5GdyVcHqY"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": [
+            {
+              "client_id": "9616232938-04coo3coa45t6lg88f659eav9ejv8av5.apps.googleusercontent.com",
+              "client_type": 3
+            }
+          ]
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}

@@ -1,0 +1,1 @@
+import{t as e}from"./jsx-runtime-BkSabwWG.js";import{t}from"./react-DHmoMYoq.js";t();var n=e();function r({children:e}){return(0,n.jsx)(`span`,{style:{color:`#D4AF37`,textShadow:`0 0 10px rgba(212,175,55,0.6)`,fontWeight:`700`},children:e})}export{r as t};

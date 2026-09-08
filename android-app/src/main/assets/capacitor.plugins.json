@@ -1,0 +1,30 @@
+[
+        {
+                "pkg": "@capacitor-community/firebase-analytics",
+                "classpath": "com.getcapacitor.community.firebaseanalytics.FirebaseAnalytics"
+        },
+        {
+                "pkg": "@capacitor-community/text-to-speech",
+                "classpath": "com.getcapacitor.community.tts.TextToSpeechPlugin"
+        },
+        {
+                "pkg": "@capacitor-firebase/authentication",
+                "classpath": "io.capawesome.capacitorjs.plugins.firebase.authentication.FirebaseAuthenticationPlugin"
+        },
+        {
+                "pkg": "@capacitor/device",
+                "classpath": "com.capacitorjs.plugins.device.DevicePlugin"
+        },
+        {
+                "pkg": "@capacitor/local-notifications",
+                "classpath": "com.capacitorjs.plugins.localnotifications.LocalNotificationsPlugin"
+        },
+        {
+                "pkg": "custom-autostart-helper",
+                "classpath": "com.sohel.learnislam.AutostartHelperPlugin"
+        },
+        {
+                "pkg": "custom-app-ready",
+                "classpath": "com.sohel.learnislam.AppReadyPlugin"
+        }
+]
