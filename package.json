@@ -10,6 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
+    "@capacitor-firebase/authentication": "^5.0.0",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
@@ -44,15 +45,14 @@
     "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
-    "@capacitor-firebase/authentication": "^5.0.0",
     "@vitejs/plugin-react": "latest",
     "adhan": "^4.4.3",
-    "firebase": "^11.0.0",
     "class-variance-authority": "latest",
     "clsx": "latest",
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
+    "firebase": "^11.0.0",
     "framer-motion": "latest",
     "input-otp": "^1.4.2",
     "lucide-react": "latest",
@@ -72,5 +72,12 @@
     "vite": "latest",
     "wouter": "^3.3.5",
     "zod": "latest"
+  },
+  "dependencies": {
+    "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor/android": "^8.5.1",
+    "@capacitor/cli": "^8.5.1",
+    "@capacitor/core": "^8.5.1",
+    "@capacitor/local-notifications": "^8.3.1"
   }
 }
