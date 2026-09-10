@@ -81,6 +81,14 @@ async function scheduleNativeNotifications(rawTimes: Date[], prayerNames: string
   try {
     await LocalNotifications.cancel({ notifications: [1, 2, 3, 4, 5].map(id => ({ id })) });
 
+    await LocalNotifications.createChannel({
+      id: 'prayer-azan',
+      name: 'Prayer Notifications',
+      sound: 'azan.mp3',
+      importance: 5,
+      visibility: 1,
+    });
+
     const notifications = rawTimes
       .map((time, i) => {
         const reminderTime = new Date(time.getTime() - 5 * 60000);
@@ -91,6 +99,7 @@ async function scheduleNativeNotifications(rawTimes: Date[], prayerNames: string
           body: `${prayerNames[i]} prayer in 5 minutes!`,
           schedule: { at: reminderTime },
           smallIcon: 'ic_stat_icon',
+          channelId: 'prayer-azan',
         };
       })
       .filter((n): n is NonNullable<typeof n> => n !== null);
