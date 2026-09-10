@@ -41,6 +41,7 @@ export function Layout({ children }: LayoutProps) {
   const { language, setLanguage } = useLanguage();
   const { user, signOut } = useAuth();
   const [isDark, setIsDark] = useState(true);
+  const [photoFailed, setPhotoFailed] = useState(false);
 
   const toggleTheme = () => {
     setIsDark(!isDark);
@@ -68,8 +69,14 @@ export function Layout({ children }: LayoutProps) {
         </button>
           {user ? (
   <button onClick={() => setLocation('/account')} className="p-2 rounded-full bg-muted overflow-hidden">
-    {user.photoURL ? (
-      <img src={user.photoURL} className="w-5 h-5 rounded-full" alt="Profile" />
+    {user.photoURL && !photoFailed ? (
+      <img
+        src={user.photoURL}
+        className="w-5 h-5 rounded-full"
+        alt="Profile"
+        referrerPolicy="no-referrer"
+        onError={() => setPhotoFailed(true)}
+      />
     ) : (
       <span className="w-5 h-5 flex items-center justify-center text-xs">👤</span>
     )}
@@ -138,4 +145,4 @@ export function Layout({ children }: LayoutProps) {
       )}
     </div>
   );
-}
+    }
