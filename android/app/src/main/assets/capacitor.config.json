@@ -1,5 +1,13 @@
 {
 	"appId": "com.sohel.learnislam",
 	"appName": "Learn Islam",
-	"webDir": "dist"
+	"webDir": "dist",
+	"plugins": {
+		"FirebaseAuthentication": {
+			"skipNativeAuth": false,
+			"providers": [
+				"google.com"
+			]
+		}
+	}
 }
