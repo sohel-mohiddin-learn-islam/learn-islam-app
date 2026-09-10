@@ -20,7 +20,7 @@ export default function Prophets() {
     return selectedProphet.storyEn || '';
   };
 
-  const handleAudio = () => { speak(getStory()); };
+const handleAudio = () => { speak(getStory(), lang); };
 
   const renderHighlightedStory = (text, highlights) => {
     let result = [text];
