@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { BookOpen, BookText, Heart, Scroll, Hand, Star, Users, Calendar, Compass, Hash, MessageCircle, Flame, Info } from "lucide-react";
 import { Link } from "wouter";
 import { CalculationMethod, Coordinates, PrayerTimes } from "adhan";
+import { LocalNotifications } from '@capacitor/local-notifications';
 
 const features = [
   { href: "/prophets", icon: BookOpen, label: "Prophet Stories", color: "bg-emerald-800" },
@@ -20,7 +21,6 @@ const features = [
 
 const hijriMonths = ["Muharram", "Safar", "Rabi al-Awwal", "Rabi al-Thani", "Jumada al-Ula", "Jumada al-Thani", "Rajab", "Sha'ban", "Ramadan", "Shawwal", "Dhu al-Qadah", "Dhu al-Hijjah"];
 
-// Proper Gregorian -> Hijri conversion (tabular/Kuwaiti algorithm)
 function getHijriDate() {
   const now = new Date();
   const day = now.getDate();
@@ -59,51 +59,55 @@ function calcPrayerTimes(lat: number, lng: number, date: Date, offsets: number[]
     return `${hours}:${minutes.toString().padStart(2, "0")} ${ampm}`;
   };
 
-  return [
-    formatTime(prayerTimes.fajr, offsets[0]),
-    formatTime(prayerTimes.dhuhr, offsets[1]),
-    formatTime(prayerTimes.asr, offsets[2]),
-    formatTime(prayerTimes.maghrib, offsets[3]),
-    formatTime(prayerTimes.isha, offsets[4]),
-  ];
+  return {
+    display: [
+      formatTime(prayerTimes.fajr, offsets[0]),
+      formatTime(prayerTimes.dhuhr, offsets[1]),
+      formatTime(prayerTimes.asr, offsets[2]),
+      formatTime(prayerTimes.maghrib, offsets[3]),
+      formatTime(prayerTimes.isha, offsets[4]),
+    ],
+    raw: [
+      new Date(prayerTimes.fajr.getTime() + offsets[0] * 60000),
+      new Date(prayerTimes.dhuhr.getTime() + offsets[1] * 60000),
+      new Date(prayerTimes.asr.getTime() + offsets[2] * 60000),
+      new Date(prayerTimes.maghrib.getTime() + offsets[3] * 60000),
+      new Date(prayerTimes.isha.getTime() + offsets[4] * 60000),
+    ],
+  };
 }
 
-function scheduleNotifications(prayerTimes: string[], prayerNames: string[], soundUrl: string) {
-  if (!('Notification' in window)) return;
-  if (Notification.permission !== 'granted') return;
+async function scheduleNativeNotifications(rawTimes: Date[], prayerNames: string[]) {
+  try {
+    await LocalNotifications.cancel({ notifications: [1, 2, 3, 4, 5].map(id => ({ id })) });
 
-  prayerTimes.forEach((time, i) => {
-    const [timePart, ampm] = time.split(' ');
-    const [h, m] = timePart.split(':').map(Number);
-    let hours = h;
-    if (ampm === 'PM' && h !== 12) hours += 12;
-    if (ampm === 'AM' && h === 12) hours = 0;
-
-    const now = new Date();
-    const prayerDate = new Date();
-    prayerDate.setHours(hours, m - 5, 0, 0);
-
-    const diff = prayerDate.getTime() - now.getTime();
-    if (diff > 0) {
-      setTimeout(() => {
-        new Notification('Prayer Reminder', {
+    const notifications = rawTimes
+      .map((time, i) => {
+        const reminderTime = new Date(time.getTime() - 5 * 60000);
+        if (reminderTime.getTime() <= Date.now()) return null;
+        return {
+          id: i + 1,
+          title: 'Prayer Reminder',
           body: `${prayerNames[i]} prayer in 5 minutes!`,
-          icon: '/icon-512.png',
-          badge: '/icon-512.png',
-        });
-        const audio = new Audio(soundUrl);
-        audio.play().catch(() => {});
-      }, diff);
+          schedule: { at: reminderTime },
+          smallIcon: 'ic_stat_icon',
+        };
+      })
+      .filter((n): n is NonNullable<typeof n> => n !== null);
+
+    if (notifications.length > 0) {
+      await LocalNotifications.schedule({ notifications });
     }
-  });
+  } catch {
+    // Scheduling failed silently — permission may not be granted
+  }
 }
 
 export default function HomePage() {
   const [currentPrayer, setCurrentPrayer] = useState(0);
   const [prayerTimes, setPrayerTimes] = useState(['5:00 AM', '12:30 PM', '3:45 PM', '6:30 PM', '8:00 PM']);
-  const [notifPermission, setNotifPermission] = useState(
-    'Notification' in window ? Notification.permission : 'idle'
-  );
+  const [rawPrayerTimes, setRawPrayerTimes] = useState<Date[]>([]);
+  const [notifPermission, setNotifPermission] = useState<'idle' | 'granted' | 'denied'>('idle');
   const [coords, setCoords] = useState<{ lat: number, lng: number } | null>(null);
   const [selectedPrayer, setSelectedPrayer] = useState<number | null>(null);
 
@@ -111,8 +115,6 @@ export default function HomePage() {
     const saved = localStorage.getItem('prayerTimeOffsets');
     return saved ? JSON.parse(saved) : [0, 0, 0, 0, 0];
   });
-
-  const soundUrl = `${import.meta.env.BASE_URL}azan.mp3`;
 
   const adjustOffset = (delta: number) => {
     if (selectedPrayer === null) return;
@@ -127,15 +129,21 @@ export default function HomePage() {
   const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
   useEffect(() => {
+    LocalNotifications.checkPermissions().then(res => {
+      if (res.display === 'granted') setNotifPermission('granted');
+      else if (res.display === 'denied') setNotifPermission('denied');
+    }).catch(() => {});
+
     navigator.geolocation.getCurrentPosition(
       (pos) => {
         setCoords({ lat: pos.coords.latitude, lng: pos.coords.longitude });
-        const times = calcPrayerTimes(pos.coords.latitude, pos.coords.longitude, new Date(), offsets);
-        setPrayerTimes(times);
+        const { display, raw } = calcPrayerTimes(pos.coords.latitude, pos.coords.longitude, new Date(), offsets);
+        setPrayerTimes(display);
+        setRawPrayerTimes(raw);
 
         const now = new Date();
         const nowMin = now.getHours() * 60 + now.getMinutes();
-        times.forEach((t, i) => {
+        display.forEach((t, i) => {
           const [timePart, ampm] = t.split(' ');
           const [h, m] = timePart.split(':').map(Number);
           let hours = h;
@@ -143,10 +151,6 @@ export default function HomePage() {
           if (ampm === 'AM' && h === 12) hours = 0;
           if (hours * 60 + m <= nowMin) setCurrentPrayer(i);
         });
-
-        if ('Notification' in window && Notification.permission === 'granted') {
-          scheduleNotifications(times, prayers, soundUrl);
-        }
       },
       () => {}
     );
@@ -154,12 +158,13 @@ export default function HomePage() {
 
   useEffect(() => {
     if (!coords) return;
-    const times = calcPrayerTimes(coords.lat, coords.lng, new Date(), offsets);
-    setPrayerTimes(times);
+    const { display, raw } = calcPrayerTimes(coords.lat, coords.lng, new Date(), offsets);
+    setPrayerTimes(display);
+    setRawPrayerTimes(raw);
 
     const now = new Date();
     const nowMin = now.getHours() * 60 + now.getMinutes();
-    times.forEach((t, i) => {
+    display.forEach((t, i) => {
       const [timePart, ampm] = t.split(' ');
       const [h, m] = timePart.split(':').map(Number);
       let hours = h;
@@ -167,14 +172,25 @@ export default function HomePage() {
       if (ampm === 'AM' && h === 12) hours = 0;
       if (hours * 60 + m <= nowMin) setCurrentPrayer(i);
     });
+
+    if (notifPermission === 'granted' && raw.length > 0) {
+      scheduleNativeNotifications(raw, prayers);
+    }
   }, [offsets, coords]);
 
   const requestNotifications = async () => {
-    if (!('Notification' in window)) return;
-    const perm = await Notification.requestPermission();
-    setNotifPermission(perm);
-    if (perm === 'granted') {
-      scheduleNotifications(prayerTimes, prayers, soundUrl);
+    try {
+      const result = await LocalNotifications.requestPermissions();
+      if (result.display === 'granted') {
+        setNotifPermission('granted');
+        if (rawPrayerTimes.length > 0) {
+          scheduleNativeNotifications(rawPrayerTimes, prayers);
+        }
+      } else {
+        setNotifPermission('denied');
+      }
+    } catch {
+      setNotifPermission('denied');
     }
   };
 
@@ -225,7 +241,7 @@ export default function HomePage() {
           <p className="mt-2 text-xs text-green-300 text-center">Prayer notifications enabled!</p>
         )}
         {notifPermission === 'denied' && (
-          <p className="mt-2 text-xs text-red-300 text-center">Notifications blocked — enable them in your browser/app settings.</p>
+          <p className="mt-2 text-xs text-red-300 text-center">Notifications blocked — enable them in your device's app settings.</p>
         )}
       </div>
 
