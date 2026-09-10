@@ -1,48 +1,41 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useCallback } from 'react';
+import { TextToSpeech } from '@capacitor-community/text-to-speech';
 
 export function useSpeech() {
   const [isSpeaking, setIsSpeaking] = useState(false);
   const [volume, setVolume] = useState(1);
   const [rate, setRate] = useState(1);
 
-  useEffect(() => {
-    return () => {
-      if (window.speechSynthesis) {
-        window.speechSynthesis.cancel();
-      }
-    };
-  }, []);
+  const speak = useCallback(async (text: string, lang: 'en' | 'roman-hindi' | 'roman-telugu' = 'en', vol?: number, rt?: number) => {
+    let langCode = 'en-US';
+    if (lang === 'roman-hindi') langCode = 'hi-IN';
+    if (lang === 'roman-telugu') langCode = 'te-IN';
 
-  const speak = useCallback((text: string, lang: 'en' | 'roman-hindi' | 'roman-telugu' = 'en', vol?: number, rt?: number) => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
+    try {
+      await TextToSpeech.stop();
+    } catch {}
 
-    const utterance = new SpeechSynthesisUtterance(text);
-
-    switch (lang) {
-      case 'roman-hindi':
-        utterance.lang = 'hi-IN';
-        break;
-      case 'roman-telugu':
-        utterance.lang = 'te-IN';
-        break;
-      default:
-        utterance.lang = 'en-US';
+    setIsSpeaking(true);
+    try {
+      await TextToSpeech.speak({
+        text,
+        lang: langCode,
+        rate: rt !== undefined ? rt : rate,
+        volume: vol !== undefined ? vol : volume,
+        pitch: 1.0,
+        category: 'ambient',
+      });
+    } catch {
+      // TTS not available or failed — fail silently
+    } finally {
+      setIsSpeaking(false);
     }
-
-    utterance.volume = vol !== undefined ? vol : volume;
-    utterance.rate = rt !== undefined ? rt : rate;
-
-    utterance.onstart = () => setIsSpeaking(true);
-    utterance.onend = () => setIsSpeaking(false);
-    utterance.onerror = () => setIsSpeaking(false);
-
-    window.speechSynthesis.speak(utterance);
   }, [volume, rate]);
 
-  const stop = useCallback(() => {
-    if (!window.speechSynthesis) return;
-    window.speechSynthesis.cancel();
+  const stop = useCallback(async () => {
+    try {
+      await TextToSpeech.stop();
+    } catch {}
     setIsSpeaking(false);
   }, []);
 
