@@ -78,37 +78,33 @@ function calcPrayerTimes(lat: number, lng: number, date: Date, offsets: number[]
 }
 
 async function scheduleNativeNotifications(rawTimes: Date[], prayerNames: string[]) {
-  try {
-    await LocalNotifications.cancel({ notifications: [1, 2, 3, 4, 5].map(id => ({ id })) });
+  await LocalNotifications.cancel({ notifications: [1, 2, 3, 4, 5].map(id => ({ id })) });
 
-    await LocalNotifications.createChannel({
-      id: 'prayer-azan-v3',
-      name: 'Prayer Notifications',
-      sound: 'azan',
-      importance: 5,
-      visibility: 1,
-    });
+  await LocalNotifications.createChannel({
+    id: 'prayer-azan-v3',
+    name: 'Prayer Notifications',
+    sound: 'azan',
+    importance: 5,
+    visibility: 1,
+  });
 
-    const notifications = rawTimes
-      .map((time, i) => {
-        const reminderTime = new Date(time.getTime() - 5 * 60000);
-        if (reminderTime.getTime() <= Date.now()) return null;
-        return {
-          id: i + 1,
-          title: 'Prayer Reminder',
-          body: `${prayerNames[i]} prayer in 5 minutes!`,
-          schedule: { at: reminderTime },
-          smallIcon: 'ic_stat_icon',
-          channelId: 'prayer-azan-v3',
-        };
-      })
-      .filter((n): n is NonNullable<typeof n> => n !== null);
+  const notifications = rawTimes
+    .map((time, i) => {
+      const reminderTime = new Date(time.getTime() - 5 * 60000);
+      if (reminderTime.getTime() <= Date.now()) return null;
+      return {
+        id: i + 1,
+        title: 'Prayer Reminder',
+        body: `${prayerNames[i]} prayer in 5 minutes!`,
+        schedule: { at: reminderTime },
+        smallIcon: 'ic_stat_icon',
+        channelId: 'prayer-azan-v3',
+      };
+    })
+    .filter((n): n is NonNullable<typeof n> => n !== null);
 
-    if (notifications.length > 0) {
-      await LocalNotifications.schedule({ notifications });
-    }
-  } catch {
-    // Scheduling failed silently — permission may not be granted
+  if (notifications.length > 0) {
+    await LocalNotifications.schedule({ notifications });
   }
 }
 
@@ -181,23 +177,20 @@ export default function HomePage() {
       if (ampm === 'AM' && h === 12) hours = 0;
       if (hours * 60 + m <= nowMin) setCurrentPrayer(i);
     });
-
-    if (notifPermission === 'granted' && raw.length > 0) {
-      scheduleNativeNotifications(raw, prayers);
-    }
   }, [offsets, coords]);
+
+  // Reliably (re)schedules whenever permission becomes granted OR the raw prayer times change,
+  // regardless of which one becomes ready first.
+  useEffect(() => {
+    if (notifPermission === 'granted' && rawPrayerTimes.length > 0) {
+      scheduleNativeNotifications(rawPrayerTimes, prayers).catch(() => {});
+    }
+  }, [notifPermission, rawPrayerTimes]);
 
   const requestNotifications = async () => {
     try {
       const result = await LocalNotifications.requestPermissions();
-      if (result.display === 'granted') {
-        setNotifPermission('granted');
-        if (rawPrayerTimes.length > 0) {
-          scheduleNativeNotifications(rawPrayerTimes, prayers);
-        }
-      } else {
-        setNotifPermission('denied');
-      }
+      setNotifPermission(result.display === 'granted' ? 'granted' : 'denied');
     } catch {
       setNotifPermission('denied');
     }
@@ -285,4 +278,4 @@ export default function HomePage() {
       </div>
     </div>
   );
-      }
+}
