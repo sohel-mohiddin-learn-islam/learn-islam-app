@@ -84,7 +84,7 @@ async function scheduleNativeNotifications(rawTimes: Date[], prayerNames: string
     await LocalNotifications.createChannel({
       id: 'prayer-azan-v2',
       name: 'Prayer Notifications',
-      sound: 'azan.mp3',
+      sound: 'azan',
       importance: 5,
       visibility: 1,
     });
