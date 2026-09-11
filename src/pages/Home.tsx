@@ -82,7 +82,7 @@ async function scheduleNativeNotifications(rawTimes: Date[], prayerNames: string
     await LocalNotifications.cancel({ notifications: [1, 2, 3, 4, 5].map(id => ({ id })) });
 
     await LocalNotifications.createChannel({
-      id: 'prayer-azan-v2',
+      id: 'prayer-azan-v3',
       name: 'Prayer Notifications',
       sound: 'azan',
       importance: 5,
@@ -99,7 +99,7 @@ async function scheduleNativeNotifications(rawTimes: Date[], prayerNames: string
           body: `${prayerNames[i]} prayer in 5 minutes!`,
           schedule: { at: reminderTime },
           smallIcon: 'ic_stat_icon',
-          channelId: 'prayer-azan-v2',
+          channelId: 'prayer-azan-v3',
         };
       })
       .filter((n): n is NonNullable<typeof n> => n !== null);
@@ -285,4 +285,4 @@ export default function HomePage() {
       </div>
     </div>
   );
-    }
+      }
