@@ -182,19 +182,22 @@ export default function HomePage() {
   // Reliably (re)schedules whenever permission becomes granted OR the raw prayer times change,
   // regardless of which one becomes ready first.
   useEffect(() => {
-    if (notifPermission === 'granted' && rawPrayerTimes.length > 0) {
-      scheduleNativeNotifications(rawPrayerTimes, prayers).catch(() => {});
-    }
-  }, [notifPermission, rawPrayerTimes]);
+  if (notifPermission === 'granted' && rawPrayerTimes.length > 0) {
+    scheduleNativeNotifications(rawPrayerTimes, prayers).catch(err => {
+      console.error('Notification scheduling failed:', err);
+    });
+  }
+}, [notifPermission, rawPrayerTimes]);
 
-  const requestNotifications = async () => {
-    try {
-      const result = await LocalNotifications.requestPermissions();
-      setNotifPermission(result.display === 'granted' ? 'granted' : 'denied');
-    } catch {
-      setNotifPermission('denied');
-    }
-  };
+const requestNotifications = async () => {
+  try {
+    const result = await LocalNotifications.requestPermissions();
+    setNotifPermission(result.display === 'granted' ? 'granted' : 'denied');
+  } catch (err) {
+    console.error('Permission request failed:', err);
+    setNotifPermission('denied');
+  }
+};
 
   return (
     <div className="min-h-full bg-background pb-20">
