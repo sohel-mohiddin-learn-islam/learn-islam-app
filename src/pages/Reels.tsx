@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from 'react';
 
-// Direct video files uploaded to /public — filenames as uploaded.
+// Videos streamed directly from GitHub Pages instead of bundled into the app —
+// avoids install-time corruption issues with large bundled video files.
+const REELS_BASE_URL = 'https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/';
+
 const reelFiles: string[] = [
   'VID_20260905_125534_061.mp4',
   'VID_20260905_125932_824.mp4',
@@ -16,7 +19,7 @@ const reelFiles: string[] = [
 
 const reels = reelFiles.map((file, i) => ({
   id: String(i + 1),
-  src: `${import.meta.env.BASE_URL}${file}`,
+  src: `${REELS_BASE_URL}${file}`,
 }));
 
 function getLiked(id: string) {
@@ -28,6 +31,7 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [muted, setMuted] = useState(true);
   const [liked, setLiked] = useState(() => getLiked(reel.id));
+  const [failed, setFailed] = useState(false);
 
   useEffect(() => {
     const video = videoRef.current;
@@ -68,15 +72,22 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
       ref={containerRef}
       className="relative w-full h-full snap-start shrink-0 bg-black flex items-center justify-center"
     >
-      <video
-        ref={videoRef}
-        src={reel.src}
-        className="w-full h-full object-contain"
-        loop
-        muted
-        playsInline
-        onClick={toggleMute}
-      />
+      {failed ? (
+        <p className="text-white/70 text-sm px-6 text-center">
+          Couldn't load this reel. Check your connection and try again.
+        </p>
+      ) : (
+        <video
+          ref={videoRef}
+          src={reel.src}
+          className="w-full h-full object-contain"
+          loop
+          muted
+          playsInline
+          onClick={toggleMute}
+          onError={() => setFailed(true)}
+        />
+      )}
       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-5">
         <button onClick={toggleLike} className="flex flex-col items-center gap-1">
           <span className="text-3xl drop-shadow-lg">{liked ? '❤️' : '🤍'}</span>
