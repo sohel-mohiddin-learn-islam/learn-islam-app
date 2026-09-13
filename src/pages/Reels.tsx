@@ -1,7 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
 
-// Videos streamed directly from GitHub Pages instead of bundled into the app —
-// avoids install-time corruption issues with large bundled video files.
 const REELS_BASE_URL = 'https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/';
 
 const reelFiles: string[] = [
@@ -32,13 +30,34 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
   const [muted, setMuted] = useState(true);
   const [liked, setLiked] = useState(() => getLiked(reel.id));
   const [failed, setFailed] = useState(false);
+  const [shouldLoad, setShouldLoad] = useState(false);
+
+  useEffect(() => {
+    const container = containerRef.current;
+    if (!container) return;
+
+    // Only start loading this video once it's within one screen of the viewport.
+    const loadObserver = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            setShouldLoad(true);
+            loadObserver.disconnect();
+          }
+        });
+      },
+      { rootMargin: '100% 0px 100% 0px' }
+    );
+    loadObserver.observe(container);
+    return () => loadObserver.disconnect();
+  }, []);
 
   useEffect(() => {
     const video = videoRef.current;
     const container = containerRef.current;
-    if (!video || !container) return;
+    if (!video || !container || !shouldLoad) return;
 
-    const observer = new IntersectionObserver(
+    const playObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
           if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
@@ -50,9 +69,9 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
       },
       { threshold: [0, 0.6, 1] }
     );
-    observer.observe(container);
-    return () => observer.disconnect();
-  }, []);
+    playObserver.observe(container);
+    return () => playObserver.disconnect();
+  }, [shouldLoad]);
 
   const toggleMute = () => {
     if (videoRef.current) {
@@ -76,7 +95,7 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
         <p className="text-white/70 text-sm px-6 text-center">
           Couldn't load this reel. Check your connection and try again.
         </p>
-      ) : (
+      ) : shouldLoad ? (
         <video
           ref={videoRef}
           src={reel.src}
@@ -84,9 +103,12 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
           loop
           muted
           playsInline
+          preload="auto"
           onClick={toggleMute}
           onError={() => setFailed(true)}
         />
+      ) : (
+        <div className="w-full h-full bg-black" />
       )}
       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-5">
         <button onClick={toggleLike} className="flex flex-col items-center gap-1">
