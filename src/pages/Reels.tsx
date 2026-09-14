@@ -31,12 +31,12 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
   const [liked, setLiked] = useState(() => getLiked(reel.id));
   const [failed, setFailed] = useState(false);
   const [shouldLoad, setShouldLoad] = useState(false);
+  const [retryKey, setRetryKey] = useState(0);
 
   useEffect(() => {
     const container = containerRef.current;
     if (!container) return;
 
-    // Only start loading this video once it's within one screen of the viewport.
     const loadObserver = new IntersectionObserver(
       (entries) => {
         entries.forEach((entry) => {
@@ -71,7 +71,7 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
     );
     playObserver.observe(container);
     return () => playObserver.disconnect();
-  }, [shouldLoad]);
+  }, [shouldLoad, retryKey]);
 
   const toggleMute = () => {
     if (videoRef.current) {
@@ -86,17 +86,24 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
     localStorage.setItem(`reel-like-${reel.id}`, next ? '1' : '0');
   };
 
+  const retry = () => {
+    setFailed(false);
+    setRetryKey(k => k + 1);
+  };
+
   return (
     <div
       ref={containerRef}
       className="relative w-full h-full snap-start shrink-0 bg-black flex items-center justify-center"
     >
       {failed ? (
-        <p className="text-white/70 text-sm px-6 text-center">
-          Couldn't load this reel. Check your connection and try again.
-        </p>
+        <button onClick={retry} className="text-white/70 text-sm px-6 text-center flex flex-col items-center gap-2">
+          <span className="text-3xl">↻</span>
+          <span>Couldn't load this reel. Tap to retry.</span>
+        </button>
       ) : shouldLoad ? (
         <video
+          key={retryKey}
           ref={videoRef}
           src={reel.src}
           className="w-full h-full object-contain"
