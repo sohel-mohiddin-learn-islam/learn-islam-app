@@ -24,6 +24,8 @@ function getLiked(id: string) {
   return localStorage.getItem(`reel-like-${id}`) === '1';
 }
 
+const MAX_AUTO_RETRIES = 2;
+
 function ReelItem({ reel }: { reel: { id: string; src: string } }) {
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -32,6 +34,7 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
   const [failed, setFailed] = useState(false);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const autoRetryCountRef = useRef(0);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -86,7 +89,19 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
     localStorage.setItem(`reel-like-${reel.id}`, next ? '1' : '0');
   };
 
-  const retry = () => {
+  const handleError = () => {
+    if (autoRetryCountRef.current < MAX_AUTO_RETRIES) {
+      autoRetryCountRef.current += 1;
+      setTimeout(() => {
+        setRetryKey(k => k + 1);
+      }, 800);
+    } else {
+      setFailed(true);
+    }
+  };
+
+  const manualRetry = () => {
+    autoRetryCountRef.current = 0;
     setFailed(false);
     setRetryKey(k => k + 1);
   };
@@ -97,7 +112,7 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
       className="relative w-full h-full snap-start shrink-0 bg-black flex items-center justify-center"
     >
       {failed ? (
-        <button onClick={retry} className="text-white/70 text-sm px-6 text-center flex flex-col items-center gap-2">
+        <button onClick={manualRetry} className="text-white/70 text-sm px-6 text-center flex flex-col items-center gap-2">
           <span className="text-3xl">↻</span>
           <span>Couldn't load this reel. Tap to retry.</span>
         </button>
@@ -112,7 +127,7 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
           playsInline
           preload="auto"
           onClick={toggleMute}
-          onError={() => setFailed(true)}
+          onError={handleError}
         />
       ) : (
         <div className="w-full h-full bg-black" />
