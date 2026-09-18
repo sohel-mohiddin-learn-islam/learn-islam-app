@@ -179,25 +179,23 @@ export default function HomePage() {
     });
   }, [offsets, coords]);
 
-  // Reliably (re)schedules whenever permission becomes granted OR the raw prayer times change,
-  // regardless of which one becomes ready first.
   useEffect(() => {
-  if (notifPermission === 'granted' && rawPrayerTimes.length > 0) {
-    scheduleNativeNotifications(rawPrayerTimes, prayers).catch(err => {
-      console.error('Notification scheduling failed:', err);
-    });
-  }
-}, [notifPermission, rawPrayerTimes]);
+    if (notifPermission === 'granted' && rawPrayerTimes.length > 0) {
+      scheduleNativeNotifications(rawPrayerTimes, prayers).catch(err => {
+        console.error('Notification scheduling failed:', err);
+      });
+    }
+  }, [notifPermission, rawPrayerTimes]);
 
-const requestNotifications = async () => {
-  try {
-    const result = await LocalNotifications.requestPermissions();
-    setNotifPermission(result.display === 'granted' ? 'granted' : 'denied');
-  } catch (err) {
-    console.error('Permission request failed:', err);
-    setNotifPermission('denied');
-  }
-};
+  const requestNotifications = async () => {
+    try {
+      const result = await LocalNotifications.requestPermissions();
+      setNotifPermission(result.display === 'granted' ? 'granted' : 'denied');
+    } catch (err) {
+      console.error('Permission request failed:', err);
+      setNotifPermission('denied');
+    }
+  };
 
   return (
     <div className="min-h-full bg-background pb-20">
@@ -212,6 +210,7 @@ const requestNotifications = async () => {
           {prayers.map((p, i) => (
             <button
               key={p}
+              type="button"
               onClick={() => setSelectedPrayer(i)}
               className={`flex-shrink-0 px-3 py-2 rounded-xl text-center border-2 transition-colors ${
                 i === currentPrayer ? 'bg-yellow-400 text-emerald-900' : 'bg-white/10 text-white'
@@ -229,15 +228,15 @@ const requestNotifications = async () => {
           ) : (
             <>
               <span>Adjust {prayers[selectedPrayer]}:</span>
-              <button onClick={() => adjustOffset(-1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">-1 min</button>
+              <button type="button" onClick={() => adjustOffset(-1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">-1 min</button>
               <span>{offsets[selectedPrayer] > 0 ? `+${offsets[selectedPrayer]}` : offsets[selectedPrayer]} min</span>
-              <button onClick={() => adjustOffset(1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">+1 min</button>
+              <button type="button" onClick={() => adjustOffset(1)} className="px-2 py-0.5 border border-yellow-400/30 rounded">+1 min</button>
             </>
           )}
         </div>
 
         {notifPermission === 'idle' && (
-          <button onClick={requestNotifications}
+          <button type="button" onClick={requestNotifications}
             className="mt-3 w-full text-xs text-yellow-300 border border-yellow-400/30 rounded-lg py-1.5 hover:bg-yellow-400/10 transition-colors">
             Enable Prayer Notifications
           </button>
@@ -281,4 +280,4 @@ const requestNotifications = async () => {
       </div>
     </div>
   );
-}
+    }
