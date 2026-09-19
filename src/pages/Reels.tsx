@@ -154,7 +154,7 @@ export default function Reels() {
   );
 }
 
-  return (
+  return 
     <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory bg-black">
       {reels.map((reel) => (
         <ReelItem key={reel.id} reel={reel} />
