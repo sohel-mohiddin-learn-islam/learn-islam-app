@@ -158,4 +158,3 @@ export default function Reels() {
         <ReelItem key={reel.id} reel={reel} />
       ))}
     </div>
-  );
