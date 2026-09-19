@@ -145,15 +145,14 @@ function ReelItem({ reel }: { reel: { id: string; src: string } }) {
 }
 
 export default function Reels() {
-  if (reels.length === 0) {
-    return (
-      <div className="min-h-full bg-background flex items-center justify-center p-6">
-        <p className="text-center text-foreground/70 font-sans">
-          No reels available yet. Check back soon!
-        </p>
-      </div>
-    );
-  }
+  return (
+    <div className="min-h-full bg-background flex items-center justify-center p-6">
+      <p className="text-center text-foreground/70 font-sans">
+        Reels are coming soon — stay tuned!
+      </p>
+    </div>
+  );
+}
 
   return (
     <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory bg-black">
