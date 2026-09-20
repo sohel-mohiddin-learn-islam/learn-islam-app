@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 
 import { getPosts } from "@/lib/posts";
 
-const REELS_BASE_URL =
+const REELS_BASE_URL = "./";
   "https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/";
 
 const reelFiles: string[] = [
