@@ -1,121 +1,113 @@
-import {
+mport {
   addDoc,
-  collection,
-  deleteDoc,
-  doc,
-  getDoc,
-  getDocs,
-  orderBy,
-  query,
-  serverTimestamp,
-} from "firebase/firestore";
+    collection,
+      deleteDoc,
+        doc,
+	  getDoc,
+	    getDocs,
+	      orderBy,
+	        query,
+		  serverTimestamp,
+		  } from "firebase/firestore";
 
-import {
-  deleteObject,
-  ref,
-} from "firebase/storage";
+		  import { db } from "./firebase";
 
-import { db, storage } from "./firebase";
+		  const CLOUDINARY_CLOUD_NAME = "mpyzgv8c";
+		  const CLOUDINARY_UPLOAD_PRESET = "learn_islam_reels";
 
-const CLOUDINARY_CLOUD_NAME = "mpyzgv8c";
-const CLOUDINARY_UPLOAD_PRESET = "learn_islam_reels";
+		  export async function uploadVideo(
+		    file: File,
+		      userId: string
+		      ): Promise<string> {
+			        const uploadUrl =
+				    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
 
-export async function uploadVideo(
-  file: File,
-  userId: string
-): Promise<string> {
-  const uploadUrl =
-    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
+				      const formData = new FormData();
 
-  const formData = new FormData();
+				        formData.append("file", file);
+					  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+					    formData.append("context", `userId=${userId}`);
 
-  formData.append("file", file);
-  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
+					      const response = await fetch(uploadUrl, {
+					          method: "POST",
+						      body: formData,
+						        });
 
-  // Keep uploads traceable to the signed-in user.
-  formData.append("context", `userId=${userId}`);
+							  if (!response.ok) {
+							      const errorText = await response.text();
+							          console.error("Cloudinary upload failed:", errorText);
 
-  const response = await fetch(uploadUrl, {
-    method: "POST",
-    body: formData,
-  });
+								      throw new Error(
+								            `Cloudinary upload failed (${response.status}).`
+									        );
+										  }
 
-  if (!response.ok) {
-    const errorText = await response.text();
-    console.error("Cloudinary upload failed:", errorText);
+										    const data = await response.json();
 
-    throw new Error(
-      `Cloudinary upload failed (${response.status}).`
-    );
-  }
+										      if (!data.secure_url) {
+										          console.error("Cloudinary response:", data);
+											      throw new Error("Cloudinary did not return a video URL.");
+											        }
 
-  const data = await response.json();
+												  return data.secure_url;
+												  }
 
-  if (!data.secure_url) {
-    console.error("Cloudinary response:", data);
-    throw new Error("Cloudinary did not return a video URL.");
-  }
+												  export async function createPost(params: {
+												    userId: string;
+												      userName: string;
+												        userPhoto: string | null;
+													  caption: string;
+													    videoUrl: string;
+													    }) {
+													      const docRef = await addDoc(collection(db, "posts"), {
+													          userId: params.userId,
+														      userName: params.userName,
+														          userPhoto: params.userPhoto,
+															      caption: params.caption,
+															          videoUrl: params.videoUrl,
+																      thumbnailUrl: null,
+																          createdAt: serverTimestamp(),
+																	      likesCount: 0,
+																	          commentsCount: 0,
+																		    });
 
-  return data.secure_url;
-}
+																		      return docRef.id;
+																		      }
 
-export async function createPost(params: {
-  userId: string;
-  userName: string;
-  userPhoto: string | null;
-  caption: string;
-  videoUrl: string;
-}) {
-  const docRef = await addDoc(collection(db, "posts"), {
-    userId: params.userId,
-    userName: params.userName,
-    userPhoto: params.userPhoto,
-    caption: params.caption,
-    videoUrl: params.videoUrl,
-    thumbnailUrl: null,
-    createdAt: serverTimestamp(),
-    likesCount: 0,
-    commentsCount: 0,
-  });
+																		      export async function getPosts() {
+																		        const postsQuery = query(
+																			    collection(db, "posts"),
+																			        orderBy("createdAt", "desc")
+																				  );
 
-  return docRef.id;
-}
+																				    const snapshot = await getDocs(postsQuery);
 
-export async function getPosts() {
-  const postsQuery = query(
-    collection(db, "posts"),
-    orderBy("createdAt", "desc")
-  );
+																				      return snapshot.docs.map((item) => ({
+																				          id: item.id,
+																					      ...item.data(),
+																					        }));
+																						}
 
-  const snapshot = await getDocs(postsQuery);
+																						export async function deletePost(
+																						  postId: string,
+																						    userId: string,
+																						      videoUrl?: string
+																						      ) {
+																						        const postRef = doc(db, "posts", postId);
+																							  const snapshot = await getDoc(postRef);
 
-  return snapshot.docs.map((item) => ({
-    id: item.id,
-    ...item.data(),
-  }));
-}
+																							    if (!snapshot.exists()) {
+																							        throw new Error("Post not found.");
+																								  }
 
-export async function deletePost(
-  postId: string,
-  userId: string,
-  videoUrl?: string
-) {
-  const postRef = doc(db, "posts", postId);
-  const snapshot = await getDoc(postRef);
+																								    const post = snapshot.data();
 
-  if (!snapshot.exists()) {
-    throw new Error("Post not found.");
-  }
+																								      if (post.userId !== userId) {
+																								          throw new Error("You can only delete your own posts.");
+																									    }
 
-  const post = snapshot.data();
+																									      await deleteDoc(postRef);
 
-  if (post.userId !== userId) {
-    throw new Error("You can only delete your own posts.");
-  }
-
-  await deleteDoc(postRef);
-
-  // Cloudinary assets cannot be deleted from the client
-  // using the normal Firebase deleteObject() method.
-  // The Firestore post is still deleted successfully.
-}
+																									        // Cloudinary video cleanup is not performed from the client.
+																										  // The Firestore post is deleted successfully.
+																										  }
