@@ -94,7 +94,7 @@ export default function CreatePost() {
     } catch (err) {
       console.error(err);
       setError(
-        "Upload failed. Please check Firebase Storage and try again."
+        "Upload failed. Please check your internet connection and try again."
       );
     } finally {
       setUploading(false);
@@ -208,9 +208,9 @@ export default function CreatePost() {
         </button>
 
         <p className="text-xs text-center text-foreground/50 mt-4">
-          Your video will be stored securely in Firebase.
+          In shaa Allah, your Reel is safe with us 🤍
         </p>
       </div>
     </div>
   );
-                }
+}
