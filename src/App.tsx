@@ -29,6 +29,7 @@ const Qibla = lazy(() => import("@/pages/Qibla"));
 const Login = lazy(() => import("@/pages/Login"));
 const Account = lazy(() => import("@/pages/Account"));
 const Reels = lazy(() => import("@/pages/Reels"));
+const CreatePost = lazy(() => import("@/pages/CreatePost"));
 const queryClient = new QueryClient();
 
 const LoadingSpinner = () => (
@@ -81,6 +82,7 @@ function Router() {
           <Route path="/login" component={Login}/>
           <Route path="/account" component={Account}/>
           <Route path="/reels" component={Reels}/>
+          <Route path="/create-post" component={CreatePost}/>
           <Route component={NotFound}/>
         </Switch>
       </Suspense>
