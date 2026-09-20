@@ -1,4 +1,4 @@
-mport {
+import {
   addDoc,
     collection,
       deleteDoc,
