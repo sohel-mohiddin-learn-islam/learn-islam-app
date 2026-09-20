@@ -12,27 +12,51 @@ import {
 
 import {
   deleteObject,
-  getDownloadURL,
   ref,
-  uploadBytes,
 } from "firebase/storage";
 
 import { db, storage } from "./firebase";
+
+const CLOUDINARY_CLOUD_NAME = "mpyzgv8c";
+const CLOUDINARY_UPLOAD_PRESET = "learn_islam_reels";
 
 export async function uploadVideo(
   file: File,
   userId: string
 ): Promise<string> {
-  const extension = file.name.split(".").pop() || "mp4";
+  const uploadUrl =
+    `https://api.cloudinary.com/v1_1/${CLOUDINARY_CLOUD_NAME}/video/upload`;
 
-  const storageRef = ref(
-    storage,
-    `posts/${userId}/${Date.now()}.${extension}`
-  );
+  const formData = new FormData();
 
-  await uploadBytes(storageRef, file);
+  formData.append("file", file);
+  formData.append("upload_preset", CLOUDINARY_UPLOAD_PRESET);
 
-  return await getDownloadURL(storageRef);
+  // Keep uploads traceable to the signed-in user.
+  formData.append("context", `userId=${userId}`);
+
+  const response = await fetch(uploadUrl, {
+    method: "POST",
+    body: formData,
+  });
+
+  if (!response.ok) {
+    const errorText = await response.text();
+    console.error("Cloudinary upload failed:", errorText);
+
+    throw new Error(
+      `Cloudinary upload failed (${response.status}).`
+    );
+  }
+
+  const data = await response.json();
+
+  if (!data.secure_url) {
+    console.error("Cloudinary response:", data);
+    throw new Error("Cloudinary did not return a video URL.");
+  }
+
+  return data.secure_url;
 }
 
 export async function createPost(params: {
@@ -91,11 +115,7 @@ export async function deletePost(
 
   await deleteDoc(postRef);
 
-  if (videoUrl) {
-    try {
-      await deleteObject(ref(storage, videoUrl));
-    } catch {
-      // Storage cleanup failure does not prevent post deletion.
-    }
-  }
+  // Cloudinary assets cannot be deleted from the client
+  // using the normal Firebase deleteObject() method.
+  // The Firestore post is still deleted successfully.
 }
