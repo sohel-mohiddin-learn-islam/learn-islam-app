@@ -3,10 +3,10 @@ import { Capacitor } from "@capacitor/core";
 import {
   CustomProvider,
   initializeAppCheck,
+  ReCaptchaEnterpriseProvider,
 } from "firebase/app-check";
 import {
   FirebaseAppCheck,
-  ReCaptchaEnterpriseProvider,
 } from "@capacitor-firebase/app-check";
 import { getAuth } from "firebase/auth";
 import { getFirestore } from "firebase/firestore";
@@ -26,7 +26,6 @@ const firebaseConfig = {
 
 const app = initializeApp(firebaseConfig);
 
-
 const RECAPTCHA_ENTERPRISE_SITE_KEY =
   "6LdV6_MtAAAAACItnRyQK-CQ5PIcDW-uj4ukTQ5f";
 
@@ -36,7 +35,7 @@ export async function initializeFirebaseAppCheck(): Promise<void> {
   if (appCheckInitialized) return;
 
   if (Capacitor.getPlatform() === "web") {
-    await FirebaseAppCheck.initialize({
+    await initializeAppCheck(app, {
       provider: new ReCaptchaEnterpriseProvider(
         RECAPTCHA_ENTERPRISE_SITE_KEY,
       ),
@@ -48,7 +47,30 @@ export async function initializeFirebaseAppCheck(): Promise<void> {
     });
 
     const nativeProvider = new CustomProvider({
-      getToken: () => FirebaseAppCheck.getToken(),
+      getToken: async () => {
+        const result = await FirebaseAppCheck.getToken();
+        let expireTimeMillis = result.expireTimeMillis;
+
+        if (expireTimeMillis == null) {
+          const payload = result.token.split(".")[1];
+          if (!payload) {
+            throw new Error("Native App Check token has no expiry information.");
+          }
+
+          const normalized = payload.replace(/-/g, "+").replace(/_/g, "/");
+          const claims = JSON.parse(atob(normalized));
+          if (typeof claims.exp !== "number") {
+            throw new Error("Native App Check token has no expiry claim.");
+            }
+
+          expireTimeMillis = claims.exp * 1000;
+        }
+
+        return {
+          token: result.token,
+          expireTimeMillis,
+        };
+      },
     });
 
     await initializeAppCheck(app, {
@@ -59,7 +81,6 @@ export async function initializeFirebaseAppCheck(): Promise<void> {
 
   appCheckInitialized = true;
 }
-
 
 export const auth = getAuth(app);
 export const db = getFirestore(app);
