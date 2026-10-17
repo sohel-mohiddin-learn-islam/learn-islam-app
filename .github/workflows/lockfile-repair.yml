@@ -7,6 +7,9 @@ on:
     paths:
       - package.json
       - .github/workflows/lockfile-repair.yml
+      - src/data/prophets.ts
+      - src/pages/Karbala.tsx
+      - src/pages/Prophets.tsx
 
 permissions:
   contents: write
