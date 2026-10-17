@@ -30,6 +30,7 @@ const Login = lazy(() => import("@/pages/Login"));
 const Account = lazy(() => import("@/pages/Account"));
 const Reels = lazy(() => import("@/pages/Reels"));
 const CreatePost = lazy(() => import("@/pages/CreatePost"));
+const AITutor = lazy(() => import("@/pages/AITutor"));
 const queryClient = new QueryClient();
 
 const LoadingSpinner = () => (
@@ -83,6 +84,7 @@ function Router() {
           <Route path="/account" component={Account}/>
           <Route path="/reels" component={Reels}/>
           <Route path="/create-post" component={CreatePost}/>
+          <Route path="/ai-tutor" component={AITutor}/>
           <Route component={NotFound}/>
         </Switch>
       </Suspense>

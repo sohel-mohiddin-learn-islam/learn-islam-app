@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun } from "lucide-react";
+import { Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun, Sparkles } from "lucide-react";
 
 const bottomNav = [
   { href: "/", icon: Home, label: "Home" },
@@ -25,6 +25,7 @@ const allNav = [
   { href: "/prayer-guide", icon: Heart, label: "Prayer Guide" },
   { href: "/kids", icon: Heart, label: "Kids Zone" },
   { href: "/quran-values", icon: BookOpen, label: "Quran Values" },
+  { href: "/ai-tutor", icon: Sparkles, label: "AI Islamic Tutor" },
   { href: "/about", icon: Info, label: "About" },
   { href: "/reels", icon: Flame, label: "Reels" },
 { href:"/contact", icon: MessageCircle, label:"Contact" },
