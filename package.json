@@ -42,8 +42,8 @@
     "@tailwindcss/typography": "^0.5.15",
     "@tailwindcss/vite": "latest",
     "@tanstack/react-query": "latest",
-    "@types/node": "latest",
     "@types/lodash": "^4.17.0",
+    "@types/node": "latest",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",
@@ -76,6 +76,7 @@
   },
   "dependencies": {
     "@capacitor-community/text-to-speech": "^8.0.2",
+    "@capacitor-firebase/app-check": "^8.5.2",
     "@capacitor/android": "^8.5.1",
     "@capacitor/cli": "^8.5.1",
     "@capacitor/core": "^8.5.1",
