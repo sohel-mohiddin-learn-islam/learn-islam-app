@@ -1,11 +1,30 @@
 import { useState } from "react";
 import { BookOpen, Loader2, MessageCircle, Send, Sparkles } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import { getAI, getGenerativeModel, GoogleAIBackend } from "firebase/ai";
+import app from "@/lib/firebase";
 
 type ChatMessage = {
   role: "user" | "assistant";
   content: string;
 };
+
+const ai = getAI(app, { backend: new GoogleAIBackend() });
+
+const tutorModel = getGenerativeModel(ai, {
+  model: "gemini-2.5-flash",
+  systemInstruction: `You are Learn Islam's careful Islamic learning assistant.
+Answer respectfully and clearly about Islamic learning.
+Do not invent Quran verses, hadith, references, quotations, or scholarly consensus.
+Give religious references only when you are confident they are accurate.
+Acknowledge genuine differences of scholarly opinion and recommend qualified scholars for personal religious rulings.
+For questions outside Islamic learning, briefly explain your scope and remain helpful.
+Follow the response language requested by the user.`,
+  generationConfig: {
+    temperature: 0.3,
+    maxOutputTokens: 700,
+  },
+});
 
 export default function AITutor() {
   const { language } = useLanguage();
@@ -32,61 +51,38 @@ export default function AITutor() {
 
     setQuestion("");
     setMessages((old) => [...old, { role: "user", content: text }]);
-
-    const endpoint = import.meta.env.VITE_AI_TUTOR_ENDPOINT as string | undefined;
-
-    if (!endpoint) {
-      setMessages((old) => [
-        ...old,
-        {
-          role: "assistant",
-          content: romanHindi
-            ? "Tutor ka AI backend abhi connect nahi hua hai. Isko chalane ke liye secure server endpoint configure karna hoga. Aapki API key app mein rakhna safe nahi hai."
-            : "The AI tutor's secure backend isn't connected yet. Configure a server endpoint to enable real AI answers. Your AI provider key must stay on the server, never in this app."
-        }
-      ]);
-      return;
-    }
-
     setLoading(true);
+
     try {
-      const response = await fetch(endpoint, {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          message: text,
-          language: romanHindi ? "roman-hindi" : language
-        })
-      });
+      const prompt = `Answer in ${romanHindi ? "Roman Hindi (Hindi written in Latin script)" : language}.
+User question: ${text}`;
 
-      if (!response.ok) {
-        throw new Error("Tutor request failed");
-      }
+      const result = await tutorModel.generateContent(prompt);
+      const answer = result.response.text().trim();
 
-      const data = await response.json();
-      if (typeof data.answer !== "string" || !data.answer.trim()) {
-        throw new Error("Invalid tutor response");
+      if (!answer) {
+        throw new Error("Empty AI Tutor response");
       }
 
       setMessages((old) => [
         ...old,
-        { role: "assistant", content: data.answer }
+        { role: "assistant", content: answer },
       ]);
-    } catch {
+    } catch (error) {
+      console.error("Firebase AI Tutor request failed:", error);
       setMessages((old) => [
         ...old,
         {
           role: "assistant",
           content: romanHindi
-            ? "Abhi jawab nahi mil saka. Internet aur secure tutor server check karke dobara koshish karein."
-            : "I couldn't get an answer just now. Please check your connection and tutor server, then try again."
-        }
+            ? "Abhi jawab nahi mil saka. Internet aur Firebase AI Logic/App Check setup check karke dobara koshish karein."
+            : "I couldn't get an answer just now. Please check your connection and Firebase AI Logic/App Check setup, then try again.",
+        },
       ]);
     } finally {
       setLoading(false);
     }
   }
-
   return (
     <div className="min-h-full bg-background text-foreground">
       <div className="mx-auto flex w-full max-w-3xl flex-col gap-5 p-4 pb-8 sm:p-6">
