@@ -10,7 +10,7 @@
     "typecheck": "tsc -p tsconfig.json --noEmit"
   },
   "devDependencies": {
-    "@capacitor-firebase/authentication": "^5.0.0",
+    "@capacitor-firebase/authentication": "^8.5.2",
     "@hookform/resolvers": "^3.10.0",
     "@radix-ui/react-accordion": "^1.2.4",
     "@radix-ui/react-alert-dialog": "^1.1.7",
@@ -43,6 +43,7 @@
     "@tailwindcss/vite": "latest",
     "@tanstack/react-query": "latest",
     "@types/node": "latest",
+    "@types/lodash": "^4.17.0",
     "@types/react": "latest",
     "@types/react-dom": "latest",
     "@vitejs/plugin-react": "latest",
@@ -52,7 +53,7 @@
     "cmdk": "^1.1.1",
     "date-fns": "^3.6.0",
     "embla-carousel-react": "^8.6.0",
-    "firebase": "^11.0.0",
+    "firebase": "^12.6.0",
     "framer-motion": "latest",
     "input-otp": "^1.4.2",
     "lucide-react": "latest",
