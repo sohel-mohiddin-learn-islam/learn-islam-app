@@ -20,9 +20,9 @@ export default function Prophets() {
     return selectedProphet.storyEn || '';
   };
 
-const handleAudio = () => { speak(getStory(), lang); };
+const handleAudio = () => { speak(getStory(), lang === 'hi' ? 'roman-hindi' : lang === 'te' ? 'roman-telugu' : 'en'); };
 
-  const renderHighlightedStory = (text, highlights) => {
+  const renderHighlightedStory = (text: string, highlights: string[] = []) => {
     let result = [text];
     highlights.forEach(highlight => {
       const newResult = [];
@@ -31,7 +31,7 @@ const handleAudio = () => { speak(getStory(), lang); };
           const split = part.split(highlight);
           split.forEach((s, i) => {
             newResult.push(s);
-            if (i < split.length - 1) newResult.push(React.createElement(GoldenText, {key: highlight+i}, highlight));
+            if (i < split.length - 1) newResult.push(React.createElement(GoldenText, {key: highlight+i, children: highlight}));
           });
         } else { newResult.push(part); }
       });
@@ -97,7 +97,7 @@ const handleAudio = () => { speak(getStory(), lang); };
               <AudioButton onClick={handleAudio} onStop={stop} isSpeaking={isSpeaking} volume={volume} onVolumeChange={setVolume}/>
             </div>
             <p className="text-lg leading-relaxed font-sans text-foreground/90 whitespace-pre-wrap mt-8 md:mt-0">
-              {renderHighlightedStory(getStory(), selectedProphet.highlights)}
+              {renderHighlightedStory(getStory(), selectedProphet.highlights || [])}
             </p>
           </div>
 

@@ -1,7 +1,7 @@
 import { useState } from "react";
 
 export default function Karbala() {
-  const [lang, setLang] = useState('en');
+  const [lang, setLang] = useState<'en' | 'hi' | 'te'>('en');
   const [showVideo, setShowVideo] = useState(false);
 
   const stories = {
@@ -55,7 +55,7 @@ Karbala nerpistaundi: okkaRRuggaa nilabadinaa nijaaniki nilabaDanDi. Zulm mundu 
         </div>
 
         <div className="flex justify-center gap-2 mb-6">
-          {['en','hi','te'].map(l => (
+          {(['en','hi','te'] as const).map(l => (
             <button key={l} onClick={()=>setLang(l)}
               className={`px-4 py-2 rounded-lg font-serif text-sm transition-colors ${lang===l ? 'bg-primary text-primary-foreground' : 'bg-card border border-border text-muted-foreground hover:bg-primary/10'}`}>
               {l==='en'?'English':l==='hi'?'हिंदी':'తెలుగు'}
