@@ -23,9 +23,9 @@ export default function Prophets() {
 const handleAudio = () => { speak(getStory(), lang === 'hi' ? 'roman-hindi' : lang === 'te' ? 'roman-telugu' : 'en'); };
 
   const renderHighlightedStory = (text: string, highlights: string[] = []) => {
-    let result = [text];
+    let result: React.ReactNode[] = [text];
     highlights.forEach(highlight => {
-      const newResult = [];
+      const newResult: React.ReactNode[] = [];
       result.forEach(part => {
         if (typeof part === 'string') {
           const split = part.split(highlight);
