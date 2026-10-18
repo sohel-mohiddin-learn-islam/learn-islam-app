@@ -59,10 +59,12 @@ export default function AITutor() {
         })
       });
 
-      if (!response.ok) {
-        throw new Error("Tutor request failed");
-      }
-
+            if (!response.ok) {
+        const details = await response.text();
+        throw new Error(
+          `Tutor server returned HTTP ${response.status}: ${details.slice(0, 300)}`
+        );
+            }
       const data = await response.json();
       if (typeof data.answer !== "string" || !data.answer.trim()) {
         throw new Error("Invalid tutor response");
@@ -72,15 +74,18 @@ export default function AITutor() {
         ...old,
         { role: "assistant", content: data.answer }
       ]);
-    } catch {
+        } catch (error) {
+      console.error("AI Tutor request failed:", error);
+
+      const details =
+        error instanceof Error ? error.message : String(error);
+
       setMessages((old) => [
         ...old,
         {
           role: "assistant",
-          content: romanHindi
-            ? "Abhi jawab nahi mil saka. Internet aur secure tutor server check karke dobara koshish karein."
-            : "I couldn't get an answer just now. Please check your connection and tutor server, then try again."
-        }
+          content: `STAGING DEBUG: ${details.slice(0, 400)}`,
+        },
       ]);
     } finally {
       setLoading(false);
