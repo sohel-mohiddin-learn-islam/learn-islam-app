@@ -68,15 +68,19 @@ User question: ${text}`;
         ...old,
         { role: "assistant", content: answer },
       ]);
-    } catch (error) {
+        } catch (error) {
       console.error("Firebase AI Tutor request failed:", error);
+
+      const errorDetails =
+        error instanceof Error
+          ? `${error.name}: ${error.message}`
+          : String(error);
+
       setMessages((old) => [
         ...old,
         {
           role: "assistant",
-          content: romanHindi
-            ? "Abhi jawab nahi mil saka. Internet aur Firebase AI Logic/App Check setup check karke dobara koshish karein."
-            : "I couldn't get an answer just now. Please check your connection and Firebase AI Logic/App Check setup, then try again.",
+          content: `DEBUG — Firebase AI request failed:\n${errorDetails}`,
         },
       ]);
     } finally {
