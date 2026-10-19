@@ -12,7 +12,7 @@ type ChatMessage = {
 const ai = getAI(app, { backend: new GoogleAIBackend() });
 
 const tutorModel = getGenerativeModel(ai, {
-  model: "gemini-2.5-flash",
+  model: "gemini-3.8-flash",
   systemInstruction: `You are Learn Islam's careful Islamic learning assistant.
 Answer respectfully and clearly about Islamic learning.
 Do not invent Quran verses, hadith, references, quotations, or scholarly consensus.
