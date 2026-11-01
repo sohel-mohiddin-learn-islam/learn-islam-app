@@ -28,7 +28,8 @@ jobs:
           distribution: temurin
           java-version: 21
       - run: npm ci
-      - run: npm run build
+      - name: Build web app for the phone (served from / inside the app)
+        run: npx vite build --config vite.config.ts --base=/
       - run: npx cap sync android
       - name: Prepare Gradle for Capacitor 8 (CI only)
         working-directory: android
