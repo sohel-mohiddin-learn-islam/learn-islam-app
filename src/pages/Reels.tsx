@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { Plus } from "lucide-react";
 
-import { getPosts } from "@/lib/posts";
+import { getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
 
 const REELS_BASE_URL = import.meta.env.BASE_URL;
 
@@ -22,6 +22,8 @@ const reelFiles: string[] = [
 type Reel = {
   id: string;
   src: string;
+  original?: string;
+  poster?: string;
   caption?: string;
   userName?: string;
 };
@@ -46,6 +48,7 @@ function ReelItem({ reel }: { reel: Reel }) {
   const [failed, setFailed] = useState(false);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
+  const [useOriginal, setUseOriginal] = useState(false);
 
   const autoRetryCountRef = useRef(0);
 
@@ -114,6 +117,12 @@ function ReelItem({ reel }: { reel: Reel }) {
   };
 
   const handleError = () => {
+    // the phone-friendly copy may not exist yet: fall back to the original file
+    if (reel.original && !useOriginal) {
+      setUseOriginal(true);
+      setRetryKey((key) => key + 1);
+      return;
+    }
     if (autoRetryCountRef.current < MAX_AUTO_RETRIES) {
       autoRetryCountRef.current += 1;
 
@@ -148,12 +157,13 @@ function ReelItem({ reel }: { reel: Reel }) {
         <video
           key={retryKey}
           ref={videoRef}
-          src={reel.src}
+          src={useOriginal && reel.original ? reel.original : reel.src}
+          poster={reel.poster}
           className="w-full h-full object-contain"
           loop
           muted
           playsInline
-          preload="auto"
+          preload={reel.original ? "metadata" : "auto"}
           onClick={toggleMute}
           onError={handleError}
         />
@@ -222,7 +232,9 @@ export default function Reels() {
           )
           .map((post: any) => ({
             id: post.id,
-            src: post.videoUrl,
+            src: optimizedVideoUrl(post.videoUrl),
+            original: post.videoUrl,
+            poster: postThumbnail(post),
             caption: post.caption || "",
             userName: post.userName || "Learn Islam User",
           }));

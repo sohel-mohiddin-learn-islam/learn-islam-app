@@ -1,15 +1,20 @@
 import { useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { Upload, Video, X } from "lucide-react";
+import { Image as ImageIcon, Camera, Upload, Video, X } from "lucide-react";
 
 import { useAuth } from "@/contexts/AuthContext";
-import { createPost, uploadVideo } from "@/lib/posts";
+import { createPost, uploadThumbnail, uploadVideo } from "@/lib/posts";
 
 export default function CreatePost() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
 
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const thumbInputRef = useRef<HTMLInputElement>(null);
+  const videoRef = useRef<HTMLVideoElement>(null);
+  const [thumbBlob, setThumbBlob] = useState<Blob | null>(null);
+  const [thumbPreview, setThumbPreview] = useState("");
+  const [progress, setProgress] = useState(0);
 
   const [file, setFile] = useState<File | null>(null);
   const [caption, setCaption] = useState("");
@@ -48,7 +53,58 @@ export default function CreatePost() {
     setPreview(url);
   };
 
+  const setThumb = (blob: Blob) => {
+    if (thumbPreview) URL.revokeObjectURL(thumbPreview);
+    setThumbBlob(blob);
+    setThumbPreview(URL.createObjectURL(blob));
+  };
+
+  const handleThumbFile = (event: React.ChangeEvent<HTMLInputElement>) => {
+    const f = event.target.files?.[0];
+    if (!f) return;
+    if (!f.type.startsWith("image/")) {
+      setError("Please select an image for the thumbnail.");
+      return;
+    }
+    setError("");
+    setThumb(f);
+  };
+
+  // take the picture from the video at the moment you paused it
+  const captureFrame = () => {
+    const v = videoRef.current;
+    if (!v || !v.videoWidth) {
+      setError("Play the video a little first, then pause on the frame you want.");
+      return;
+    }
+    const scale = Math.min(1, 720 / v.videoWidth);
+    const canvas = document.createElement("canvas");
+    canvas.width = Math.round(v.videoWidth * scale);
+    canvas.height = Math.round(v.videoHeight * scale);
+    const ctx = canvas.getContext("2d");
+    if (!ctx) return;
+    ctx.drawImage(v, 0, 0, canvas.width, canvas.height);
+    canvas.toBlob(
+      (b) => {
+        if (b) {
+          setError("");
+          setThumb(b);
+        }
+      },
+      "image/jpeg",
+      0.85
+    );
+  };
+
+  const clearThumb = () => {
+    if (thumbPreview) URL.revokeObjectURL(thumbPreview);
+    setThumbBlob(null);
+    setThumbPreview("");
+    if (thumbInputRef.current) thumbInputRef.current.value = "";
+  };
+
   const removeVideo = () => {
+    clearThumb();
     if (preview) {
       URL.revokeObjectURL(preview);
     }
@@ -76,7 +132,9 @@ export default function CreatePost() {
     setUploading(true);
 
     try {
-      const videoUrl = await uploadVideo(file, user.uid);
+      setProgress(0);
+      const videoUrl = await uploadVideo(file, user.uid, setProgress);
+      const thumbnailUrl = thumbBlob ? await uploadThumbnail(thumbBlob) : null;
 
       await createPost({
         userId: user.uid,
@@ -84,6 +142,7 @@ export default function CreatePost() {
         userPhoto: user.photoURL || null,
         caption: caption.trim(),
         videoUrl,
+        thumbnailUrl,
       });
 
       if (preview) {
@@ -147,9 +206,11 @@ export default function CreatePost() {
         ) : (
           <div className="relative rounded-2xl overflow-hidden bg-black">
             <video
+              ref={videoRef}
               src={preview}
               controls
               playsInline
+              preload="metadata"
               className="w-full max-h-[65vh] object-contain"
             />
 
@@ -160,6 +221,58 @@ export default function CreatePost() {
             >
               <X className="w-5 h-5" />
             </button>
+          </div>
+        )}
+
+        {preview && (
+          <div className="mt-5">
+            <label className="text-sm font-medium">Thumbnail</label>
+
+            <div className="mt-2 flex items-center gap-3">
+              <div className="w-20 h-28 rounded-xl overflow-hidden bg-muted border border-border flex items-center justify-center shrink-0">
+                {thumbPreview ? (
+                  <img src={thumbPreview} alt="Thumbnail" className="w-full h-full object-cover" />
+                ) : (
+                  <ImageIcon className="w-6 h-6 text-foreground/40" />
+                )}
+              </div>
+
+              <div className="flex flex-col gap-2 text-sm">
+                <button
+                  type="button"
+                  onClick={() => thumbInputRef.current?.click()}
+                  disabled={uploading}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted"
+                >
+                  <ImageIcon className="w-4 h-4" /> Choose picture
+                </button>
+                <button
+                  type="button"
+                  onClick={captureFrame}
+                  disabled={uploading}
+                  className="flex items-center gap-2 px-3 py-2 rounded-lg bg-muted"
+                >
+                  <Camera className="w-4 h-4" /> Use current video frame
+                </button>
+                {thumbPreview && (
+                  <button type="button" onClick={clearThumb} disabled={uploading} className="text-left text-red-400 px-1">
+                    Remove thumbnail
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <p className="text-xs text-foreground/50 mt-2">
+              No thumbnail chosen? We use the first second of your video.
+            </p>
+
+            <input
+              ref={thumbInputRef}
+              type="file"
+              accept="image/*"
+              onChange={handleThumbFile}
+              className="hidden"
+            />
           </div>
         )}
 
@@ -204,7 +317,7 @@ export default function CreatePost() {
         >
           <Upload className="w-5 h-5" />
 
-          {uploading ? "Uploading..." : "Publish Video"}
+          {uploading ? `Uploading ${progress}%` : "Publish Video"}
         </button>
 
         <p className="text-xs text-center text-foreground/50 mt-4">

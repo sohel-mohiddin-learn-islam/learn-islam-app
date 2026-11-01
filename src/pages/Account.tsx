@@ -1,9 +1,10 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useLocation } from 'wouter';
 import { updateProfile } from 'firebase/auth';
 import { doc, setDoc } from 'firebase/firestore';
 import { useAuth } from '@/contexts/AuthContext';
 import { auth, db } from '@/lib/firebase';
+import { getUserPosts, postThumbnail } from '@/lib/posts';
 
 export default function Account() {
   const { user, signOut } = useAuth();
@@ -12,6 +13,16 @@ export default function Account() {
   const [name, setName] = useState(user?.displayName || '');
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
+  const [myPosts, setMyPosts] = useState<any[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    let active = true;
+    getUserPosts(user.uid)
+      .then((p) => { if (active) setMyPosts(p); })
+      .catch((e) => console.error('Could not load your posts:', e));
+    return () => { active = false; };
+  }, [user?.uid]);
 
   if (!user) {
     setLocation('/login');
@@ -103,6 +114,39 @@ export default function Account() {
             Email
           </label>
           <p className="font-sans text-foreground mt-1">{user.email}</p>
+        </div>
+
+        <div className="mb-6">
+          <p className="text-xs text-foreground/60 font-sans uppercase tracking-wide mb-2">
+            My Posts ({myPosts.length})
+          </p>
+          {myPosts.length === 0 ? (
+            <p className="text-sm text-foreground/50 font-sans">You have not posted any reels yet.</p>
+          ) : (
+            <div className="grid grid-cols-3 gap-1">
+              {myPosts.map((post) => {
+                const thumb = postThumbnail(post);
+                return (
+                  <button
+                    key={post.id}
+                    onClick={() => setLocation('/reels')}
+                    className="relative aspect-[9/16] bg-muted rounded-lg overflow-hidden"
+                  >
+                    {thumb ? (
+                      <img
+                        src={thumb}
+                        alt=""
+                        loading="lazy"
+                        className="w-full h-full object-cover"
+                        onError={(e) => { (e.target as HTMLImageElement).style.display = 'none'; }}
+                      />
+                    ) : null}
+                    <span className="absolute bottom-1 right-1 text-white text-xs drop-shadow">▶</span>
+                  </button>
+                );
+              })}
+            </div>
+          )}
         </div>
 
         <button
