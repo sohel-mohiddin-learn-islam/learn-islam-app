@@ -28,6 +28,9 @@ jobs:
             sleep 25
             adb exec-out screencap -p > shot.png
             adb logcat -d > log.txt
+            echo ===LOG-START===
+            grep -iE 'capacitor|chromium|FATAL|AndroidRuntime|localhost|net::|webview|learnislam' log.txt | head -150
+            echo ===LOG-END===
       - uses: actions/upload-artifact@v4
         if: always()
         with:
