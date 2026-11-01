@@ -29,7 +29,9 @@ jobs:
             adb exec-out screencap -p > shot.png
             adb logcat -d > log.txt
             echo ===LOG-START===
-            grep -iE 'capacitor|chromium|FATAL|AndroidRuntime|localhost|net::|webview|learnislam' log.txt | head -150
+            PID=$(adb shell pidof com.sohel.learnislam | tr -d '\r')
+            echo pid=$PID
+            adb logcat -d --pid=$PID -v brief | grep -v 'W ziparchive\|nativeloader\|GraphicsEnv' | cut -c1-300 | head -120
             echo ===LOG-END===
       - uses: actions/upload-artifact@v4
         if: always()
