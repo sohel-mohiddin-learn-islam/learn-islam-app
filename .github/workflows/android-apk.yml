@@ -51,9 +51,17 @@ jobs:
           npx cap sync android
           cd android && ./gradlew assembleDebug --no-daemon && cd ..
           cp "$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)" learn-islam-http.apk
+      - name: Build side-by-side copy (different app id, installs next to the old app)
+        run: |
+          node -e "const f='capacitor.config.json';const c=JSON.parse(require('fs').readFileSync(f));delete c.server;c.appId='com.sohel.learnislam.test';c.appName='Learn Islam Test';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+          node -e "const f='android/app/google-services.json';const g=JSON.parse(require('fs').readFileSync(f));const c0=g.client[0];const c1=JSON.parse(JSON.stringify(c0));c1.client_info.android_client_info.package_name='com.sohel.learnislam.test';g.client.push(c1);require('fs').writeFileSync(f,JSON.stringify(g,null,2))"
+          sed -i 's#applicationId "com.sohel.learnislam"#applicationId "com.sohel.learnislam.test"#' android/app/build.gradle
+          npx cap sync android
+          cd android && ./gradlew assembleDebug --no-daemon && cd ..
+          cp "$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)" learn-islam-test.apk
       - name: Publish APK to the apk-latest release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view apk-latest >/dev/null 2>&1 || gh release create apk-latest --title "Latest APK" --notes "Auto-built debug APK"
-          gh release upload apk-latest learn-islam.apk learn-islam-http.apk --clobber
+          gh release upload apk-latest learn-islam.apk learn-islam-http.apk learn-islam-test.apk --clobber
