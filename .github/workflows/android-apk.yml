@@ -59,9 +59,15 @@ jobs:
           npx cap sync android
           cd android && ./gradlew assembleDebug --no-daemon && cd ..
           cp "$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)" learn-islam-test.apk
+      - name: Build online copy (loads the live website, no local address needed)
+        run: |
+          node -e "const f='capacitor.config.json';const c=JSON.parse(require('fs').readFileSync(f));c.appName='Learn Islam Online';c.server={url:'https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/',allowNavigation:['*.github.io','*.firebaseapp.com','accounts.google.com','*.googleapis.com']};require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
+          npx cap sync android
+          cd android && ./gradlew assembleDebug --no-daemon && cd ..
+          cp "$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)" learn-islam-online.apk
       - name: Publish APK to the apk-latest release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view apk-latest >/dev/null 2>&1 || gh release create apk-latest --title "Latest APK" --notes "Auto-built debug APK"
-          gh release upload apk-latest learn-islam.apk learn-islam-http.apk learn-islam-test.apk --clobber
+          gh release upload apk-latest learn-islam.apk learn-islam-http.apk learn-islam-test.apk learn-islam-online.apk --clobber
