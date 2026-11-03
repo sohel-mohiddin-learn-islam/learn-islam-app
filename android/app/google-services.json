@@ -22,6 +22,14 @@
           }
         },
         {
+          "client_id": "9616232938-qu3dgmvoi35p9vbs9vhrac14gcvlbvq5.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sohel.learnislam",
+            "certificate_hash": "c6c59b48de7426f2327252ef639fe247f5c0112d"
+          }
+        },
+        {
           "client_id": "9616232938-04coo3coa45t6lg88f659eav9ejv8av5.apps.googleusercontent.com",
           "client_type": 3
         }
