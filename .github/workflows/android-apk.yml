@@ -38,36 +38,18 @@ jobs:
           sed -i 's#gradle-8.0.2-all.zip#gradle-8.14.3-all.zip#' gradle/wrapper/gradle-wrapper.properties
           sed -i "s#com.android.tools.build:gradle:8.0.0#com.android.tools.build:gradle:8.13.0#; s#google-services:4.3.15#google-services:4.4.4#" build.gradle
           sed -i "s#minSdkVersion = 22#minSdkVersion = 24#; s#compileSdkVersion = 33#compileSdkVersion = 36#; s#targetSdkVersion = 33#targetSdkVersion = 36#; s#androidxActivityVersion = '1.7.0'#androidxActivityVersion = '1.11.0'#; s#androidxAppCompatVersion = '1.6.1'#androidxAppCompatVersion = '1.7.1'#; s#androidxCoordinatorLayoutVersion = '1.2.0'#androidxCoordinatorLayoutVersion = '1.3.0'#; s#androidxCoreVersion = '1.10.0'#androidxCoreVersion = '1.17.0'#; s#androidxFragmentVersion = '1.5.6'#androidxFragmentVersion = '1.8.9'#; s#coreSplashScreenVersion = '1.0.0'#coreSplashScreenVersion = '1.2.0'#; s#androidxWebkitVersion = '1.6.1'#androidxWebkitVersion = '1.14.0'#" variables.gradle
-      - name: Build debug APK
+      - name: Build debug APK (fixed signing key so Google sign-in keeps working)
         working-directory: android
         run: |
+          mkdir -p ~/.android
+          cp ci-debug.keystore ~/.android/debug.keystore
           chmod +x gradlew
           ./gradlew assembleDebug --no-daemon
-      - name: Build variant that uses http://localhost inside the app
-        run: |
-          APK=$(find android/app/build/outputs/apk/debug -name "*.apk" | head -1)
-          cp "$APK" learn-islam.apk
-          node -e "const f='capacitor.config.json';const c=JSON.parse(require('fs').readFileSync(f));c.server={androidScheme:'http'};require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
-          npx cap sync android
-          cd android && ./gradlew assembleDebug --no-daemon && cd ..
-          cp "$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)" learn-islam-http.apk
-      - name: Build side-by-side copy (different app id, installs next to the old app)
-        run: |
-          node -e "const f='capacitor.config.json';const c=JSON.parse(require('fs').readFileSync(f));delete c.server;c.appId='com.sohel.learnislam.test';c.appName='Learn Islam Test';require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
-          node -e "const f='android/app/google-services.json';const g=JSON.parse(require('fs').readFileSync(f));const c0=g.client[0];const c1=JSON.parse(JSON.stringify(c0));c1.client_info.android_client_info.package_name='com.sohel.learnislam.test';g.client.push(c1);require('fs').writeFileSync(f,JSON.stringify(g,null,2))"
-          sed -i 's#applicationId "com.sohel.learnislam"#applicationId "com.sohel.learnislam.test"#' android/app/build.gradle
-          npx cap sync android
-          cd android && ./gradlew assembleDebug --no-daemon && cd ..
-          cp "$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)" learn-islam-test.apk
-      - name: Build online copy (loads the live website, no local address needed)
-        run: |
-          node -e "const f='capacitor.config.json';const c=JSON.parse(require('fs').readFileSync(f));c.appName='Learn Islam Online';c.server={url:'https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/',allowNavigation:['*.github.io','*.firebaseapp.com','accounts.google.com','*.googleapis.com']};require('fs').writeFileSync(f,JSON.stringify(c,null,2))"
-          npx cap sync android
-          cd android && ./gradlew assembleDebug --no-daemon && cd ..
-          cp "$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)" learn-islam-online.apk
+      - name: Collect APK
+        run: cp "$(find android/app/build/outputs/apk/debug -name '*.apk' | head -1)" learn-islam.apk
       - name: Publish APK to the apk-latest release
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
           gh release view apk-latest >/dev/null 2>&1 || gh release create apk-latest --title "Latest APK" --notes "Auto-built debug APK"
-          gh release upload apk-latest learn-islam.apk learn-islam-http.apk learn-islam-test.apk learn-islam-online.apk --clobber
+          gh release upload apk-latest learn-islam.apk --clobber
