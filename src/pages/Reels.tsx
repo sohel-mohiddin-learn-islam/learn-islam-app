@@ -4,7 +4,7 @@ import { Plus } from "lucide-react";
 
 import { getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
 
-const REELS_BASE_URL = import.meta.env.BASE_URL;
+const REELS_BASE_URL = import.meta.env.VITE_MEDIA_BASE || import.meta.env.BASE_URL;
 
 const reelFiles: string[] = [
   "VID_20260905_125534_061.mp4",
