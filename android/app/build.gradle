@@ -4,7 +4,7 @@ android {
     namespace "com.sohel.learnislam"
     compileSdkVersion rootProject.ext.compileSdkVersion
     defaultConfig {
-        applicationId "com.sohel.learnislam"
+        applicationId "com.sohel.learnislam.app"
         minSdkVersion rootProject.ext.minSdkVersion
         targetSdkVersion rootProject.ext.targetSdkVersion
         versionCode 1
