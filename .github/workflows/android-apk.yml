@@ -29,13 +29,7 @@ jobs:
           java-version: 21
       - run: npm ci
       - name: Build web app for the phone (served from / inside the app)
-        env:
-          VITE_MEDIA_BASE: https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/
-        run: |
-          npx vite build --config vite.config.ts --base=/
-          # big bundled videos make the APK 177 MB and some phones reject it; stream them from the website instead
-          rm -f dist/*.mp4
-          du -sh dist
+        run: npx vite build --config vite.config.ts --base=/
       - run: npx cap sync android
       - name: Prepare Gradle for Capacitor 8 (CI only)
         working-directory: android

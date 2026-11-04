@@ -15,6 +15,7 @@ export default function CreatePost() {
   const [thumbBlob, setThumbBlob] = useState<Blob | null>(null);
   const [thumbPreview, setThumbPreview] = useState("");
   const [progress, setProgress] = useState(0);
+  const [stage, setStage] = useState("");
 
   const [file, setFile] = useState<File | null>(null);
   const [caption, setCaption] = useState("");
@@ -133,9 +134,15 @@ export default function CreatePost() {
 
     try {
       setProgress(0);
-      const videoUrl = await uploadVideo(file, user.uid, setProgress);
+      setStage("");
+      const videoUrl = await uploadVideo(file, user.uid, (p) => {
+        setProgress(p);
+        if (p >= 99) setStage("Processing video…");
+      });
+      setStage("Uploading thumbnail…");
       const thumbnailUrl = thumbBlob ? await uploadThumbnail(thumbBlob) : null;
 
+      setStage("Saving post…");
       await createPost({
         userId: user.uid,
         userName: user.displayName || "Learn Islam User",
@@ -153,7 +160,8 @@ export default function CreatePost() {
     } catch (err) {
       console.error(err);
       setError(
-        "Upload failed. Please check your internet connection and try again."
+        (err instanceof Error && err.message) ||
+          "Upload failed. Please check your internet connection and try again."
       );
     } finally {
       setUploading(false);
@@ -317,7 +325,7 @@ export default function CreatePost() {
         >
           <Upload className="w-5 h-5" />
 
-          {uploading ? `Uploading ${progress}%` : "Publish Video"}
+          {uploading ? (stage || `Uploading ${progress}%`) : "Publish Video"}
         </button>
 
         <p className="text-xs text-center text-foreground/50 mt-4">

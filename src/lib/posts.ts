@@ -17,6 +17,16 @@ const CLOUDINARY_UPLOAD_PRESET = "learn_islam_reels";
 
 const CHUNK_SIZE = 6 * 1024 * 1024; // 6 MB pieces: keeps memory low on phones
 
+function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
+  return new Promise((resolve, reject) => {
+    const t = setTimeout(() => reject(new Error(message)), ms);
+    p.then(
+      (v) => { clearTimeout(t); resolve(v); },
+      (e) => { clearTimeout(t); reject(e); }
+    );
+  });
+}
+
 type ProgressFn = (percent: number) => void;
 
 function sendChunk(
@@ -53,6 +63,7 @@ function sendChunk(
         reject(new Error(`Cloudinary upload failed (${xhr.status}).`));
       }
     };
+    xhr.timeout = 5 * 60 * 1000;
     xhr.onerror = () => reject(new Error("Network error while uploading."));
     xhr.ontimeout = () => reject(new Error("Upload timed out."));
     xhr.send(form);
@@ -146,7 +157,7 @@ export async function createPost(params: {
   videoUrl: string;
   thumbnailUrl?: string | null;
 }) {
-  const docRef = await addDoc(collection(db, "posts"), {
+  const docRef = await withTimeout(addDoc(collection(db, "posts"), {
     userId: params.userId,
     userName: params.userName,
     userPhoto: params.userPhoto,
@@ -156,7 +167,7 @@ export async function createPost(params: {
     createdAt: serverTimestamp(),
     likesCount: 0,
     commentsCount: 0,
-  });
+  }), 30000, "Saving the post took too long. Check your internet and try again.");
 
   return docRef.id;
 }
