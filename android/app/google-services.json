@@ -52,12 +52,20 @@
     },
     {
       "client_info": {
-        "mobilesdk_app_id": "1:9616232938:android:f553ff8de55893c310e293",
+        "mobilesdk_app_id": "1:9616232938:android:36e66e59b7f34e5010e293",
         "android_client_info": {
           "package_name": "com.sohel.learnislam.app"
         }
       },
       "oauth_client": [
+        {
+          "client_id": "9616232938-g1kchlapidrsg8qiljafo09ur9u57aqm.apps.googleusercontent.com",
+          "client_type": 1,
+          "android_info": {
+            "package_name": "com.sohel.learnislam.app",
+            "certificate_hash": "c6c59b48de7426f2327252ef639fe247f5c0112d"
+          }
+        },
         {
           "client_id": "9616232938-04coo3coa45t6lg88f659eav9ejv8av5.apps.googleusercontent.com",
           "client_type": 3
