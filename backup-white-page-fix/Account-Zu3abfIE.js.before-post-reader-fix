@@ -1,0 +1,197 @@
+import{r as e,t}from"./jsx-runtime-BkSabwWG.js";
+import{t as n}from"./react-Biqg-U6H.js";
+import{c as r,i as o,l as a,n as s,o as c}from"./firebase-Bixl_JEz.js";
+import{t as u,y as d}from"./index-QVmNnOUL.js";
+
+var m=e(n(),1),f=t();
+
+function p(){
+ let{user:e,signOut:t}=u(),[,n]=d(),[p,h]=(0,m.useState)(0),[g,_]=(0,m.useState)([]),[v,y]=(0,m.useState)(!0),[b,w]=(0,m.useState)(null);
+
+ (0,m.useEffect)(()=>{
+   let e=!0;
+   async function t(){
+     try{
+       let t=c(o(r,`posts`),a(`createdAt`,`desc`)),
+           n=await s(t),
+           i=n.docs.map(e=>({id:e.id,...e.data()}));
+       if(e)_(i.filter(t=>t.userId===u().user?.uid))
+     }catch(e){
+       console.error(`Could not load profile posts:`,e)
+     }finally{
+       e&&y(!1)
+     }
+   }
+   t();
+   return()=>{e=!1}
+ },[]);
+
+ if(!e)return(n(`/login`),null);
+
+ return(0,f.jsxs)(`div`,{
+   className:`min-h-full bg-background text-foreground`,
+   children:[
+    (0,f.jsxs)(`div`,{
+     className:`max-w-2xl mx-auto px-4 pt-6`,
+     children:[
+      (0,f.jsxs)(`div`,{
+       className:`flex items-center gap-5`,
+       children:[
+        e.photoURL
+        ?(0,f.jsx)(`img`,{
+          src:e.photoURL,
+          className:`w-24 h-24 rounded-full object-cover border-2 border-primary`,
+          alt:`Profile`,
+          onClick:()=>h(0)
+         })
+        :(0,f.jsx)(`div`,{
+          className:`w-24 h-24 rounded-full bg-muted flex items-center justify-center text-4xl`,
+          onClick:()=>h(0),
+          children:`👤`
+         }),
+        (0,f.jsxs)(`div`,{
+         className:`flex-1`,
+         children:[
+          (0,f.jsx)(`h1`,{
+           className:`text-xl font-bold`,
+           children:e.displayName||`Learn Islam User`
+          }),
+          (0,f.jsxs)(`div`,{
+           className:`flex gap-6 mt-3 text-sm`,
+           children:[
+            (0,f.jsxs)(`button`,{
+             onClick:()=>h(0),
+             className:`text-center`,
+             children:[
+              (0,f.jsx)(`div`,{className:`font-bold`,children:g.length}),
+              (0,f.jsx)(`div`,{className:`text-foreground/60`,children:`Posts`})
+             ]
+            }),
+            (0,f.jsxs)(`button`,{
+             onClick:()=>h(1),
+             className:`text-center`,
+             children:[
+              (0,f.jsx)(`div`,{className:`font-bold`,children:`0`}),
+              (0,f.jsx)(`div`,{className:`text-foreground/60`,children:`Followers`})
+             ]
+            }),
+            (0,f.jsxs)(`button`,{
+             onClick:()=>h(2),
+             className:`text-center`,
+             children:[
+              (0,f.jsx)(`div`,{className:`font-bold`,children:`0`}),
+              (0,f.jsx)(`div`,{className:`text-foreground/60`,children:`Following`})
+             ]
+            })
+           ]
+          })
+         ]
+        })
+       ]
+      }),
+
+      (0,f.jsxs)(`div`,{
+       className:`grid grid-cols-3 border-b border-border mt-7`,
+       children:[
+        (0,f.jsx)(`button`,{
+         onClick:()=>h(0),
+         className:`py-3 font-semibold ${p===0?`border-b-2 border-primary text-primary`:``}`,
+         children:`Posts`
+        }),
+        (0,f.jsx)(`button`,{
+         onClick:()=>h(1),
+         className:`py-3 font-semibold ${p===1?`border-b-2 border-primary text-primary`:``}`,
+         children:`Followers`
+        }),
+        (0,f.jsx)(`button`,{
+         onClick:()=>h(2),
+         className:`py-3 font-semibold ${p===2?`border-b-2 border-primary text-primary`:``}`,
+         children:`Following`
+        })
+       ]
+      }),
+
+      p===0&&(0,f.jsxs)(`div`,{
+       children:[
+        v
+        ?(0,f.jsx)(`div`,{
+          className:`py-16 text-center text-foreground/60`,
+          children:`Loading posts...`
+         })
+        :g.length===0
+        ?(0,f.jsxs)(`div`,{
+          className:`py-16 text-center`,
+          children:[
+           (0,f.jsx)(`div`,{className:`text-5xl mb-3`,children:`🎬`}),
+           (0,f.jsx)(`p`,{className:`font-semibold`,children:`No posts yet`}),
+           (0,f.jsx)(`p`,{
+            className:`text-sm text-foreground/60 mt-1`,
+            children:`Your uploaded reels will appear here.`
+           })
+          ]
+         })
+        :(0,f.jsx)(`div`,{
+         className:`grid grid-cols-3 gap-1 mt-1`,
+         children:g.map(e=>
+          (0,f.jsx)(`button`,{
+           onClick:()=>w(e),
+           className:`aspect-[9/16] bg-black overflow-hidden relative`,
+           children:(0,f.jsx)(`video`,{
+            src:e.videoUrl,
+            className:`w-full h-full object-cover`,
+            muted:!0,
+            playsInline:!0,
+            preload:`metadata`,
+            onError:e=>console.error(`PROFILE_VIDEO_ERROR`,e.currentTarget?.src)
+           })
+          },e.id)
+         )
+        })
+       ]
+      }),
+
+      p===1&&(0,f.jsx)(`div`,{
+       className:`py-16 text-center text-foreground/60`,
+       children:`Followers will appear here.`
+      }),
+
+      p===2&&(0,f.jsx)(`div`,{
+       className:`py-16 text-center text-foreground/60`,
+       children:`Following will appear here.`
+      }),
+
+      (0,f.jsx)(`button`,{
+       onClick:async()=>{
+        if(confirm(`Sign out of your account?`)){
+         await t();
+         n(`/`)
+        }
+       },
+       className:`w-full mt-8 mb-8 bg-red-500/10 text-red-400 border border-red-500/30 rounded-xl py-3`,
+       children:`Sign Out`
+      })
+     ]
+    }),
+
+    b&&(0,f.jsxs)(`div`,{
+     className:`fixed inset-0 z-[100] bg-black flex items-center justify-center`,
+     children:[
+      (0,f.jsx)(`button`,{
+       onClick:()=>w(null),
+       className:`absolute top-5 right-5 z-10 text-white text-3xl`,
+       children:`×`
+      }),
+      (0,f.jsx)(`video`,{
+       src:b.videoUrl,
+       className:`max-w-full max-h-full object-contain`,
+       controls:!0,
+       autoPlay:!0,
+       playsInline:!0
+      })
+     ]
+    })
+   ]
+ })
+}
+
+export{p as default};
