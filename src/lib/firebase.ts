@@ -16,8 +16,8 @@ const firebaseConfig = {
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
-// Force long-polling: WebChannel streams can hang inside Android WebViews, which made saves stall
-export const db = initializeFirestore(app, { experimentalForceLongPolling: true });
+// Long-polling auto-detect: WebChannel streams can hang inside Android WebViews, which made saves stall
+export const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
 export const storage = getStorage(app);
 
 export default app;
