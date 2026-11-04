@@ -24,14 +24,14 @@ jobs:
           script: |
             adb install -r app.apk
             adb logcat -c
-            adb shell monkey -p com.sohel.learnislam -c android.intent.category.LAUNCHER 1
-            sleep 25
+            adb shell monkey -p com.sohel.learnislam.app -c android.intent.category.LAUNCHER 1
+            sleep 40
             adb exec-out screencap -p > shot.png
             adb logcat -d > log.txt
             echo ===LOG-START===
             grep -n -A28 'FATAL EXCEPTION' log.txt | cut -c1-260 | head -70
-            grep -E 'Capacitor|chromium|cr_|WebView' log.txt | cut -c1-260 | head -40
-            grep -E 'Process com.sohel.learnislam.*(died|has died)|Force finishing|crash' log.txt | cut -c1-200 | head
+            grep -E 'Capacitor|chromium|cr_|WebView|Console' log.txt | cut -c1-260 | head -40
+            grep -E 'Process com.sohel.learnislam.app.*(died|has died)|Force finishing|crash' log.txt | cut -c1-200 | head
             echo ===LOG-END===
       - uses: actions/upload-artifact@v4
         if: always()
