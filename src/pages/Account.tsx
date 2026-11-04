@@ -14,6 +14,7 @@ export default function Account() {
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
   const [myPosts, setMyPosts] = useState<any[]>([]);
+  const [tab, setTab] = useState(0);
 
   useEffect(() => {
     if (!user) return;
@@ -116,10 +117,32 @@ export default function Account() {
           <p className="font-sans text-foreground mt-1">{user.email}</p>
         </div>
 
+        <div className="flex justify-center gap-8 mb-4 text-sm font-sans">
+          {[[myPosts.length, 'Posts'], [0, 'Followers'], [0, 'Following']].map(([n, label], i) => (
+            <button key={label as string} onClick={() => setTab(i)} className="text-center">
+              <div className="font-bold text-foreground">{n}</div>
+              <div className="text-foreground/60">{label}</div>
+            </button>
+          ))}
+        </div>
+
+        <div className="grid grid-cols-3 border-b border-border mb-4">
+          {['Posts', 'Followers', 'Following'].map((label, i) => (
+            <button
+              key={label}
+              onClick={() => setTab(i)}
+              className={`py-3 font-semibold font-sans ${tab === i ? 'border-b-2 border-primary text-primary' : 'text-foreground/70'}`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
+        {tab === 1 && <p className="py-10 text-center text-foreground/60 font-sans">Followers will appear here.</p>}
+        {tab === 2 && <p className="py-10 text-center text-foreground/60 font-sans">Following will appear here.</p>}
+
+        {tab === 0 && (
         <div className="mb-6">
-          <p className="text-xs text-foreground/60 font-sans uppercase tracking-wide mb-2">
-            My Posts ({myPosts.length})
-          </p>
           {myPosts.length === 0 ? (
             <p className="text-sm text-foreground/50 font-sans">You have not posted any reels yet.</p>
           ) : (
@@ -148,6 +171,8 @@ export default function Account() {
             </div>
           )}
         </div>
+
+        )}
 
         <button
           onClick={handleSignOut}

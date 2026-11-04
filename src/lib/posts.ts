@@ -10,7 +10,9 @@ import {
   serverTimestamp,
 } from "firebase/firestore";
 
-import { db } from "./firebase";
+import { Capacitor, CapacitorHttp } from "@capacitor/core";
+
+import { auth, db } from "./firebase";
 
 const CLOUDINARY_CLOUD_NAME = "mpyzgv8c";
 const CLOUDINARY_UPLOAD_PRESET = "learn_islam_reels";
@@ -149,6 +151,54 @@ export function optimizedVideoUrl(videoUrl: string): string {
   return videoUrl.replace("/video/upload/", "/video/upload/f_mp4,vc_h264,q_auto,w_720,c_limit/");
 }
 
+const FIRESTORE_REST = "https://firestore.googleapis.com/v1/projects/learn-islam-891c3/databases/(default)/documents";
+
+const str = (v: string | null | undefined) => (v ? { stringValue: v } : { nullValue: null });
+
+/**
+ * Inside the Android app the web view's own Firestore connection can hang on some networks,
+ * so the post is saved over the phone's native HTTP stack instead (same idea as the old native plugin).
+ */
+async function createPostNative(params: {
+  userId: string;
+  userName: string;
+  userPhoto: string | null;
+  caption: string;
+  videoUrl: string;
+  thumbnailUrl: string | null;
+}) {
+  const user = auth.currentUser;
+  if (!user) throw new Error("Please sign in first.");
+  const token = await user.getIdToken();
+
+  const res = await CapacitorHttp.post({
+    url: `${FIRESTORE_REST}/posts`,
+    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+    data: {
+      fields: {
+        userId: str(params.userId),
+        userName: str(params.userName),
+        userPhoto: str(params.userPhoto),
+        caption: { stringValue: params.caption || "" },
+        videoUrl: str(params.videoUrl),
+        thumbnailUrl: str(params.thumbnailUrl),
+        createdAt: { timestampValue: new Date().toISOString() },
+        likesCount: { integerValue: "0" },
+        commentsCount: { integerValue: "0" },
+      },
+    },
+    connectTimeout: 30000,
+    readTimeout: 30000,
+  });
+
+  if (res.status < 200 || res.status >= 300) {
+    const detail = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
+    throw new Error(`Could not save the post (${res.status}): ${detail.slice(0, 200)}`);
+  }
+  const name: string = res.data?.name || "";
+  return name.split("/").pop() || "";
+}
+
 export async function createPost(params: {
   userId: string;
   userName: string;
@@ -157,17 +207,27 @@ export async function createPost(params: {
   videoUrl: string;
   thumbnailUrl?: string | null;
 }) {
-  const docRef = await withTimeout(addDoc(collection(db, "posts"), {
-    userId: params.userId,
-    userName: params.userName,
-    userPhoto: params.userPhoto,
-    caption: params.caption,
-    videoUrl: params.videoUrl,
-    thumbnailUrl: params.thumbnailUrl || autoThumbnailUrl(params.videoUrl) || null,
-    createdAt: serverTimestamp(),
-    likesCount: 0,
-    commentsCount: 0,
-  }), 60000, "Could not save the post (the database did not answer in 60 seconds).");
+  const thumbnailUrl = params.thumbnailUrl || autoThumbnailUrl(params.videoUrl) || null;
+
+  if (Capacitor.isNativePlatform()) {
+    return createPostNative({ ...params, thumbnailUrl });
+  }
+
+  const docRef = await withTimeout(
+    addDoc(collection(db, "posts"), {
+      userId: params.userId,
+      userName: params.userName,
+      userPhoto: params.userPhoto,
+      caption: params.caption,
+      videoUrl: params.videoUrl,
+      thumbnailUrl,
+      createdAt: serverTimestamp(),
+      likesCount: 0,
+      commentsCount: 0,
+    }),
+    60000,
+    "Could not save the post (the database did not answer in 60 seconds)."
+  );
 
   return docRef.id;
 }
