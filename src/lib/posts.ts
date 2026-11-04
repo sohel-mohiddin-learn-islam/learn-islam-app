@@ -167,7 +167,7 @@ export async function createPost(params: {
     createdAt: serverTimestamp(),
     likesCount: 0,
     commentsCount: 0,
-  }), 30000, "Saving the post took too long. Check your internet and try again.");
+  }), 60000, "Could not save the post (the database did not answer in 60 seconds).");
 
   return docRef.id;
 }
