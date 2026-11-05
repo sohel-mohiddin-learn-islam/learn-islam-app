@@ -4,6 +4,19 @@ service cloud.firestore {
 
     function signedIn() { return request.auth != null; }
 
+    // Ads: paid through Razorpay, approved by the admin before they run
+    function isAdmin() {
+      return signedIn() && request.auth.token.email == 'vvvv04431@gmail.com' && request.auth.token.email_verified == true;
+    }
+    match /ads/{adId} {
+      allow read: if resource.data.status == 'approved' || (signedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();
+      allow create: if signedIn() && request.resource.data.ownerId == request.auth.uid
+                    && request.resource.data.status == 'pending'
+                    && request.resource.data.paymentId is string;
+      allow update: if isAdmin();
+      allow delete: if isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
+    }
+
     // Reels
     match /posts/{postId} {
       allow read: if true;

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from "react";
+import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { setPrefs, toggleSaved, usePrefs } from "@/lib/prefs";
@@ -10,6 +10,7 @@ import { follow as followUser, getFollowingIds } from "@/lib/social";
 import { db } from "@/lib/firebase";
 import { deleteDoc, doc, setDoc } from "firebase/firestore";
 import { Plus } from "lucide-react";
+import { getActiveAds, type Ad } from "@/lib/ads";
 
 import { deletePost, getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
 
@@ -310,6 +311,28 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
   );
 }
 
+function AdItem({ ad }: { ad: Ad }) {
+  return (
+    <div className="relative w-full h-full snap-start shrink-0 bg-black flex items-center justify-center">
+      {ad.mediaType === "video" ? (
+        <video src={ad.mediaUrl} className="h-full w-full object-contain" autoPlay muted loop playsInline />
+      ) : (
+        <img src={ad.mediaUrl} alt="" className="h-full w-full object-contain" />
+      )}
+      <div className="absolute left-4 right-20 bottom-8 text-white drop-shadow-lg">
+        <span className="inline-block text-xs bg-white/25 rounded px-2 py-0.5 mb-2">Sponsored</span>
+        <p className="font-semibold">{ad.title}</p>
+        {ad.text && <p className="text-sm opacity-90">{ad.text}</p>}
+        {ad.link && (
+          <button onClick={() => window.open(ad.link, "_blank")} className="mt-3 rounded-lg bg-primary text-primary-foreground px-5 py-2 font-semibold">
+            Learn more
+          </button>
+        )}
+      </div>
+    </div>
+  );
+}
+
 export default function Reels() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
@@ -346,6 +369,8 @@ export default function Reels() {
       return null;
     }
   });
+  const [ads, setAds] = useState<Ad[]>([]);
+  useEffect(() => { getActiveAds().then(setAds).catch(() => {}); }, [seed]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const touchY = useRef<number | null>(null);
   const lastWheel = useRef(0);
@@ -462,16 +487,18 @@ export default function Reels() {
         {allReels.length === 0 && tab === "reels" && (
           <p className="text-white/70 text-center pt-40 px-8">No reels yet. Tap Create to post the first one, or pull down to refresh.</p>
         )}
-        {allReels.map((reel) => (
-          <ReelItem
-            key={reel.id}
-            reel={reel}
-            isOwn={!!user && reel.userId === user.uid}
-            onDelete={handleDelete}
-            followingIds={followingIds}
-            onFollowed={(uid) => setFollowingIds((f) => [...f, uid])}
-            onNotInterested={(id) => setPrefs({ notInterested: [...prefs.notInterested, id] })}
-          />
+        {allReels.map((reel, i) => (
+          <Fragment key={reel.id}>
+            <ReelItem
+              reel={reel}
+              isOwn={!!user && reel.userId === user.uid}
+              onDelete={handleDelete}
+              followingIds={followingIds}
+              onFollowed={(uid) => setFollowingIds((f) => [...f, uid])}
+              onNotInterested={(id) => setPrefs({ notInterested: [...prefs.notInterested, id] })}
+            />
+            {tab === "reels" && ads.length > 0 && (i + 1) % 4 === 0 && <AdItem ad={ads[Math.floor(i / 4) % ads.length]} />}
+          </Fragment>
         ))}
       </div>
     </div>

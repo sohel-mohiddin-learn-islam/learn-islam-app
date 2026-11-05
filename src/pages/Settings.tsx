@@ -457,6 +457,7 @@ export default function Settings() {
         return (
           <div>
             <Section title="Your account">
+              <Row icon="📣" label="Ads (promote your reel)" onClick={() => setLocation("/ads")} />
               <Row icon="🪪" label="Accounts Center" onClick={() => setLocation("/accounts-center")} />
               <Row icon="👤" label="Edit profile" onClick={() => setLocation("/account")} />
             </Section>
