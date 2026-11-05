@@ -1,4 +1,4 @@
-import { lazy, Suspense, useState } from 'react';
+import { lazy, Suspense, useEffect, useState } from 'react';
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -54,15 +54,29 @@ const LoadingSpinner = () => (
   </div>
 );
 
+const BLACK_POSTER =
+  "data:image/gif;base64,R0lGODlhAQABAIAAAAAAAP///yH5BAEAAAAALAAAAAABAAEAAAIBRAA7";
+
 function Intro({ onFinish }: { onFinish: () => void }) {
+  const [playing, setPlaying] = useState(false);
+  useEffect(() => {
+    // if the video has not started within 4 seconds, skip it instead of showing a stuck screen
+    const t = setTimeout(() => { if (!playing) onFinish(); }, 4000);
+    return () => clearTimeout(t);
+  }, [playing]);
   return (
     <div className="fixed inset-0 z-[9999] bg-black flex items-center justify-center">
       <video
         src={`${import.meta.env.VITE_MEDIA_BASE || import.meta.env.BASE_URL}Myintro2.mp4`}
-        className="w-full h-full object-contain"
+        poster={BLACK_POSTER}
+        className="w-full h-full object-contain transition-opacity duration-300"
+        style={{ opacity: playing ? 1 : 0 }}
         autoPlay
         muted
         playsInline
+        controls={false}
+        disablePictureInPicture
+        onPlaying={() => setPlaying(true)}
         onEnded={onFinish}
         onError={onFinish}
       />

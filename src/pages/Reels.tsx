@@ -247,8 +247,14 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
                 if (navigator.share) await navigator.share({ title: "Learn Islam", text: reel.caption || "Watch this reel", url });
                 else await navigator.clipboard.writeText(url);
                 if (user) {
-                  recordShare(reel.id, user.uid);
-                  setCounts((c) => ({ ...c, shares: c.shares + 1 }));
+                  // one share per person: repeated taps do not add to the count
+                  const key = `reel-shared-${reel.id}-${user.uid}`;
+                  let already = false;
+                  try { already = localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch { /* ignore */ }
+                  if (!already) {
+                    recordShare(reel.id, user.uid);
+                    setCounts((c) => ({ ...c, shares: c.shares + 1 }));
+                  }
                 }
               } catch {
                 /* cancelled */
