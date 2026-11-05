@@ -151,7 +151,9 @@ export function optimizedVideoUrl(videoUrl: string): string {
   return videoUrl.replace("/video/upload/", "/video/upload/f_mp4,vc_h264,q_auto,w_720,c_limit/");
 }
 
-const FIRESTORE_REST = "https://firestore.googleapis.com/v1/projects/learn-islam-891c3/databases/(default)/documents";
+const FIRESTORE_DATABASES = ["(default)", "default"];
+const firestoreRest = (database: string) =>
+  `https://firestore.googleapis.com/v1/projects/learn-islam-891c3/databases/${encodeURIComponent(database)}/documents`;
 
 const str = (v: string | null | undefined) => (v ? { stringValue: v } : { nullValue: null });
 
@@ -171,29 +173,38 @@ async function createPostNative(params: {
   if (!user) throw new Error("Please sign in first.");
   const token = await user.getIdToken();
 
-  const res = await CapacitorHttp.post({
-    url: `${FIRESTORE_REST}/posts`,
-    headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
-    data: {
-      fields: {
-        userId: str(params.userId),
-        userName: str(params.userName),
-        userPhoto: str(params.userPhoto),
-        caption: { stringValue: params.caption || "" },
-        videoUrl: str(params.videoUrl),
-        thumbnailUrl: str(params.thumbnailUrl),
-        createdAt: { timestampValue: new Date().toISOString() },
-        likesCount: { integerValue: "0" },
-        commentsCount: { integerValue: "0" },
-      },
+  const body = {
+    fields: {
+      userId: str(params.userId),
+      userName: str(params.userName),
+      userPhoto: str(params.userPhoto),
+      caption: { stringValue: params.caption || "" },
+      videoUrl: str(params.videoUrl),
+      thumbnailUrl: str(params.thumbnailUrl),
+      createdAt: { timestampValue: new Date().toISOString() },
+      likesCount: { integerValue: "0" },
+      commentsCount: { integerValue: "0" },
     },
-    connectTimeout: 30000,
-    readTimeout: 30000,
-  });
+  };
+
+  let res: any = null;
+  const tried: string[] = [];
+  for (const database of FIRESTORE_DATABASES) {
+    res = await CapacitorHttp.post({
+      url: `${firestoreRest(database)}/posts`,
+      headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/json" },
+      data: body,
+      connectTimeout: 30000,
+      readTimeout: 30000,
+    });
+    if (res.status >= 200 && res.status < 300) break;
+    tried.push(`${database}: ${res.status}`);
+    if (res.status !== 404) break; // only a missing database name is worth retrying
+  }
 
   if (res.status < 200 || res.status >= 300) {
     const detail = typeof res.data === "string" ? res.data : JSON.stringify(res.data);
-    throw new Error(`Could not save the post (${res.status}): ${detail.slice(0, 200)}`);
+    throw new Error(`Could not save the post [${tried.join(", ")}] ${detail.slice(0, 180)}`);
   }
   const name: string = res.data?.name || "";
   return name.split("/").pop() || "";
