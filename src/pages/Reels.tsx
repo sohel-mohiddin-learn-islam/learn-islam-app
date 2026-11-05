@@ -1,8 +1,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
+import { useAuth } from "@/contexts/AuthContext";
+import { toggleSaved, usePrefs } from "@/lib/prefs";
+import { getRelations } from "@/lib/social";
 import { Plus } from "lucide-react";
 
-import { getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
+import { deletePost, getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
 
 const REELS_BASE_URL = import.meta.env.VITE_MEDIA_BASE || import.meta.env.BASE_URL;
 
@@ -40,8 +43,10 @@ function getLiked(id: string) {
 
 const MAX_AUTO_RETRIES = 2;
 
-function ReelItem({ reel }: { reel: Reel }) {
+function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDelete?: (reel: Reel) => void }) {
   const [, setLocation] = useLocation();
+  const prefs = usePrefs();
+  const saved = prefs.saved.includes(reel.id);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -201,6 +206,18 @@ function ReelItem({ reel }: { reel: Reel }) {
           </span>
         </button>
 
+        {!reel.id.startsWith("local-") && (
+          <button onClick={() => toggleSaved(reel.id)} className="flex flex-col items-center gap-1" aria-label="Save">
+            <span className="text-2xl drop-shadow-lg">{saved ? "🔖" : "📑"}</span>
+          </button>
+        )}
+
+        {isOwn && onDelete && (
+          <button onClick={() => onDelete(reel)} className="flex flex-col items-center gap-1" aria-label="Delete reel">
+            <span className="text-2xl drop-shadow-lg">🗑️</span>
+          </button>
+        )}
+
         <button
           onClick={toggleMute}
           className="flex flex-col items-center gap-1"
@@ -217,6 +234,23 @@ function ReelItem({ reel }: { reel: Reel }) {
 
 export default function Reels() {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
+  const [hidden, setHidden] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    getRelations(user.uid).then((r) => setHidden([...r.blocked, ...r.muted])).catch(() => {});
+  }, [user?.uid]);
+
+  const handleDelete = async (reel: Reel) => {
+    if (!user || !confirm("Delete this reel? This cannot be undone.")) return;
+    try {
+      await deletePost(reel.id, user.uid, reel.original);
+      setCommunityReels((r) => r.filter((x) => x.id !== reel.id));
+    } catch (e: any) {
+      alert(e?.message || "Could not delete the reel.");
+    }
+  };
 
   const [communityReels, setCommunityReels] = useState<Reel[]>([]);
 
@@ -233,7 +267,9 @@ export default function Reels() {
           .filter(
             (post: any) =>
               typeof post.videoUrl === "string" &&
-              post.videoUrl.length > 0
+              post.videoUrl.length > 0 &&
+              !post.archived &&
+              !hidden.includes(post.userId)
           )
           .map((post: any) => ({
             id: post.id,
@@ -256,7 +292,7 @@ export default function Reels() {
     return () => {
       active = false;
     };
-  }, []);
+  }, [hidden.join(",")]);
 
   const allReels = [...communityReels, ...localReels];
 
@@ -272,7 +308,7 @@ export default function Reels() {
 
       <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory bg-black">
         {allReels.map((reel) => (
-          <ReelItem key={reel.id} reel={reel} />
+          <ReelItem key={reel.id} reel={reel} isOwn={!!user && reel.userId === user.uid} onDelete={handleDelete} />
         ))}
       </div>
     </div>

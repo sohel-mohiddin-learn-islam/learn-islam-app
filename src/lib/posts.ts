@@ -11,6 +11,7 @@ import {
 } from "firebase/firestore";
 
 import { Capacitor, CapacitorHttp } from "@capacitor/core";
+import { getPrefs } from "./prefs";
 
 import { auth, db } from "./firebase";
 
@@ -155,7 +156,8 @@ export function postThumbnail(post: { thumbnailUrl?: string | null; videoUrl?: s
 /** Phone-friendly copy of a Cloudinary video (H.264, max 720p) so long/4K reels play smoothly. */
 export function optimizedVideoUrl(videoUrl: string): string {
   if (!videoUrl.includes("/video/upload/")) return videoUrl;
-  return videoUrl.replace("/video/upload/", "/video/upload/f_mp4,vc_h264,q_auto,w_720,c_limit/");
+  const width = getPrefs().dataSaver ? 480 : 720;
+  return videoUrl.replace("/video/upload/", `/video/upload/f_mp4,vc_h264,q_auto,w_${width},c_limit/`);
 }
 
 const FIRESTORE_DATABASES = ["default", "(default)"];
@@ -289,4 +291,9 @@ export async function deletePost(
   }
 
   await deleteDoc(postRef);
+}
+
+/** Hide a post from the profile and feed (or bring it back) without deleting it. */
+export async function setArchived(postId: string, archived: boolean) {
+  await updateDoc(doc(db, "posts", postId), { archived });
 }

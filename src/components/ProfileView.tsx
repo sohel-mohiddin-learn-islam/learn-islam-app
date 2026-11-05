@@ -3,9 +3,13 @@ import { useLocation } from "wouter";
 import { updateProfile } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import { auth } from "@/lib/firebase";
-import { getUserPosts, postThumbnail } from "@/lib/posts";
+import { deletePost, getUserPosts, postThumbnail } from "@/lib/posts";
 import {
+  blockUser,
   follow,
+  getRelations,
+  muteUser,
+  removeFollower,
   getFollowerIds,
   getFollowingIds,
   getProfile,
@@ -41,7 +45,7 @@ function Avatar({ src, size = 80 }: { src?: string | null; size?: number }) {
   );
 }
 
-function PeopleList({ ids, empty }: { ids: string[]; empty: string }) {
+function PeopleList({ ids, empty, onRemove }: { ids: string[]; empty: string; onRemove?: (uid: string) => void }) {
   const [, setLocation] = useLocation();
   const [people, setPeople] = useState<UserProfile[] | null>(null);
 
@@ -61,14 +65,26 @@ function PeopleList({ ids, empty }: { ids: string[]; empty: string }) {
   return (
     <div className="space-y-1">
       {people.map((p) => (
-        <button
+        <div
           key={p.uid}
           onClick={() => setLocation(`/user/${p.uid}`)}
-          className="w-full flex items-center gap-3 p-2 rounded-lg hover:bg-muted text-left"
+          className="w-full cursor-pointer flex items-center gap-3 p-2 rounded-lg hover:bg-muted text-left"
         >
           <Avatar src={p.photoURL} size={44} />
-          <span className="font-sans text-foreground">{p.displayName}</span>
-        </button>
+          <span className="font-sans text-foreground flex-1">{p.displayName}</span>
+          {onRemove && (
+            <span
+              role="button"
+              onClick={(e) => {
+                e.stopPropagation();
+                onRemove(p.uid);
+              }}
+              className="px-3 py-1 rounded-lg bg-muted text-sm font-semibold"
+            >
+              Remove
+            </span>
+          )}
+        </div>
       ))}
     </div>
   );
@@ -86,6 +102,8 @@ export default function ProfileView({ uid }: { uid: string }) {
   const [iFollow, setIFollow] = useState(false);
   const [tab, setTab] = useState<Tab>("grid");
   const [note, setNote] = useState("");
+  const [isPrivate, setIsPrivate] = useState(false);
+  const [menu, setMenu] = useState(false);
 
   const [editing, setEditing] = useState(false);
   const [eName, setEName] = useState("");
@@ -109,8 +127,10 @@ export default function ProfileView({ uid }: { uid: string }) {
       base.displayName = p?.displayName && p.displayName !== "Learn Islam User" ? p.displayName : user.displayName || base.displayName;
       base.photoURL = p?.photoURL || user.photoURL || null;
     }
+    const rel = await getRelations(uid).catch(() => null);
+    setIsPrivate(!!rel?.isPrivate);
     setProfile(base);
-    setPosts(ps as any[]);
+    setPosts((ps as any[]).filter((x) => !x.archived));
     setFollowers(fr);
     setFollowing(fg);
     if (user && !isOwn) setIFollow(await isFollowing(user.uid, uid).catch(() => false));
@@ -141,6 +161,43 @@ export default function ProfileView({ uid }: { uid: string }) {
       setFollowers((f) => (next ? f.filter((x) => x !== user.uid) : [...f, user.uid]));
       setNote("Could not update follow. Please try again.");
     }
+  };
+
+  const onRemoveFollower = async (follower: string) => {
+    if (!user || !confirm("Remove this follower?")) return;
+    try {
+      await removeFollower(user.uid, follower);
+      setFollowers((f) => f.filter((x) => x !== follower));
+    } catch (e) {
+      console.error(e);
+      setNote("Could not remove the follower. Please try again.");
+    }
+  };
+
+  const onDeletePost = async (post: any) => {
+    if (!user || !confirm("Delete this reel? This cannot be undone.")) return;
+    try {
+      await deletePost(post.id, user.uid, post.videoUrl);
+      setPosts((ps) => ps.filter((x) => x.id !== post.id));
+    } catch (e: any) {
+      console.error(e);
+      setNote(e?.message || "Could not delete the reel. Please try again.");
+    }
+  };
+
+  const doBlock = async () => {
+    if (!user || !confirm(`Block ${profile.displayName}? Their reels will be hidden from you.`)) return;
+    await blockUser(user.uid, uid).catch(() => setNote("Could not block. Please try again."));
+    if (iFollow) await unfollow(user.uid, uid).catch(() => {});
+    setMenu(false);
+    setLocation("/reels");
+  };
+
+  const doMute = async () => {
+    if (!user) return;
+    await muteUser(user.uid, uid).catch(() => setNote("Could not mute. Please try again."));
+    setNote("Muted. Their reels will not show in your feed.");
+    setMenu(false);
   };
 
   const openEdit = () => {
@@ -215,6 +272,19 @@ export default function ProfileView({ uid }: { uid: string }) {
               />
             )}
             <span className="absolute top-1 right-1 text-white text-xs drop-shadow">▶</span>
+            {isOwn && (
+              <span
+                role="button"
+                aria-label="Delete reel"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onDeletePost(post);
+                }}
+                className="absolute bottom-1 right-1 bg-black/60 text-white rounded-full w-7 h-7 flex items-center justify-center text-sm"
+              >
+                🗑
+              </span>
+            )}
           </button>
         );
       })}
@@ -241,6 +311,23 @@ export default function ProfileView({ uid }: { uid: string }) {
   return (
     <div className="min-h-full bg-background text-foreground">
       <div className="max-w-lg mx-auto px-4 pt-5 pb-10 font-sans">
+        {(isOwn || user) && (
+          <div className="flex justify-end mb-2 relative">
+            {isOwn ? (
+              <button onClick={() => setLocation("/settings")} aria-label="Settings" className="text-2xl px-2">⚙️</button>
+            ) : (
+              <>
+                <button onClick={() => setMenu((m) => !m)} aria-label="More" className="text-2xl px-2">⋯</button>
+                {menu && (
+                  <div className="absolute right-0 top-9 z-20 bg-card border border-border rounded-lg shadow-lg overflow-hidden">
+                    <button onClick={doMute} className="block w-full text-left px-4 py-2 hover:bg-muted">Mute</button>
+                    <button onClick={doBlock} className="block w-full text-left px-4 py-2 text-red-400 hover:bg-muted">Block</button>
+                  </div>
+                )}
+              </>
+            )}
+          </div>
+        )}
         <div className="flex items-center gap-5">
           <Avatar src={profile.photoURL} size={84} />
           <div className="flex-1 flex justify-around">
@@ -318,7 +405,10 @@ export default function ProfileView({ uid }: { uid: string }) {
         </div>
 
         <div className="mt-1">
-          {(tab === "grid" || tab === "reels") &&
+          {!isOwn && isPrivate && !iFollow ? (
+            <p className="py-10 text-center text-foreground/60">🔒 This account is private. Follow to see their reels.</p>
+          ) : null}
+          {!(!isOwn && isPrivate && !iFollow) && (tab === "grid" || tab === "reels") &&
             (posts.length === 0 ? (
               <p className="py-10 text-center text-foreground/60">
                 {isOwn ? "You have not posted any reels yet." : "No reels yet."}
@@ -326,7 +416,7 @@ export default function ProfileView({ uid }: { uid: string }) {
             ) : (
               grid
             ))}
-          {tab === "followers" && <PeopleList ids={followers} empty="No followers yet." />}
+          {tab === "followers" && <PeopleList ids={followers} empty="No followers yet." onRemove={isOwn ? onRemoveFollower : undefined} />}
           {tab === "following" && <PeopleList ids={following} empty="Not following anyone yet." />}
         </div>
 

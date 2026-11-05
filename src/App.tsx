@@ -5,6 +5,9 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { LanguageProvider } from "@/contexts/LanguageContext";
 import { AuthProvider } from "@/contexts/AuthContext";
+import { UsageTracker } from "@/pages/Settings";
+import { applyPrefs } from "@/lib/prefs";
+applyPrefs();
 import { Layout } from "@/components/Layout";
 
 // Lazy load all pages for faster initial load
@@ -29,6 +32,7 @@ const Qibla = lazy(() => import("@/pages/Qibla"));
 const Login = lazy(() => import("@/pages/Login"));
 const Account = lazy(() => import("@/pages/Account"));
 const UserProfile = lazy(() => import("@/pages/UserProfile"));
+const Settings = lazy(() => import("@/pages/Settings"));
 const Reels = lazy(() => import("@/pages/Reels"));
 const CreatePost = lazy(() => import("@/pages/CreatePost"));
 const AITutor = lazy(() => import("@/pages/AITutor"));
@@ -84,6 +88,7 @@ function Router() {
           <Route path="/login" component={Login}/>
           <Route path="/account" component={Account}/>
           <Route path="/user/:uid" component={UserProfile}/>
+          <Route path="/settings" component={Settings}/>
           <Route path="/reels" component={Reels}/>
           <Route path="/create-post" component={CreatePost}/>
           <Route path="/ai-tutor" component={AITutor}/>
@@ -101,6 +106,7 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <TooltipProvider>
         <AuthProvider>
+          <UsageTracker />
         <LanguageProvider>
           {showIntro && <Intro onFinish={() => setShowIntro(false)} />}
           <WouterRouter base={import.meta.env.BASE_URL.replace(/\/$/,"")}>
