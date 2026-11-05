@@ -10,6 +10,23 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
 
+      // Reel views: each viewer writes their own marker, only the reel's owner can read them
+      match /views/{viewerId} {
+        allow read: if signedIn() &&
+          get(/databases/$(database)/documents/posts/$(postId)).data.userId == request.auth.uid;
+        allow create, update: if signedIn() && request.auth.uid == viewerId;
+      }
+
+      match /shares/{shareUserId} {
+        allow read: if true;
+        allow write: if signedIn() && request.auth.uid == shareUserId;
+      }
+
+      match /saves/{saveUserId} {
+        allow read: if true;
+        allow write: if signedIn() && request.auth.uid == saveUserId;
+      }
+
       match /likes/{likeUserId} {
         allow read: if true;
         allow write: if signedIn() && request.auth.uid == likeUserId;
@@ -34,6 +51,12 @@ service cloud.firestore {
         allow read: if signedIn() && (request.auth.uid == uid ||
           exists(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + uid)));
         allow write: if signedIn() && request.auth.uid == uid;
+
+        // Story views: viewers write their own marker, only the story owner reads them
+        match /views/{viewerId} {
+          allow read: if signedIn() && request.auth.uid == uid;
+          allow create, update: if signedIn() && request.auth.uid == viewerId;
+        }
       }
 
       // Close-friends stories: only the owner and people on the close friends list
@@ -47,6 +70,17 @@ service cloud.firestore {
       match /notifications/{notificationId} {
         allow read, update, delete: if signedIn() && request.auth.uid == uid;
         allow create: if signedIn() && request.resource.data.fromId == request.auth.uid && request.auth.uid != uid;
+      }
+
+      // Profile visits and follow / unfollow history: written by the other person, read only by the owner
+      match /visits/{visitId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn() && request.resource.data.visitorId == request.auth.uid;
+      }
+
+      match /followEvents/{eventId} {
+        allow read: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn() && request.resource.data.by == request.auth.uid;
       }
 
       match /closeFriends/{friendId} {

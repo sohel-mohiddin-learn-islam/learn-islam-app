@@ -5,6 +5,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import StoryViewer from "@/components/StoryViewer";
 import NotificationBell from "@/components/NotificationBell";
 import { notify } from "@/lib/notifications";
+import { recordProfileVisit } from "@/lib/analytics";
+import { getDoc, doc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import { getStories, hasUnseen, type Story } from "@/lib/stories";
 import { auth } from "@/lib/firebase";
 import { deletePost, getUserPosts, postThumbnail } from "@/lib/posts";
@@ -111,6 +114,8 @@ export default function ProfileView({ uid }: { uid: string }) {
   const [stories, setStories] = useState<Story[]>([]);
   const [viewStories, setViewStories] = useState(false);
   const [ePhotoUrl, setEPhotoUrl] = useState<string | null>(null);
+  const [eGender, setEGender] = useState("");
+  const [eAge, setEAge] = useState("");
 
   const [editing, setEditing] = useState(false);
   const [eName, setEName] = useState("");
@@ -146,6 +151,7 @@ export default function ProfileView({ uid }: { uid: string }) {
 
   useEffect(() => {
     setProfile(null);
+    if (user && !isOwn) recordProfileVisit(uid, user.uid);
     load();
   }, [uid, user?.uid]);
 
@@ -221,6 +227,13 @@ export default function ProfileView({ uid }: { uid: string }) {
     setEPhotoPreview(null);
     setEPhotoUrl(null);
     setError("");
+    if (user) {
+      getDoc(doc(db, "users", user.uid)).then((s) => {
+        const d: any = s.data() || {};
+        setEGender(d.gender || "");
+        setEAge(d.ageRange || "");
+      }).catch(() => {});
+    }
     setEditing(true);
   };
 
@@ -241,6 +254,7 @@ export default function ProfileView({ uid }: { uid: string }) {
       else if (ePhotoUrl) photoURL = ePhotoUrl;
       const displayName = eName.trim() || profile.displayName;
       await saveProfile(user.uid, { displayName, bio: eBio.trim(), link: eLink.trim(), photoURL });
+      await setDoc(doc(db, "users", user.uid), { gender: eGender, ageRange: eAge }, { merge: true });
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { displayName, photoURL: photoURL || undefined }).catch(() => {});
       }
@@ -380,12 +394,12 @@ export default function ProfileView({ uid }: { uid: string }) {
         </div>
 
         {isOwn && (
-          <div className="mt-4 rounded-xl bg-muted p-4">
-            <p className="font-semibold">Your dashboard</p>
+          <button onClick={() => setLocation("/dashboard")} className="mt-4 w-full text-left rounded-xl bg-muted p-4 block">
+            <p className="font-semibold">Your dashboard ›</p>
             <p className="text-sm text-foreground/70">
-              {posts.length} reels · {followers.length} followers · {totalLikes} likes
+              {posts.length} reels · {followers.length} followers · views, audience and more
             </p>
-          </div>
+          </button>
         )}
 
         <div className="mt-4 flex gap-2">
@@ -513,6 +527,22 @@ export default function ProfileView({ uid }: { uid: string }) {
             <textarea value={eBio} onChange={(e) => setEBio(e.target.value)} rows={3} maxLength={150} className="w-full bg-muted border border-border rounded-lg py-2 px-3 mb-3" />
             <label className="text-xs uppercase text-foreground/60">Link</label>
             <input value={eLink} onChange={(e) => setELink(e.target.value)} placeholder="yourwebsite.com" className="w-full bg-muted border border-border rounded-lg py-2 px-3 mb-3" />
+            <p className="text-xs text-foreground/50 mb-2">
+              Optional: shared only as anonymous totals in your followers' audience insights.
+            </p>
+            <div className="flex gap-2 mb-3">
+              <select value={eGender} onChange={(e) => setEGender(e.target.value)} className="flex-1 bg-muted border border-border rounded-lg py-2 px-2">
+                <option value="">Gender</option>
+                <option value="Women">Woman</option>
+                <option value="Men">Man</option>
+              </select>
+              <select value={eAge} onChange={(e) => setEAge(e.target.value)} className="flex-1 bg-muted border border-border rounded-lg py-2 px-2">
+                <option value="">Age range</option>
+                {["13-17", "18-24", "25-34", "35-44", "45-54", "55-64", "65+"].map((a) => (
+                  <option key={a} value={a}>{a}</option>
+                ))}
+              </select>
+            </div>
             {error && <p className="text-sm text-red-400 mb-2">{error}</p>}
             <div className="flex gap-2">
               <button onClick={saveEdit} disabled={saving} className="flex-1 bg-primary text-primary-foreground rounded-lg py-2 disabled:opacity-50">

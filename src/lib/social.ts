@@ -15,6 +15,7 @@ import {
 
 import { db } from "./firebase";
 import { uploadImage } from "./posts";
+import { recordFollowEvent, forgetFollowingCache } from "./analytics";
 
 export type UserProfile = {
   uid: string;
@@ -56,12 +57,16 @@ export async function follow(me: string, other: string) {
   await setDoc(doc(db, "follows", followId(me, other)), {
     followerId: me,
     followingId: other,
-    createdAt: serverTimestamp(),
+    createdAt: Date.now(),
   });
+  forgetFollowingCache();
+  recordFollowEvent(other, me, "follow");
 }
 
 export async function unfollow(me: string, other: string) {
   await deleteDoc(doc(db, "follows", followId(me, other)));
+  forgetFollowingCache();
+  recordFollowEvent(other, me, "unfollow");
 }
 
 /** User ids that follow `uid`. */
@@ -79,6 +84,7 @@ export async function getFollowingIds(uid: string): Promise<string[]> {
 /** Removes someone from your followers. */
 export async function removeFollower(me: string, follower: string) {
   await deleteDoc(doc(db, "follows", followId(follower, me)));
+  recordFollowEvent(me, me, "unfollow");
 }
 
 export type Relations = { blocked: string[]; muted: string[]; isPrivate: boolean };

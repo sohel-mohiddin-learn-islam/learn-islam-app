@@ -1,10 +1,12 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { toggleSaved, usePrefs } from "@/lib/prefs";
+import { setPrefs, toggleSaved, usePrefs } from "@/lib/prefs";
 import { getRelations } from "@/lib/social";
 import CommentsSheet from "@/components/CommentsSheet";
 import { notify } from "@/lib/notifications";
+import { compact, getReelCounts, recordReelView, recordShare, setSaveMarker, type ReelCounts } from "@/lib/analytics";
+import { follow as followUser, getFollowingIds } from "@/lib/social";
 import { db } from "@/lib/firebase";
 import { deleteDoc, doc, setDoc } from "firebase/firestore";
 import { Plus } from "lucide-react";
@@ -47,12 +49,16 @@ function getLiked(id: string) {
 
 const MAX_AUTO_RETRIES = 2;
 
-function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDelete?: (reel: Reel) => void }) {
+function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotInterested }: { reel: Reel; isOwn?: boolean; onDelete?: (reel: Reel) => void; followingIds: string[]; onFollowed: (uid: string) => void; onNotInterested: (id: string) => void }) {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const prefs = usePrefs();
   const saved = prefs.saved.includes(reel.id);
   const [showComments, setShowComments] = useState(false);
+  const [counts, setCounts] = useState<ReelCounts>({ likes: 0, comments: 0, shares: 0, saves: 0 });
+  const [menu, setMenu] = useState(false);
+  const viewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isCommunity = !reel.id.startsWith("local-");
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -64,6 +70,10 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
   const [useOriginal, setUseOriginal] = useState(false);
 
   const autoRetryCountRef = useRef(0);
+
+  useEffect(() => {
+    if (shouldLoad && isCommunity) getReelCounts(reel.id).then(setCounts);
+  }, [shouldLoad]);
 
   useEffect(() => {
     const container = containerRef.current;
@@ -97,8 +107,15 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
         entries.forEach((entry) => {
           if (entry.isIntersecting && entry.intersectionRatio > 0.6) {
             video.play().catch(() => {});
+            if (user && isCommunity && reel.userId && !viewTimer.current) {
+              viewTimer.current = setTimeout(() => recordReelView(reel.id, reel.userId!, user.uid), 1500);
+            }
           } else {
             video.pause();
+            if (viewTimer.current) {
+              clearTimeout(viewTimer.current);
+              viewTimer.current = null;
+            }
           }
         });
       },
@@ -133,9 +150,11 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
       const likeRef = doc(db, "posts", reel.id, "likes", user.uid);
       if (next) {
         setDoc(likeRef, { userId: user.uid, createdAt: Date.now() }).catch(() => {});
+        setCounts((c) => ({ ...c, likes: c.likes + 1 }));
         if (reel.userId) notify(reel.userId, user.uid, "like", { postId: reel.id, thumb: reel.poster });
       } else {
         deleteDoc(likeRef).catch(() => {});
+        setCounts((c) => ({ ...c, likes: Math.max(0, c.likes - 1) }));
       }
     }
   };
@@ -198,12 +217,26 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
       {reel.caption && (
         <div className="absolute left-4 bottom-8 right-20 text-white drop-shadow-lg">
           {reel.userName && (
-            <p
-              className="font-semibold mb-1 cursor-pointer"
-              onClick={() => reel.userId && setLocation(`/user/${reel.userId}`)}
-            >
-              @{reel.userName}
-            </p>
+            <div className="flex items-center gap-3 mb-1">
+              <p
+                className="font-semibold cursor-pointer"
+                onClick={() => reel.userId && setLocation(`/user/${reel.userId}`)}
+              >
+                @{reel.userName}
+              </p>
+              {user && reel.userId && !isOwn && !followingIds.includes(reel.userId) && (
+                <button
+                  onClick={async () => {
+                    onFollowed(reel.userId!);
+                    await followUser(user.uid, reel.userId!).catch(() => {});
+                    notify(reel.userId!, user.uid, "follow");
+                  }}
+                  className="border border-white rounded-lg px-3 py-0.5 text-sm font-semibold"
+                >
+                  Follow
+                </button>
+              )}
+            </div>
           )}
 
           <p className="text-sm">
@@ -212,45 +245,84 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
         </div>
       )}
 
-      <div className="absolute right-4 bottom-24 flex flex-col items-center gap-5">
-        <button
-          onClick={toggleLike}
-          className="flex flex-col items-center gap-1"
-          aria-label="Like"
-        >
-          <span className="text-3xl drop-shadow-lg">
-            {liked ? "❤️" : "🤍"}
-          </span>
+      <div className="absolute right-4 bottom-24 flex flex-col items-center gap-4 text-white">
+        <button onClick={toggleLike} className="flex flex-col items-center" aria-label="Like">
+          <span className="text-3xl drop-shadow-lg">{liked ? "❤️" : "🤍"}</span>
+          {isCommunity && <span className="text-xs drop-shadow">{compact(counts.likes)}</span>}
         </button>
 
-        {!reel.id.startsWith("local-") && (
-          <button onClick={() => setShowComments(true)} className="flex flex-col items-center gap-1" aria-label="Comments">
+        {isCommunity && (
+          <button onClick={() => setShowComments(true)} className="flex flex-col items-center" aria-label="Comments">
             <span className="text-3xl drop-shadow-lg">💬</span>
+            <span className="text-xs drop-shadow">{compact(counts.comments)}</span>
           </button>
         )}
 
-        {!reel.id.startsWith("local-") && (
-          <button onClick={() => toggleSaved(reel.id)} className="flex flex-col items-center gap-1" aria-label="Save">
-            <span className="text-2xl drop-shadow-lg">{saved ? "🔖" : "📑"}</span>
+        {isCommunity && (
+          <button
+            onClick={async () => {
+              const url = `https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/user/${reel.userId || ""}`;
+              try {
+                if (navigator.share) await navigator.share({ title: "Learn Islam", text: reel.caption || "Watch this reel", url });
+                else await navigator.clipboard.writeText(url);
+                if (user) {
+                  recordShare(reel.id, user.uid);
+                  setCounts((c) => ({ ...c, shares: c.shares + 1 }));
+                }
+              } catch {
+                /* cancelled */
+              }
+            }}
+            className="flex flex-col items-center"
+            aria-label="Share"
+          >
+            <span className="text-3xl drop-shadow-lg">📤</span>
+            <span className="text-xs drop-shadow">{compact(counts.shares)}</span>
           </button>
         )}
 
-        {isOwn && onDelete && (
-          <button onClick={() => onDelete(reel)} className="flex flex-col items-center gap-1" aria-label="Delete reel">
-            <span className="text-2xl drop-shadow-lg">🗑️</span>
+        {isCommunity && (
+          <button
+            onClick={() => {
+              const next = toggleSaved(reel.id);
+              if (user) {
+                setSaveMarker(reel.id, user.uid, next);
+                setCounts((c) => ({ ...c, saves: Math.max(0, c.saves + (next ? 1 : -1)) }));
+              }
+            }}
+            className="flex flex-col items-center"
+            aria-label="Save"
+          >
+            <span className="text-3xl drop-shadow-lg">{saved ? "🔖" : "📑"}</span>
+            <span className="text-xs drop-shadow">{compact(counts.saves)}</span>
           </button>
         )}
 
-        <button
-          onClick={toggleMute}
-          className="flex flex-col items-center gap-1"
-          aria-label="Mute"
-        >
-          <span className="text-2xl drop-shadow-lg">
-            {muted ? "🔇" : "🔊"}
-          </span>
+        <button onClick={toggleMute} className="flex flex-col items-center" aria-label="Mute">
+          <span className="text-2xl drop-shadow-lg">{muted ? "🔇" : "🔊"}</span>
         </button>
+
+        {isCommunity && (
+          <div className="relative">
+            <button onClick={() => setMenu((m) => !m)} className="text-2xl drop-shadow-lg" aria-label="More">⋯</button>
+            {menu && (
+              <div className="absolute right-0 bottom-9 z-20 bg-black/85 rounded-lg overflow-hidden text-sm whitespace-nowrap">
+                {isOwn && onDelete && (
+                  <button onClick={() => { setMenu(false); onDelete(reel); }} className="block w-full text-left px-4 py-2.5 text-red-400">
+                    🗑 Delete
+                  </button>
+                )}
+                {!isOwn && (
+                  <button onClick={() => { setMenu(false); onNotInterested(reel.id); }} className="block w-full text-left px-4 py-2.5">
+                    ✕ Not interested
+                  </button>
+                )}
+              </div>
+            )}
+          </div>
+        )}
       </div>
+
       {showComments && (
         <CommentsSheet postId={reel.id} postOwnerId={reel.userId} thumb={reel.poster} onClose={() => setShowComments(false)} />
       )}
@@ -262,9 +334,13 @@ export default function Reels() {
   const [, setLocation] = useLocation();
   const { user } = useAuth();
   const [hidden, setHidden] = useState<string[]>([]);
+  const [followingIds, setFollowingIds] = useState<string[]>([]);
+  const [tab, setTab] = useState<"reels" | "friends">("reels");
+  const prefs = usePrefs();
 
   useEffect(() => {
     if (!user) return;
+    getFollowingIds(user.uid).then(setFollowingIds).catch(() => {});
     getRelations(user.uid).then((r) => setHidden([...r.blocked, ...r.muted])).catch(() => {});
   }, [user?.uid]);
 
@@ -320,7 +396,11 @@ export default function Reels() {
     };
   }, [hidden.join(",")]);
 
-  const allReels = [...communityReels, ...localReels];
+  const visibleCommunity = communityReels.filter((r) => !prefs.notInterested.includes(r.id));
+  const allReels =
+    tab === "friends"
+      ? visibleCommunity.filter((r) => r.userId && followingIds.includes(r.userId))
+      : [...visibleCommunity, ...localReels];
 
   return (
     <div className="relative h-full w-full bg-black">
@@ -332,9 +412,30 @@ export default function Reels() {
         Create
       </button>
 
+      <div className="absolute top-4 left-4 z-50 flex gap-5 text-lg font-semibold drop-shadow-lg">
+        {(["reels", "friends"] as const).map((t) => (
+          <button key={t} onClick={() => setTab(t)} className={tab === t ? "text-white" : "text-white/50"}>
+            {t === "reels" ? "Reels" : "Friends"}
+          </button>
+        ))}
+      </div>
+
       <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory bg-black">
+        {tab === "friends" && allReels.length === 0 && (
+          <p className="text-white/70 text-center pt-40 px-8">
+            Reels from people you follow will show up here. Follow someone from the Reels tab.
+          </p>
+        )}
         {allReels.map((reel) => (
-          <ReelItem key={reel.id} reel={reel} isOwn={!!user && reel.userId === user.uid} onDelete={handleDelete} />
+          <ReelItem
+            key={reel.id}
+            reel={reel}
+            isOwn={!!user && reel.userId === user.uid}
+            onDelete={handleDelete}
+            followingIds={followingIds}
+            onFollowed={(uid) => setFollowingIds((f) => [...f, uid])}
+            onNotInterested={(id) => setPrefs({ notInterested: [...prefs.notInterested, id] })}
+          />
         ))}
       </div>
     </div>

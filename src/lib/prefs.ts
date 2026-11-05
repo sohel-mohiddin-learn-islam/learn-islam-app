@@ -6,10 +6,11 @@ export type Prefs = {
   dailyLimit: number; // minutes, 0 = off
   saved: string[]; // saved reel ids
   hiddenWords: string[];
+  notInterested: string[]; // reel ids
 };
 
 const KEY = "li-prefs";
-const DEFAULTS: Prefs = { textScale: 1, dataSaver: false, dailyLimit: 0, saved: [], hiddenWords: [] };
+const DEFAULTS: Prefs = { textScale: 1, dataSaver: false, dailyLimit: 0, saved: [], hiddenWords: [], notInterested: [] };
 
 export function getPrefs(): Prefs {
   try {

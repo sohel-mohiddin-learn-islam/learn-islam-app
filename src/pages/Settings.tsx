@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { recordActivityAndDevice } from "@/lib/analytics";
 import { getPosts, postThumbnail, setArchived, deletePost } from "@/lib/posts";
 import { addUsage, likedReelIds, setPrefs, todayUsage, toggleSaved, usePrefs } from "@/lib/prefs";
 import { getCloseFriendIds, setCloseFriend } from "@/lib/stories";
@@ -523,6 +524,14 @@ export default function Settings() {
 /** Counts the seconds the app is open each day and shows a reminder when the daily limit is reached. */
 export function UsageTracker() {
   const prefs = usePrefs();
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (!user) return;
+    recordActivityAndDevice(user.uid);
+    const t = setInterval(() => recordActivityAndDevice(user.uid), 10 * 60 * 1000);
+    return () => clearInterval(t);
+  }, [user?.uid]);
   const [show, setShow] = useState(false);
 
   useEffect(() => {

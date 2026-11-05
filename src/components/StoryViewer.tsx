@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { deleteStory, markSeen, type Story } from "@/lib/stories";
 import { sendMessage } from "@/lib/chat";
 import { useAuth } from "@/contexts/AuthContext";
+import { recordStoryView } from "@/lib/analytics";
 
 type Props = {
   ownerName: string;
@@ -27,6 +28,7 @@ export default function StoryViewer({ ownerName, stories, onClose, onChanged }: 
   useEffect(() => {
     if (!story) return onClose();
     markSeen(story.ownerId, story.createdAt);
+    if (user && !story.closeOnly) recordStoryView(story.ownerId, story.id, user.uid);
     setProgress(0);
   }, [i]);
 
