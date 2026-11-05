@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { setPrefs, toggleSaved, usePrefs } from "@/lib/prefs";
 import { getRelations } from "@/lib/social";
+import ShareSheet from "@/components/ShareSheet";
 import CommentsSheet from "@/components/CommentsSheet";
 import { notify } from "@/lib/notifications";
 import { compact, getReelCounts, recordReelView, recordShare, setSaveMarker, type ReelCounts } from "@/lib/analytics";
@@ -38,6 +39,7 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
   const [showComments, setShowComments] = useState(false);
   const [counts, setCounts] = useState<ReelCounts>({ likes: 0, comments: 0, shares: 0, saves: 0 });
   const [menu, setMenu] = useState(false);
+  const [showShare, setShowShare] = useState(false);
   const viewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isCommunity = !reel.id.startsWith("local-");
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -241,25 +243,7 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
 
         {isCommunity && (
           <button
-            onClick={async () => {
-              const url = `https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/user/${reel.userId || ""}`;
-              try {
-                if (navigator.share) await navigator.share({ title: "Learn Islam", text: reel.caption || "Watch this reel", url });
-                else await navigator.clipboard.writeText(url);
-                if (user) {
-                  // one share per person: repeated taps do not add to the count
-                  const key = `reel-shared-${reel.id}-${user.uid}`;
-                  let already = false;
-                  try { already = localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch { /* ignore */ }
-                  if (!already) {
-                    recordShare(reel.id, user.uid);
-                    setCounts((c) => ({ ...c, shares: c.shares + 1 }));
-                  }
-                }
-              } catch {
-                /* cancelled */
-              }
-            }}
+            onClick={() => setShowShare(true)}
             className="flex flex-col items-center"
             aria-label="Share"
           >
@@ -309,6 +293,24 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
           </div>
         )}
       </div>
+
+      {showShare && (
+        <ShareSheet
+          reel={reel}
+          onClose={() => setShowShare(false)}
+          onShared={() => {
+            if (!user) return;
+            // one share per person: repeated actions do not add to the count
+            const key = `reel-shared-${reel.id}-${user.uid}`;
+            let already = false;
+            try { already = localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch { /* ignore */ }
+            if (!already) {
+              recordShare(reel.id, user.uid);
+              setCounts((c) => ({ ...c, shares: c.shares + 1 }));
+            }
+          }}
+        />
+      )}
 
       {showComments && (
         <CommentsSheet postId={reel.id} postOwnerId={reel.userId} thumb={reel.poster} onClose={() => setShowComments(false)} />
@@ -368,7 +370,7 @@ export default function Reels() {
   const [refreshing, setRefreshing] = useState(false);
   const [startId, setStartId] = useState<string | null>(() => {
     try {
-      const v = sessionStorage.getItem("reel-start");
+      const v = sessionStorage.getItem("reel-start") || new URLSearchParams(window.location.search).get("reel");
       sessionStorage.removeItem("reel-start");
       return v;
     } catch {
