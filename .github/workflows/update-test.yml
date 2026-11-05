@@ -40,17 +40,20 @@ jobs:
           arch: x86_64
           target: google_apis
           script: |
+            pip install pillow -q 2>/dev/null
             adb install -g -r old.apk
             adb shell monkey -p com.sohel.learnislam.app -c android.intent.category.LAUNCHER 1
             sleep 30
             adb shell uiautomator dump /sdcard/a.xml >/dev/null 2>&1; adb pull /sdcard/a.xml a.xml >/dev/null 2>&1
             echo ===OLD-UI===; grep -oE 'text="[^"]+"' a.xml | head -15; echo ===OLD-END===
+            adb exec-out screencap -p > old.png; python3 -c "from PIL import Image; im=Image.open('old.png').convert('RGB'); c=im.crop((0,200,im.width,im.height-200)); print('OLD COLOURS', len(set(c.getdata())))" || true
             adb install -r new.apk
             adb logcat -c
             adb shell monkey -p com.sohel.learnislam.app -c android.intent.category.LAUNCHER 1
             sleep 35
             adb exec-out screencap -p > shot.png
             adb shell uiautomator dump /sdcard/b.xml >/dev/null 2>&1; adb pull /sdcard/b.xml b.xml >/dev/null 2>&1
+            pip install pillow -q 2>/dev/null; python3 -c "from PIL import Image; im=Image.open('shot.png').convert('RGB'); c=im.crop((0,200,im.width,im.height-200)); print('COLOURS', len(set(c.getdata())), 'SIZE', c.size)"
             echo ===NEW-UI===; grep -oE 'text="[^"]+"' b.xml | head -25; echo ===NEW-END===
             adb logcat -d > log.txt
             echo ===CONSOLE===; grep -E 'Capacitor/Console' log.txt | cut -c1-300 | head -20; echo ===CONSOLE-END===
