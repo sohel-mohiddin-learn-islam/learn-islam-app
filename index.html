@@ -32,5 +32,22 @@
     <div id="root"></div>
     <script type="module" src="/src/main.tsx"></script>
   <script>if("serviceWorker" in navigator){navigator.serviceWorker.register("/sw.js")}</script>
+  <script>
+    // If the app has not drawn anything after a few seconds, show why instead of a blank white page.
+    (function () {
+      var last = "";
+      function note(m) { last = String(m && m.message ? m.message : m).slice(0, 300); }
+      window.addEventListener("error", function (e) { note(e.message || (e.target && e.target.src) || "error"); }, true);
+      window.addEventListener("unhandledrejection", function (e) { note(e.reason); });
+      setTimeout(function () {
+        var r = document.getElementById("root");
+        if (r && r.childElementCount === 0) {
+          r.innerHTML = '<div style="padding:24px;font-family:sans-serif;color:#064e3b"><h3>Learn Islam could not start</h3><p style="font-size:13px;word-break:break-all">' +
+            (last || "No error reported (the app files may still be loading).") +
+            '</p><button style="margin-top:12px;padding:10px 18px;border-radius:8px;background:#065f46;color:#fff;border:0" onclick="(navigator.serviceWorker?navigator.serviceWorker.getRegistrations():Promise.resolve([])).then(function(rs){return Promise.all(rs.map(function(x){return x.unregister()}))}).then(function(){return window.caches?caches.keys():[]}).then(function(ks){return Promise.all(ks.map(function(k){return caches.delete(k)}))}).then(function(){location.reload()})">Reset and reload</button></div>';
+        }
+      }, 8000);
+    })();
+  </script>
 </body>
 </html>
