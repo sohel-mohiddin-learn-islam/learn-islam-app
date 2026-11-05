@@ -5,7 +5,7 @@ on:
     inputs:
       old_ref:
         description: "Git ref of the OLD version to install first"
-        default: "0eed04e"
+        default: "0eed04e358971b087c4016659de9a63996726842"
 
 jobs:
   test:
