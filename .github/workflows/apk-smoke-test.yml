@@ -27,6 +27,8 @@ jobs:
             adb shell monkey -p com.sohel.learnislam.app -c android.intent.category.LAUNCHER 1
             sleep 40
             adb exec-out screencap -p > shot.png
+            adb shell uiautomator dump /sdcard/ui.xml >/dev/null 2>&1; adb pull /sdcard/ui.xml ui.xml >/dev/null 2>&1
+            echo ===UI===; grep -oE 'text="[^"]+"' ui.xml | head -40; echo ===UI-END===
             adb logcat -d > log.txt
             echo ===LOG-START===
             grep -n -A28 'FATAL EXCEPTION' log.txt | cut -c1-260 | head -70
