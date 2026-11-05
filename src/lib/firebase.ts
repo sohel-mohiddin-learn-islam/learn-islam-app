@@ -13,11 +13,14 @@ const firebaseConfig = {
   appId: "1:9616232938:android:f553ff8de55893c310e293",
 };
 
+// This project's Firestore database is named "default" (not the usual "(default)")
+export const FIRESTORE_DATABASE_ID = "default";
+
 const app = initializeApp(firebaseConfig);
 
 export const auth = getAuth(app);
 // Long-polling auto-detect: WebChannel streams can hang inside Android WebViews, which made saves stall
-export const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true });
+export const db = initializeFirestore(app, { experimentalAutoDetectLongPolling: true }, FIRESTORE_DATABASE_ID);
 export const storage = getStorage(app);
 
 export default app;

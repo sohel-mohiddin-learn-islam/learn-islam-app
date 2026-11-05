@@ -26,6 +26,7 @@ type Reel = {
   poster?: string;
   caption?: string;
   userName?: string;
+  userId?: string;
 };
 
 const localReels: Reel[] = reelFiles.map((file, i) => ({
@@ -40,6 +41,7 @@ function getLiked(id: string) {
 const MAX_AUTO_RETRIES = 2;
 
 function ReelItem({ reel }: { reel: Reel }) {
+  const [, setLocation] = useLocation();
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -174,7 +176,10 @@ function ReelItem({ reel }: { reel: Reel }) {
       {reel.caption && (
         <div className="absolute left-4 bottom-8 right-20 text-white drop-shadow-lg">
           {reel.userName && (
-            <p className="font-semibold mb-1">
+            <p
+              className="font-semibold mb-1 cursor-pointer"
+              onClick={() => reel.userId && setLocation(`/user/${reel.userId}`)}
+            >
               @{reel.userName}
             </p>
           )}
@@ -237,6 +242,7 @@ export default function Reels() {
             poster: postThumbnail(post),
             caption: post.caption || "",
             userName: post.userName || "Learn Islam User",
+            userId: post.userId,
           }));
 
         setCommunityReels(firebaseReels);

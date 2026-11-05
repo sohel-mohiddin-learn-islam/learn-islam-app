@@ -122,6 +122,13 @@ export async function uploadVideo(
   return data.secure_url;
 }
 
+/** Uploads a picture (profile photo) and returns its URL. */
+export async function uploadImage(blob: Blob): Promise<string> {
+  const data = await chunkedUpload(blob, "photo.jpg", "image");
+  if (!data.secure_url) throw new Error("Cloudinary did not return an image URL.");
+  return data.secure_url;
+}
+
 /** Uploads a picture to use as the reel thumbnail. Returns null if it fails (a frame of the video is used instead). */
 export async function uploadThumbnail(blob: Blob): Promise<string | null> {
   try {
@@ -151,7 +158,7 @@ export function optimizedVideoUrl(videoUrl: string): string {
   return videoUrl.replace("/video/upload/", "/video/upload/f_mp4,vc_h264,q_auto,w_720,c_limit/");
 }
 
-const FIRESTORE_DATABASES = ["(default)", "default"];
+const FIRESTORE_DATABASES = ["default", "(default)"];
 const firestoreRest = (database: string) =>
   `https://firestore.googleapis.com/v1/projects/learn-islam-891c3/databases/${encodeURIComponent(database)}/documents`;
 
