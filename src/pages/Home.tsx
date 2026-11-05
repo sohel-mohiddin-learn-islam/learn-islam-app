@@ -2,6 +2,7 @@ import { useState, useEffect } from "react";
 import { BookOpen, BookText, Heart, Scroll, Hand, Star, Users, Calendar, Compass, Hash, MessageCircle, Flame, Info } from "lucide-react";
 import { Link } from "wouter";
 import { CalculationMethod, Coordinates, PrayerTimes } from "adhan";
+import StoriesBar from "@/components/StoriesBar";
 import { LocalNotifications } from '@capacitor/local-notifications';
 
 const features = [
@@ -199,6 +200,7 @@ export default function HomePage() {
 
   return (
     <div className="min-h-full bg-background pb-20">
+      <StoriesBar />
       <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 px-5 pt-8 pb-6 rounded-b-3xl shadow-lg">
         <p className="text-yellow-300 font-serif text-sm mb-1">Assalamu Alaikum</p>
         <h1 className="text-white font-serif text-2xl font-bold mb-1">Learn Islam</h1>

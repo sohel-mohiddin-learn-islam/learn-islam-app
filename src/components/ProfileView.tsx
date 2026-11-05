@@ -2,6 +2,8 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { updateProfile } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
+import StoryViewer from "@/components/StoryViewer";
+import { getStories, hasUnseen, type Story } from "@/lib/stories";
 import { auth } from "@/lib/firebase";
 import { deletePost, getUserPosts, postThumbnail } from "@/lib/posts";
 import {
@@ -104,6 +106,9 @@ export default function ProfileView({ uid }: { uid: string }) {
   const [note, setNote] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
   const [menu, setMenu] = useState(false);
+  const [stories, setStories] = useState<Story[]>([]);
+  const [viewStories, setViewStories] = useState(false);
+  const [ePhotoUrl, setEPhotoUrl] = useState<string | null>(null);
 
   const [editing, setEditing] = useState(false);
   const [eName, setEName] = useState("");
@@ -127,6 +132,7 @@ export default function ProfileView({ uid }: { uid: string }) {
       base.displayName = p?.displayName && p.displayName !== "Learn Islam User" ? p.displayName : user.displayName || base.displayName;
       base.photoURL = p?.photoURL || user.photoURL || null;
     }
+    getStories(uid).then(setStories).catch(() => setStories([]));
     const rel = await getRelations(uid).catch(() => null);
     setIsPrivate(!!rel?.isPrivate);
     setProfile(base);
@@ -206,6 +212,7 @@ export default function ProfileView({ uid }: { uid: string }) {
     setELink(profile.link);
     setEPhoto(null);
     setEPhotoPreview(null);
+    setEPhotoUrl(null);
     setError("");
     setEditing(true);
   };
@@ -213,6 +220,7 @@ export default function ProfileView({ uid }: { uid: string }) {
   const pickPhoto = (file?: File | null) => {
     if (!file) return;
     setEPhoto(file);
+    setEPhotoUrl(null);
     setEPhotoPreview(URL.createObjectURL(file));
   };
 
@@ -223,6 +231,7 @@ export default function ProfileView({ uid }: { uid: string }) {
     try {
       let photoURL = profile.photoURL;
       if (ePhoto) photoURL = await uploadImage(ePhoto);
+      else if (ePhotoUrl) photoURL = ePhotoUrl;
       const displayName = eName.trim() || profile.displayName;
       await saveProfile(user.uid, { displayName, bio: eBio.trim(), link: eLink.trim(), photoURL });
       if (auth.currentUser) {
@@ -314,7 +323,10 @@ export default function ProfileView({ uid }: { uid: string }) {
         {(isOwn || user) && (
           <div className="flex justify-end mb-2 relative">
             {isOwn ? (
-              <button onClick={() => setLocation("/settings")} aria-label="Settings" className="text-2xl px-2">⚙️</button>
+              <>
+                <button onClick={() => setLocation("/messages")} aria-label="Messages" className="text-2xl px-2">✉️</button>
+                <button onClick={() => setLocation("/settings")} aria-label="Settings" className="text-2xl px-2">⚙️</button>
+              </>
             ) : (
               <>
                 <button onClick={() => setMenu((m) => !m)} aria-label="More" className="text-2xl px-2">⋯</button>
@@ -329,7 +341,13 @@ export default function ProfileView({ uid }: { uid: string }) {
           </div>
         )}
         <div className="flex items-center gap-5">
-          <Avatar src={profile.photoURL} size={84} />
+          <button
+            onClick={() => stories.length && setViewStories(true)}
+            className={`rounded-full p-0.5 ${stories.length ? (hasUnseen(uid, Math.max(...stories.map((s) => s.createdAt))) ? "bg-emerald-500" : "bg-border") : ""}`}
+            aria-label={stories.length ? "View story" : "Profile photo"}
+          >
+            <Avatar src={profile.photoURL} size={84} />
+          </button>
           <div className="flex-1 flex justify-around">
             {stat(posts.length, "posts", "grid")}
             {stat(followers.length, "followers", "followers")}
@@ -380,8 +398,11 @@ export default function ProfileView({ uid }: { uid: string }) {
               >
                 {iFollow ? "Following" : "Follow"}
               </button>
+              <button onClick={() => (user ? setLocation(`/chat/${uid}`) : setLocation("/login"))} className="flex-1 bg-muted rounded-lg py-2 font-semibold">
+                Message
+              </button>
               <button onClick={share} className="flex-1 bg-muted rounded-lg py-2 font-semibold">
-                Share profile
+                Share
               </button>
             </>
           )}
@@ -393,6 +414,10 @@ export default function ProfileView({ uid }: { uid: string }) {
             <button onClick={() => setLocation("/create-post")} className="flex flex-col items-center gap-1 shrink-0">
               <span className="w-16 h-16 rounded-full border border-border flex items-center justify-center text-3xl">＋</span>
               <span className="text-xs">New reel</span>
+            </button>
+            <button onClick={() => setLocation("/create-story")} className="flex flex-col items-center gap-1 shrink-0">
+              <span className="w-16 h-16 rounded-full border border-border flex items-center justify-center text-3xl">📷</span>
+              <span className="text-xs">New story</span>
             </button>
           </div>
         )}
@@ -435,16 +460,44 @@ export default function ProfileView({ uid }: { uid: string }) {
         )}
       </div>
 
+      {viewStories && stories.length > 0 && (
+        <StoryViewer
+          ownerName={profile.displayName}
+          stories={stories}
+          onClose={() => setViewStories(false)}
+          onChanged={() => getStories(uid).then(setStories)}
+        />
+      )}
+
       {editing && (
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-end sm:items-center justify-center">
           <div className="w-full max-w-lg bg-background rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto font-sans">
             <p className="font-semibold text-lg mb-4">Edit profile</p>
             <div className="flex items-center gap-4 mb-4">
-              <Avatar src={ePhotoPreview || profile.photoURL} size={64} />
+              <Avatar src={ePhotoPreview || ePhotoUrl || profile.photoURL} size={64} />
               <label className="text-primary underline cursor-pointer text-sm">
                 Change photo
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(e.target.files?.[0])} />
               </label>
+            </div>
+            <p className="text-xs uppercase text-foreground/60 mb-1">Or pick an avatar</p>
+            <div className="flex gap-2 overflow-x-auto mb-4">
+              {["Aisha", "Bilal", "Zaid", "Maryam", "Yusuf", "Hana", "Omar", "Layla"].map((seed) => {
+                const url = `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=128`;
+                return (
+                  <button
+                    key={seed}
+                    onClick={() => {
+                      setEPhoto(null);
+                      setEPhotoPreview(null);
+                      setEPhotoUrl(url);
+                    }}
+                    className={`shrink-0 rounded-full ${ePhotoUrl === url ? "ring-2 ring-primary" : ""}`}
+                  >
+                    <img src={url} alt={seed} className="w-12 h-12 rounded-full bg-muted" />
+                  </button>
+                );
+              })}
             </div>
             <label className="text-xs uppercase text-foreground/60">Name</label>
             <input value={eName} onChange={(e) => setEName(e.target.value)} className="w-full bg-muted border border-border rounded-lg py-2 px-3 mb-3" />

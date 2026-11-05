@@ -5,10 +5,11 @@ export type Prefs = {
   dataSaver: boolean;
   dailyLimit: number; // minutes, 0 = off
   saved: string[]; // saved reel ids
+  hiddenWords: string[];
 };
 
 const KEY = "li-prefs";
-const DEFAULTS: Prefs = { textScale: 1, dataSaver: false, dailyLimit: 0, saved: [] };
+const DEFAULTS: Prefs = { textScale: 1, dataSaver: false, dailyLimit: 0, saved: [], hiddenWords: [] };
 
 export function getPrefs(): Prefs {
   try {
@@ -80,4 +81,12 @@ export function likedReelIds(): string[] {
     /* ignore */
   }
   return ids;
+}
+
+/** True when the text contains one of the words the user chose to hide. */
+export function containsHiddenWord(text: string): boolean {
+  const words = getPrefs().hiddenWords;
+  if (!words.length) return false;
+  const t = text.toLowerCase();
+  return words.some((w) => w && t.includes(w.toLowerCase()));
 }

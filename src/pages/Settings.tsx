@@ -3,6 +3,10 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { getPosts, postThumbnail, setArchived, deletePost } from "@/lib/posts";
 import { addUsage, likedReelIds, setPrefs, todayUsage, toggleSaved, usePrefs } from "@/lib/prefs";
+import { getCloseFriendIds, setCloseFriend } from "@/lib/stories";
+import { getFollowingIds } from "@/lib/social";
+import { doc, getDoc, setDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
 import {
   getProfile,
   getRelations,
@@ -14,7 +18,7 @@ import {
 
 type View =
   | "main" | "privacy" | "saved" | "archive" | "activity" | "time"
-  | "blocked" | "muted" | "accessibility" | "data" | "invite" | "about";
+  | "blocked" | "muted" | "close" | "messages" | "hidden" | "accessibility" | "data" | "invite" | "about";
 
 const APP_LINK = "https://github.com/sohel-mohiddin-learn-islam/learn-islam-app/releases/download/apk-latest/learn-islam.apk";
 
@@ -119,6 +123,115 @@ function PostGrid({
   );
 }
 
+function CloseFriends() {
+  const { user } = useAuth();
+  const [people, setPeople] = useState<UserProfile[] | null>(null);
+  const [close, setClose] = useState<string[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    Promise.all([getFollowingIds(user.uid), getCloseFriendIds(user.uid)])
+      .then(async ([ids, cf]) => {
+        setClose(cf);
+        const all = Array.from(new Set([...ids, ...cf]));
+        setPeople(await Promise.all(all.map((id) => getProfile(id))));
+      })
+      .catch(() => setPeople([]));
+  }, [user?.uid]);
+
+  if (people === null) return <p className="p-6 text-foreground/60">Loading…</p>;
+  return (
+    <div>
+      <p className="px-4 py-3 text-sm text-foreground/60">
+        Share stories with only the people you choose. They will see a green “Close friends” label.
+      </p>
+      {people.length === 0 && <p className="px-4 text-foreground/60">Follow some people first.</p>}
+      {people.map((p) => {
+        const on = close.includes(p.uid);
+        return (
+          <div key={p.uid} className="flex items-center gap-3 px-4 py-3">
+            <span className="flex-1">{p.displayName}</span>
+            <Toggle
+              on={on}
+              onChange={async (v) => {
+                if (!user) return;
+                setClose((c) => (v ? [...c, p.uid] : c.filter((x) => x !== p.uid)));
+                await setCloseFriend(user.uid, p.uid, v).catch(() => setClose((c) => (v ? c.filter((x) => x !== p.uid) : [...c, p.uid])));
+              }}
+            />
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function MessagesSetting() {
+  const { user } = useAuth();
+  const [value, setValue] = useState<"everyone" | "following" | "nobody">("everyone");
+
+  useEffect(() => {
+    if (!user) return;
+    getDoc(doc(db, "users", user.uid)).then((s) => setValue(((s.data() as any)?.messagesFrom as any) || "everyone")).catch(() => {});
+  }, [user?.uid]);
+
+  const choose = async (v: typeof value) => {
+    if (!user) return;
+    setValue(v);
+    await setDoc(doc(db, "users", user.uid), { messagesFrom: v }, { merge: true }).catch(() => {});
+  };
+
+  return (
+    <div className="p-4 space-y-2">
+      <p className="font-semibold mb-2">Who can message you</p>
+      {([["everyone", "Everyone"], ["following", "Only people you follow"], ["nobody", "No one"]] as const).map(([v, l]) => (
+        <button
+          key={v}
+          onClick={() => choose(v)}
+          className={`w-full text-left px-4 py-3 rounded-lg ${value === v ? "bg-primary text-primary-foreground" : "bg-muted"}`}
+        >
+          {l}
+        </button>
+      ))}
+      <p className="text-sm text-foreground/60 pt-2">Replies to your stories arrive as messages and follow the same choice.</p>
+    </div>
+  );
+}
+
+function HiddenWords() {
+  const prefs = usePrefs();
+  const [word, setWord] = useState("");
+  const add = () => {
+    const w = word.trim().toLowerCase();
+    if (!w || prefs.hiddenWords.includes(w)) return;
+    setPrefs({ hiddenWords: [...prefs.hiddenWords, w] });
+    setWord("");
+  };
+  return (
+    <div className="p-4">
+      <p className="text-sm text-foreground/60 mb-3">Comments and messages that contain these words are hidden from you.</p>
+      <div className="flex gap-2 mb-4">
+        <input
+          value={word}
+          onChange={(e) => setWord(e.target.value)}
+          onKeyDown={(e) => e.key === "Enter" && add()}
+          placeholder="Add a word or phrase"
+          className="flex-1 bg-muted rounded-lg px-3 py-2 outline-none"
+        />
+        <button onClick={add} className="bg-primary text-primary-foreground rounded-lg px-4 font-semibold">Add</button>
+      </div>
+      <div className="flex flex-wrap gap-2">
+        {prefs.hiddenWords.map((w) => (
+          <span key={w} className="bg-muted rounded-full px-3 py-1 text-sm flex items-center gap-2">
+            {w}
+            <button onClick={() => setPrefs({ hiddenWords: prefs.hiddenWords.filter((x) => x !== w) })} aria-label={`Remove ${w}`}>×</button>
+          </span>
+        ))}
+      </div>
+    </div>
+  );
+}
+
 const chip = "bg-black/65 text-white rounded-full px-2 py-1 text-xs";
 
 export default function Settings() {
@@ -154,6 +267,9 @@ export default function Settings() {
     time: "Time management",
     blocked: "Blocked",
     muted: "Muted accounts",
+    close: "Close Friends",
+    messages: "Messages and story replies",
+    hidden: "Hidden Words",
     accessibility: "Accessibility",
     data: "Data usage and media quality",
     invite: "Follow and invite friends",
@@ -272,6 +388,12 @@ export default function Settings() {
           </div>
         );
 
+      case "close":
+        return <CloseFriends />;
+      case "messages":
+        return <MessagesSetting />;
+      case "hidden":
+        return <HiddenWords />;
       case "blocked":
         return <PeopleManage field="blocked" action="Unblock" />;
       case "muted":
@@ -334,6 +456,7 @@ export default function Settings() {
         return (
           <div>
             <Section title="Your account">
+              <Row icon="🪪" label="Accounts Center" onClick={() => setLocation("/accounts-center")} />
               <Row icon="👤" label="Edit profile" onClick={() => setLocation("/account")} />
             </Section>
             <Section title="How you use Learn Islam">
@@ -344,9 +467,15 @@ export default function Settings() {
             </Section>
             <Section title="Who can see your content">
               <Row icon="🔒" label="Account privacy" value={isPrivate ? "Private" : "Public"} onClick={() => setView("privacy")} />
+              <Row icon="⭐" label="Close Friends" onClick={() => setView("close")} />
               <Row icon="🚫" label="Blocked" value={String(counts.blocked)} onClick={() => setView("blocked")} />
             </Section>
+            <Section title="How others can interact with you">
+              <Row icon="✉️" label="Messages" onClick={() => setLocation("/messages")} />
+              <Row icon="⚙️" label="Messages and story replies" onClick={() => setView("messages")} />
+            </Section>
             <Section title="What you see">
+              <Row icon="🔤" label="Hidden Words" value={prefs.hiddenWords.length ? String(prefs.hiddenWords.length) : ""} onClick={() => setView("hidden")} />
               <Row icon="🔕" label="Muted accounts" value={String(counts.muted)} onClick={() => setView("muted")} />
               <Row icon="➕" label="Follow and invite friends" onClick={() => setView("invite")} />
             </Section>

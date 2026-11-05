@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { toggleSaved, usePrefs } from "@/lib/prefs";
 import { getRelations } from "@/lib/social";
+import CommentsSheet from "@/components/CommentsSheet";
 import { Plus } from "lucide-react";
 
 import { deletePost, getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
@@ -47,6 +48,7 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
   const [, setLocation] = useLocation();
   const prefs = usePrefs();
   const saved = prefs.saved.includes(reel.id);
+  const [showComments, setShowComments] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
@@ -207,6 +209,12 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
         </button>
 
         {!reel.id.startsWith("local-") && (
+          <button onClick={() => setShowComments(true)} className="flex flex-col items-center gap-1" aria-label="Comments">
+            <span className="text-3xl drop-shadow-lg">💬</span>
+          </button>
+        )}
+
+        {!reel.id.startsWith("local-") && (
           <button onClick={() => toggleSaved(reel.id)} className="flex flex-col items-center gap-1" aria-label="Save">
             <span className="text-2xl drop-shadow-lg">{saved ? "🔖" : "📑"}</span>
           </button>
@@ -228,6 +236,9 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
           </span>
         </button>
       </div>
+      {showComments && (
+        <CommentsSheet postId={reel.id} postOwnerId={reel.userId} onClose={() => setShowComments(false)} />
+      )}
     </div>
   );
 }
