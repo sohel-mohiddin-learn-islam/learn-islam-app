@@ -156,6 +156,7 @@ export default function CreatePost() {
         URL.revokeObjectURL(preview);
       }
 
+      try { sessionStorage.setItem("reel-start", "mine-latest"); } catch { /* ignore */ }
       setLocation("/reels");
     } catch (err) {
       console.error(err);

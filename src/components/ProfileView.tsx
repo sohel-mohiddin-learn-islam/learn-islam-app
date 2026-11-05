@@ -289,7 +289,10 @@ export default function ProfileView({ uid }: { uid: string }) {
         return (
           <button
             key={post.id}
-            onClick={() => setLocation("/reels")}
+            onClick={() => {
+              try { sessionStorage.setItem("reel-start", post.id); } catch { /* ignore */ }
+              setLocation("/reels");
+            }}
             className="relative aspect-[9/16] bg-muted overflow-hidden"
           >
             {thumb && (

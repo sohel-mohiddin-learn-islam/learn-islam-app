@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { setPrefs, toggleSaved, usePrefs } from "@/lib/prefs";
@@ -13,21 +13,6 @@ import { Plus } from "lucide-react";
 
 import { deletePost, getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
 
-const REELS_BASE_URL = import.meta.env.VITE_MEDIA_BASE || import.meta.env.BASE_URL;
-
-const reelFiles: string[] = [
-  "VID_20260905_125534_061.mp4",
-  "VID_20260905_125932_824.mp4",
-  "VID_20260905_125954_462.mp4",
-  "VID_20260905_125839_972.mp4",
-  "VID_20260905_125817_770.mp4",
-  "VID_20260905_125831_798.mp4",
-  "VID_20260905_125901_742.mp4",
-  "VID_20260905_125810_534.mp4",
-  "VID_20260905_125828_659.mp4",
-  "VID_20260905_125753_012.mp4",
-];
-
 type Reel = {
   id: string;
   src: string;
@@ -37,11 +22,6 @@ type Reel = {
   userName?: string;
   userId?: string;
 };
-
-const localReels: Reel[] = reelFiles.map((file, i) => ({
-  id: `local-${i + 1}`,
-  src: `${REELS_BASE_URL}${file}`,
-}));
 
 function getLiked(id: string) {
   return localStorage.getItem(`reel-like-${id}`) === "1";
@@ -355,6 +335,29 @@ export default function Reels() {
   };
 
   const [communityReels, setCommunityReels] = useState<Reel[]>([]);
+  const [seed, setSeed] = useState(0);
+  const [refreshing, setRefreshing] = useState(false);
+  const [startId, setStartId] = useState<string | null>(() => {
+    try {
+      const v = sessionStorage.getItem("reel-start");
+      sessionStorage.removeItem("reel-start");
+      return v;
+    } catch {
+      return null;
+    }
+  });
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const touchY = useRef<number | null>(null);
+  const lastWheel = useRef(0);
+
+  const refresh = () => {
+    if (refreshing) return;
+    setRefreshing(true);
+    setStartId(null);
+    setSeed((n) => n + 1);
+    scrollRef.current?.scrollTo({ top: 0 });
+    setTimeout(() => setRefreshing(false), 1200);
+  };
 
   useEffect(() => {
     let active = true;
@@ -394,13 +397,25 @@ export default function Reels() {
     return () => {
       active = false;
     };
-  }, [hidden.join(",")]);
+  }, [hidden.join(","), seed]);
 
-  const visibleCommunity = communityReels.filter((r) => !prefs.notInterested.includes(r.id));
-  const allReels =
-    tab === "friends"
-      ? visibleCommunity.filter((r) => r.userId && followingIds.includes(r.userId))
-      : [...visibleCommunity, ...localReels];
+  // random order, fixed until the next refresh; the reel opened from a profile / just uploaded goes first
+  const ordered = useMemo(() => {
+    const shuffled = [...communityReels].sort(() => Math.random() - 0.5);
+    if (startId) {
+      const target =
+        startId === "mine-latest"
+          ? communityReels.find((r) => user && r.userId === user.uid)
+          : communityReels.find((r) => r.id === startId);
+      if (target) return [target, ...shuffled.filter((r) => r.id !== target.id)];
+    }
+    return shuffled;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [communityReels, seed, startId, user?.uid]);
+
+  const allReels = ordered
+    .filter((r) => !prefs.notInterested.includes(r.id))
+    .filter((r) => tab !== "friends" || (r.userId && followingIds.includes(r.userId)));
 
   return (
     <div className="relative h-full w-full bg-black">
@@ -420,11 +435,32 @@ export default function Reels() {
         ))}
       </div>
 
-      <div className="h-full w-full overflow-y-scroll snap-y snap-mandatory bg-black">
-        {tab === "friends" && allReels.length === 0 && (
+      {refreshing && (
+        <div className="absolute top-16 left-0 right-0 z-40 text-center text-white/80 text-sm">Refreshing reels…</div>
+      )}
+
+      <div
+        ref={scrollRef}
+        onTouchStart={(e) => { touchY.current = scrollRef.current && scrollRef.current.scrollTop <= 0 ? e.touches[0].clientY : null; }}
+        onTouchEnd={(e) => {
+          if (touchY.current !== null && e.changedTouches[0].clientY - touchY.current > 90) refresh();
+          touchY.current = null;
+        }}
+        onWheel={(e) => {
+          if (e.deltaY < -40 && (scrollRef.current?.scrollTop ?? 1) <= 0 && Date.now() - lastWheel.current > 1500) {
+            lastWheel.current = Date.now();
+            refresh();
+          }
+        }}
+        className="h-full w-full overflow-y-scroll snap-y snap-mandatory bg-black"
+      >
+        {allReels.length === 0 && tab === "friends" && (
           <p className="text-white/70 text-center pt-40 px-8">
             Reels from people you follow will show up here. Follow someone from the Reels tab.
           </p>
+        )}
+        {allReels.length === 0 && tab === "reels" && (
+          <p className="text-white/70 text-center pt-40 px-8">No reels yet. Tap Create to post the first one, or pull down to refresh.</p>
         )}
         {allReels.map((reel) => (
           <ReelItem
