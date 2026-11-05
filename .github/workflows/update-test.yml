@@ -1,0 +1,63 @@
+name: Update test (old APK -> new APK)
+
+on:
+  workflow_dispatch:
+    inputs:
+      old_ref:
+        description: "Git ref of the OLD version to install first"
+        default: "0eed04e"
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Enable KVM
+        run: |
+          echo 'KERNEL=="kvm", GROUP="kvm", MODE="0666", OPTIONS+="static_node=kvm"' | sudo tee /etc/udev/rules.d/99-kvm4all.rules
+          sudo udevadm control --reload-rules
+          sudo udevadm trigger --name-match=kvm
+      - uses: actions/checkout@v4
+        with:
+          path: new
+      - uses: actions/checkout@v4
+        with:
+          path: old
+          ref: ${{ inputs.old_ref }}
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - name: Build OLD apk
+        run: bash new/ci/build-apk.sh "$PWD/old" "$PWD/old.apk" 1
+      - name: Build NEW apk
+        run: bash new/ci/build-apk.sh "$PWD/new" "$PWD/new.apk" 2
+      - uses: reactivecircus/android-emulator-runner@v2
+        with:
+          api-level: 34
+          arch: x86_64
+          target: google_apis
+          script: |
+            adb install -g -r old.apk
+            adb shell monkey -p com.sohel.learnislam.app -c android.intent.category.LAUNCHER 1
+            sleep 30
+            adb shell uiautomator dump /sdcard/a.xml >/dev/null 2>&1; adb pull /sdcard/a.xml a.xml >/dev/null 2>&1
+            echo ===OLD-UI===; grep -oE 'text="[^"]+"' a.xml | head -15; echo ===OLD-END===
+            adb install -r new.apk
+            adb logcat -c
+            adb shell monkey -p com.sohel.learnislam.app -c android.intent.category.LAUNCHER 1
+            sleep 35
+            adb exec-out screencap -p > shot.png
+            adb shell uiautomator dump /sdcard/b.xml >/dev/null 2>&1; adb pull /sdcard/b.xml b.xml >/dev/null 2>&1
+            echo ===NEW-UI===; grep -oE 'text="[^"]+"' b.xml | head -25; echo ===NEW-END===
+            adb logcat -d > log.txt
+            echo ===CONSOLE===; grep -E 'Capacitor/Console' log.txt | cut -c1-300 | head -20; echo ===CONSOLE-END===
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: update-test
+          path: |
+            shot.png
+            log.txt
