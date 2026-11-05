@@ -460,6 +460,7 @@ export default function Settings() {
               <Row icon="👤" label="Edit profile" onClick={() => setLocation("/account")} />
             </Section>
             <Section title="How you use Learn Islam">
+              <Row icon="🔔" label="Notifications" onClick={() => setLocation("/notifications")} />
               <Row icon="📑" label="Saved" value={prefs.saved.length ? String(prefs.saved.length) : ""} onClick={() => setView("saved")} />
               <Row icon="🗂" label="Archive" onClick={() => setView("archive")} />
               <Row icon="📈" label="Your activity" onClick={() => setView("activity")} />

@@ -37,6 +37,7 @@ const Messages = lazy(() => import("@/pages/Messages"));
 const Chat = lazy(() => import("@/pages/Chat"));
 const CreateStory = lazy(() => import("@/pages/CreateStory"));
 const AccountsCenter = lazy(() => import("@/pages/AccountsCenter"));
+const Notifications = lazy(() => import("@/pages/Notifications"));
 const Reels = lazy(() => import("@/pages/Reels"));
 const CreatePost = lazy(() => import("@/pages/CreatePost"));
 const AITutor = lazy(() => import("@/pages/AITutor"));
@@ -97,6 +98,7 @@ function Router() {
           <Route path="/chat/:uid" component={Chat}/>
           <Route path="/create-story" component={CreateStory}/>
           <Route path="/accounts-center" component={AccountsCenter}/>
+          <Route path="/notifications" component={Notifications}/>
           <Route path="/reels" component={Reels}/>
           <Route path="/create-post" component={CreatePost}/>
           <Route path="/ai-tutor" component={AITutor}/>

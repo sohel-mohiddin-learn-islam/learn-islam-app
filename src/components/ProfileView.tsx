@@ -3,6 +3,8 @@ import { useLocation } from "wouter";
 import { updateProfile } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import StoryViewer from "@/components/StoryViewer";
+import NotificationBell from "@/components/NotificationBell";
+import { notify } from "@/lib/notifications";
 import { getStories, hasUnseen, type Story } from "@/lib/stories";
 import { auth } from "@/lib/firebase";
 import { deletePost, getUserPosts, postThumbnail } from "@/lib/posts";
@@ -160,7 +162,12 @@ export default function ProfileView({ uid }: { uid: string }) {
     setIFollow(next);
     setFollowers((f) => (next ? [...f, user.uid] : f.filter((x) => x !== user.uid)));
     try {
-      next ? await follow(user.uid, uid) : await unfollow(user.uid, uid);
+      if (next) {
+        await follow(user.uid, uid);
+        notify(uid, user.uid, "follow");
+      } else {
+        await unfollow(user.uid, uid);
+      }
     } catch (e) {
       console.error(e);
       setIFollow(!next);
@@ -324,6 +331,7 @@ export default function ProfileView({ uid }: { uid: string }) {
           <div className="flex justify-end mb-2 relative">
             {isOwn ? (
               <>
+                <NotificationBell />
                 <button onClick={() => setLocation("/messages")} aria-label="Messages" className="text-2xl px-2">✉️</button>
                 <button onClick={() => setLocation("/settings")} aria-label="Settings" className="text-2xl px-2">⚙️</button>
               </>

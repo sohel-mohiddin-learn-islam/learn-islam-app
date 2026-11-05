@@ -12,16 +12,19 @@ import {
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { containsHiddenWord } from "@/lib/prefs";
+import { notify } from "@/lib/notifications";
 
 type Comment = { id: string; userId: string; userName: string; text: string; createdAt: any };
 
 export default function CommentsSheet({
   postId,
   postOwnerId,
+  thumb,
   onClose,
 }: {
   postId: string;
   postOwnerId?: string;
+  thumb?: string;
   onClose: () => void;
 }) {
   const { user } = useAuth();
@@ -54,6 +57,7 @@ export default function CommentsSheet({
         text: text.trim().slice(0, 500),
         createdAt: serverTimestamp(),
       });
+      if (postOwnerId) notify(postOwnerId, user.uid, "comment", { postId, thumb, text: text.trim().slice(0, 120), key: String(Date.now()) });
       setText("");
       await load();
     } catch (e: any) {

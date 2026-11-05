@@ -4,6 +4,9 @@ import { useAuth } from "@/contexts/AuthContext";
 import { toggleSaved, usePrefs } from "@/lib/prefs";
 import { getRelations } from "@/lib/social";
 import CommentsSheet from "@/components/CommentsSheet";
+import { notify } from "@/lib/notifications";
+import { db } from "@/lib/firebase";
+import { deleteDoc, doc, setDoc } from "firebase/firestore";
 import { Plus } from "lucide-react";
 
 import { deletePost, getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
@@ -46,6 +49,7 @@ const MAX_AUTO_RETRIES = 2;
 
 function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDelete?: (reel: Reel) => void }) {
   const [, setLocation] = useLocation();
+  const { user } = useAuth();
   const prefs = usePrefs();
   const saved = prefs.saved.includes(reel.id);
   const [showComments, setShowComments] = useState(false);
@@ -123,6 +127,17 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
       `reel-like-${reel.id}`,
       next ? "1" : "0"
     );
+
+    // real like: stored for the reel and the owner gets a notification
+    if (user && !reel.id.startsWith("local-")) {
+      const likeRef = doc(db, "posts", reel.id, "likes", user.uid);
+      if (next) {
+        setDoc(likeRef, { userId: user.uid, createdAt: Date.now() }).catch(() => {});
+        if (reel.userId) notify(reel.userId, user.uid, "like", { postId: reel.id, thumb: reel.poster });
+      } else {
+        deleteDoc(likeRef).catch(() => {});
+      }
+    }
   };
 
   const handleError = () => {
@@ -237,7 +252,7 @@ function ReelItem({ reel, isOwn, onDelete }: { reel: Reel; isOwn?: boolean; onDe
         </button>
       </div>
       {showComments && (
-        <CommentsSheet postId={reel.id} postOwnerId={reel.userId} onClose={() => setShowComments(false)} />
+        <CommentsSheet postId={reel.id} postOwnerId={reel.userId} thumb={reel.poster} onClose={() => setShowComments(false)} />
       )}
     </div>
   );

@@ -10,6 +10,11 @@ service cloud.firestore {
       allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
       allow update, delete: if signedIn() && resource.data.userId == request.auth.uid;
 
+      match /likes/{likeUserId} {
+        allow read: if true;
+        allow write: if signedIn() && request.auth.uid == likeUserId;
+      }
+
       match /comments/{commentId} {
         allow read: if true;
         allow create: if signedIn() && request.resource.data.userId == request.auth.uid;
@@ -36,6 +41,12 @@ service cloud.firestore {
         allow read: if signedIn() && (request.auth.uid == uid ||
           exists(/databases/$(database)/documents/users/$(uid)/closeFriends/$(request.auth.uid)));
         allow write: if signedIn() && request.auth.uid == uid;
+      }
+
+      // Notifications: anyone signed in can send one to you, only you can read or clear them
+      match /notifications/{notificationId} {
+        allow read, update, delete: if signedIn() && request.auth.uid == uid;
+        allow create: if signedIn() && request.resource.data.fromId == request.auth.uid && request.auth.uid != uid;
       }
 
       match /closeFriends/{friendId} {

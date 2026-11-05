@@ -3,6 +3,7 @@ import { BookOpen, BookText, Heart, Scroll, Hand, Star, Users, Calendar, Compass
 import { Link } from "wouter";
 import { CalculationMethod, Coordinates, PrayerTimes } from "adhan";
 import StoriesBar from "@/components/StoriesBar";
+import NotificationBell from "@/components/NotificationBell";
 import { LocalNotifications } from '@capacitor/local-notifications';
 
 const features = [
@@ -200,7 +201,10 @@ export default function HomePage() {
 
   return (
     <div className="min-h-full bg-background pb-20">
-      <StoriesBar />
+      <div className="flex items-center">
+        <div className="flex-1 min-w-0"><StoriesBar /></div>
+        <NotificationBell className="shrink-0" />
+      </div>
       <div className="bg-gradient-to-br from-emerald-900 via-emerald-800 to-emerald-900 px-5 pt-8 pb-6 rounded-b-3xl shadow-lg">
         <p className="text-yellow-300 font-serif text-sm mb-1">Assalamu Alaikum</p>
         <h1 className="text-white font-serif text-2xl font-bold mb-1">Learn Islam</h1>
