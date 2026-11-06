@@ -3,7 +3,10 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getFollowerIds, getFollowingIds, getProfile } from "@/lib/social";
 import { sendMessage } from "@/lib/chat";
 import { useBackClose } from "@/lib/backButton";
-import StoryComposer from "./StoryComposer";
+import StoryEditor from "./StoryEditor";
+import { addStory } from "@/lib/stories";
+import { prepareAudio } from "@/lib/storyTools";
+import { notify } from "@/lib/notifications";
 
 export const SITE = "https://sohel-mohiddin-learn-islam.github.io/learn-islam-app";
 export const reelLink = (id: string) => `${SITE}/reels?reel=${id}`;
@@ -84,7 +87,22 @@ export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; 
 
   return (
     <>
-    {composer && <StoryComposer reel={reel} onClose={() => setComposer(false)} onDone={() => { setComposer(false); onShared(); onClose(); }} />}
+    {composer && (
+      <StoryEditor
+        previewUrl={reel.src}
+        type="video"
+        onClose={() => setComposer(false)}
+        onPublish={async ({ overlays, audio, closeOnly }) => {
+          if (!user) return;
+          const a = await prepareAudio(audio, user.uid);
+          await addStory(user.uid, reel.original || reel.src, "video", closeOnly, { reelId: reel.id, overlays, ...a });
+          overlays.filter((o) => o.kind === "mention" && o.uid).forEach((o) => notify(o.uid!, user.uid, "mention"));
+          setComposer(false);
+          onShared();
+          onClose();
+        }}
+      />
+    )}
     <div className="absolute inset-0 z-[60] flex flex-col justify-end bg-black/50" onClick={onClose}>
       <div className="bg-neutral-900 text-white rounded-t-3xl max-h-[75%] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-white/40" />

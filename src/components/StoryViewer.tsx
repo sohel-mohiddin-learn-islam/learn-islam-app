@@ -3,6 +3,7 @@ import { deleteStory, markSeen, type Story } from "@/lib/stories";
 import { sendMessage } from "@/lib/chat";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
+import OverlayLayer from "./OverlayLayer";
 import { useBackClose } from "@/lib/backButton";
 import { recordStoryView } from "@/lib/analytics";
 
@@ -30,6 +31,12 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
   const [note, setNote] = useState("");
   const [paused, setPaused] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
+  const audioRef = useRef<HTMLAudioElement>(null);
+
+  useEffect(() => {
+    if (paused) audioRef.current?.pause();
+    else audioRef.current?.play().catch(() => {});
+  }, [paused, i]);
 
   const story = stories[i];
   const own = !!user && story?.ownerId === user.uid;
@@ -106,23 +113,45 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
       </div>
 
       <div className="flex-1 flex items-center justify-center" onPointerDown={() => setPaused(true)} onPointerUp={() => setPaused(false)}>
-        {story.type === "video" ? (
-          <video
-            key={story.id}
-            ref={videoRef}
-            src={story.mediaUrl}
-            className="max-w-full max-h-full"
-            autoPlay
-            playsInline
-            onTimeUpdate={(e) => {
-              const v = e.currentTarget;
-              if (v.duration) setProgress(v.currentTime / v.duration);
-            }}
-            onEnded={next}
-          />
-        ) : (
-          <img key={story.id} src={story.mediaUrl} alt="" className="max-w-full max-h-full object-contain" />
-        )}
+        {(() => {
+          const designed = Array.isArray(story.overlays);
+          const fit = designed ? "object-cover" : "object-contain";
+          const hasAudio = !!story.audioUrl;
+          return (
+            <div
+              className="relative bg-black overflow-hidden"
+              style={designed ? { aspectRatio: "9 / 16", height: "100%", maxWidth: "100%", containerType: "inline-size" } : { maxWidth: "100%", maxHeight: "100%" }}
+            >
+              {story.type === "video" ? (
+                <video
+                  key={story.id}
+                  ref={videoRef}
+                  src={story.mediaUrl}
+                  className={designed ? `absolute inset-0 w-full h-full ${fit}` : "max-w-full max-h-full"}
+                  autoPlay
+                  muted={hasAudio}
+                  playsInline
+                  onTimeUpdate={(e) => {
+                    const v = e.currentTarget;
+                    if (v.duration) setProgress(v.currentTime / v.duration);
+                  }}
+                  onEnded={next}
+                />
+              ) : (
+                <img key={story.id} src={story.mediaUrl} alt="" className={designed ? `absolute inset-0 w-full h-full ${fit}` : "max-w-full max-h-full object-contain"} />
+              )}
+              {designed && (
+                <div className="absolute inset-0 z-10 pointer-events-none">
+                  <OverlayLayer overlays={story.overlays as any[]} onMention={(u) => { onClose(); setLocation(`/user/${u}`); }} />
+                </div>
+              )}
+              {hasAudio && <audio key={`a-${story.id}`} ref={audioRef} src={story.audioUrl} autoPlay loop />}
+              {hasAudio && (
+                <div className="absolute bottom-2 left-3 right-3 text-xs bg-black/50 rounded-full px-3 py-1 truncate text-white">🎵 {story.audioTitle}</div>
+              )}
+            </div>
+          );
+        })()}
         <div className="absolute inset-y-24 left-0 w-1/3" onClick={prev} />
         <div className="absolute inset-y-24 right-0 w-1/3" onClick={next} />
       </div>

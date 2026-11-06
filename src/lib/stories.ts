@@ -20,11 +20,14 @@ export type Story = {
   closeOnly: boolean;
   caption?: string;
   reelId?: string;
+  overlays?: any[];
+  audioUrl?: string;
+  audioTitle?: string;
 };
 
 const DAY = 24 * 60 * 60 * 1000;
 
-export async function addStory(owner: string, mediaUrl: string, type: "image" | "video", closeOnly: boolean, extra?: { caption?: string; reelId?: string }) {
+export async function addStory(owner: string, mediaUrl: string, type: "image" | "video", closeOnly: boolean, extra?: { caption?: string; reelId?: string; overlays?: any[]; audioUrl?: string; audioTitle?: string }) {
   const col = closeOnly ? "closeStories" : "stories";
   await addDoc(collection(db, "users", owner, col), {
     mediaUrl,
@@ -32,6 +35,9 @@ export async function addStory(owner: string, mediaUrl: string, type: "image" | 
     closeOnly,
     caption: extra?.caption || "",
     reelId: extra?.reelId || "",
+    overlays: extra?.overlays || [],
+    audioUrl: extra?.audioUrl || "",
+    audioTitle: extra?.audioTitle || "",
     createdAt: Date.now(),
     expiresAt: Date.now() + DAY,
     serverAt: serverTimestamp(),

@@ -13,7 +13,7 @@ import {
 
 import { db } from "./firebase";
 
-export type NotifType = "follow" | "like" | "comment" | "request";
+export type NotifType = "follow" | "like" | "comment" | "request" | "mention";
 
 export type Notif = {
   id: string;

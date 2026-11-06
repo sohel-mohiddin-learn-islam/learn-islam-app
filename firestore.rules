@@ -17,6 +17,12 @@ service cloud.firestore {
       allow delete: if isAdmin() || (signedIn() && resource.data.ownerId == request.auth.uid);
     }
 
+    // Naat library: everyone signed in can listen, only the admin adds tracks
+    match /naats/{naatId} {
+      allow read: if signedIn();
+      allow write: if isAdmin();
+    }
+
     // Reels
     match /posts/{postId} {
       allow read: if true;

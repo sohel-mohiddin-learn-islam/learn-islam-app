@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadImage, uploadVideo } from "@/lib/posts";
+import { addNaat, deleteNaat, getNaats, type Naat } from "@/lib/storyTools";
 import { ADMIN_EMAIL, PRICE_PER_DAY, approveAd, createAd, getAllAds, getMyAds, payForAd, rejectAd, removeAd, type Ad } from "@/lib/ads";
 
 function Status({ ad }: { ad: Ad }) {
@@ -23,6 +24,25 @@ export default function Ads() {
   const [mine, setMine] = useState<Ad[]>([]);
   const [all, setAll] = useState<Ad[]>([]);
   const isAdmin = user?.email === ADMIN_EMAIL;
+  const [naats, setNaats] = useState<Naat[]>([]);
+  const [nTitle, setNTitle] = useState("");
+  const [nArtist, setNArtist] = useState("");
+  const [nLicense, setNLicense] = useState("");
+  const [nFile, setNFile] = useState<File | null>(null);
+  const [nBusy, setNBusy] = useState(false);
+  const loadNaats = () => getNaats().then(setNaats);
+  useEffect(() => { if (isAdmin) loadNaats(); }, [isAdmin]);
+  const uploadNaat = async () => {
+    if (!user || !nFile || !nTitle.trim() || !nLicense.trim()) return alert("Add a title, the license / permission, and an audio file.");
+    setNBusy(true);
+    try {
+      const url = await uploadVideo(nFile, user.uid);
+      await addNaat({ title: nTitle.trim(), artist: nArtist.trim() || "Unknown", url, license: nLicense.trim() });
+      setNTitle(""); setNArtist(""); setNLicense(""); setNFile(null);
+      loadNaats();
+    } catch (e: any) { alert(e?.message || "Upload failed"); }
+    setNBusy(false);
+  };
 
   const load = () => {
     if (!user) return;
@@ -122,6 +142,19 @@ export default function Ads() {
                   {a.status !== "approved" && <button onClick={() => act(() => approveAd(a))} className="ml-auto rounded-lg bg-green-600 text-white px-3 py-1.5">Approve</button>}
                   {a.status === "pending" && <button onClick={() => act(() => rejectAd(a))} className="rounded-lg bg-red-600 text-white px-3 py-1.5">Reject</button>}
                 </div>
+              </div>
+            ))}
+            <h2 className="font-semibold text-lg mt-8 mb-1">Naat library (admin)</h2>
+            <p className="text-xs text-foreground/60 mb-2">Only add audio you own or have written permission / a free license to share. Users can attach these to their stories.</p>
+            <input value={nTitle} onChange={(e) => setNTitle(e.target.value)} placeholder="Title" className="w-full rounded-lg bg-muted px-3 py-3 mb-2" />
+            <input value={nArtist} onChange={(e) => setNArtist(e.target.value)} placeholder="Artist" className="w-full rounded-lg bg-muted px-3 py-3 mb-2" />
+            <input value={nLicense} onChange={(e) => setNLicense(e.target.value)} placeholder="License / permission (e.g. CC0, own recording)" className="w-full rounded-lg bg-muted px-3 py-3 mb-2" />
+            <input type="file" accept="audio/*" onChange={(e) => setNFile(e.target.files?.[0] || null)} className="mb-2" />
+            <button disabled={nBusy} onClick={uploadNaat} className="w-full rounded-lg bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-60">{nBusy ? "Uploading…" : "Add to library"}</button>
+            {naats.map((n) => (
+              <div key={n.id} className="flex items-center gap-2 py-2 border-b border-border">
+                <div className="flex-1 min-w-0"><p className="truncate font-medium">{n.title}</p><p className="text-xs text-foreground/60 truncate">{n.artist} · {n.license}</p></div>
+                <button onClick={() => confirm("Remove this track?") && deleteNaat(n.id).then(loadNaats)}>🗑</button>
               </div>
             ))}
           </>
