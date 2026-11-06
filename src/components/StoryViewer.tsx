@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { deleteStory, markSeen, type Story } from "@/lib/stories";
 import { sendMessage } from "@/lib/chat";
 import { useAuth } from "@/contexts/AuthContext";
+import { useBackClose } from "@/lib/backButton";
 import { recordStoryView } from "@/lib/analytics";
 
 type Props = {
@@ -13,7 +14,9 @@ type Props = {
 
 const IMAGE_MS = 5000;
 
-export default function StoryViewer({ ownerName, stories, onClose, onChanged }: Props) {
+export default function StoryViewer({ ownerName, stories: initial, onClose, onChanged }: Props) {
+  useBackClose(onClose);
+  const [stories, setStories] = useState<Story[]>(initial);
   const { user } = useAuth();
   const [i, setI] = useState(0);
   const [progress, setProgress] = useState(0);
@@ -62,8 +65,11 @@ export default function StoryViewer({ ownerName, stories, onClose, onChanged }: 
     if (!user || !confirm("Delete this story?")) return;
     await deleteStory(user.uid, story).catch(() => {});
     onChanged?.();
-    if (stories.length === 1) onClose();
-    else setI((x) => Math.max(0, x - 1));
+    const rest = stories.filter((x) => x.id !== story.id);
+    if (rest.length === 0) return onClose();
+    setStories(rest);
+    setI(Math.min(i, rest.length - 1));
+    setProgress(0);
   };
 
   if (!story) return null;

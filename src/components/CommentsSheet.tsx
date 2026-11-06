@@ -1,3 +1,4 @@
+import { useBackClose } from "@/lib/backButton";
 import { useEffect, useState } from "react";
 import {
   addDoc,
@@ -27,6 +28,7 @@ export default function CommentsSheet({
   thumb?: string;
   onClose: () => void;
 }) {
+  useBackClose(onClose);
   const { user } = useAuth();
   const [comments, setComments] = useState<Comment[] | null>(null);
   const [text, setText] = useState("");

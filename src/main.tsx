@@ -2,6 +2,9 @@ import { Component, type ReactNode } from "react";
 import { createRoot } from "react-dom/client";
 import App from "./App";
 import "./index.css";
+import { initBackButton } from "./lib/backButton";
+
+initBackButton();
 
 class RootErrorBoundary extends Component<{ children: ReactNode }, { error: string }> {
   state = { error: "" };

@@ -27,7 +27,7 @@ jobs:
         with:
           distribution: temurin
           java-version: 21
-      - run: npm ci
+      - run: npm install --no-audit --no-fund
       - name: Build web app for the phone (served from / inside the app)
         env:
           VITE_MEDIA_BASE: https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/

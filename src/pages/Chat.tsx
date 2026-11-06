@@ -1,7 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { sendMessage, watchMessages, type Message } from "@/lib/chat";
+import { markRead, parseReelMessage, sendMessage, watchChat, watchMessages, type Message } from "@/lib/chat";
 import { getProfile, type UserProfile } from "@/lib/social";
 import { containsHiddenWord } from "@/lib/prefs";
 
@@ -17,6 +17,7 @@ export default function Chat() {
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
   const [listenKey, setListenKey] = useState(0);
+  const [otherRead, setOtherRead] = useState(0);
 
   useEffect(() => {
     if (!user || !other) return;
@@ -24,6 +25,17 @@ export default function Chat() {
     // before the first message the chat does not exist yet, so reading it can fail: treat as empty
     const stop = watchMessages(user.uid, other, setMessages, () => setMessages([]));
     return stop;
+  }, [user?.uid, other, listenKey]);
+
+  // mark as read when opened and whenever new messages arrive while open; watch when the other person has read
+  useEffect(() => {
+    if (!user || !other || messages.length === 0) return;
+    markRead(user.uid, other);
+  }, [messages.length, user?.uid, other]);
+
+  useEffect(() => {
+    if (!user || !other) return;
+    return watchChat(user.uid, other, (c) => setOtherRead(c.lastRead[other] || 0));
   }, [user?.uid, other, listenKey]);
 
   useEffect(() => {
@@ -64,14 +76,38 @@ export default function Chat() {
 
       <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
         {messages.length === 0 && <p className="text-center text-foreground/50 py-10">Say salam 👋</p>}
-        {messages.map((m) => {
+        {messages.map((m, idx) => {
           const mine = m.from === user.uid;
           const hidden = containsHiddenWord(m.text);
+          const reel = parseReelMessage(m.text);
+          const lastMine = mine && !messages.slice(idx + 1).some((x) => x.from === user.uid);
           return (
-            <div key={m.id} className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-              <div className={`max-w-[78%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
-                {hidden ? <i className="opacity-70">Message hidden</i> : m.text}
+            <div key={m.id}>
+              <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                {reel && !hidden ? (
+                  <button
+                    onClick={() => {
+                      try { sessionStorage.setItem("reel-start", reel.id); } catch { /* ignore */ }
+                      setLocation("/reels");
+                    }}
+                    className={`max-w-[78%] text-left rounded-2xl overflow-hidden border border-border ${mine ? "bg-primary/10" : "bg-muted"}`}
+                  >
+                    <span className="block h-28 w-44 bg-gradient-to-br from-emerald-900 to-black text-white flex items-center justify-center text-4xl">▶️</span>
+                    <span className="block px-3 py-2">
+                      <span className="block font-semibold text-sm">Reel{reel.by ? ` by ${reel.by}` : ""}</span>
+                      {reel.caption && <span className="block text-sm text-foreground/70 truncate w-40">{reel.caption}</span>}
+                      <span className="block text-xs text-primary mt-1">Tap to watch</span>
+                    </span>
+                  </button>
+                ) : (
+                  <div className={`max-w-[78%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                    {hidden ? <i className="opacity-70">Message hidden</i> : m.text}
+                  </div>
+                )}
               </div>
+              {lastMine && (
+                <p className="text-right text-xs text-foreground/50 pr-1 mt-0.5">{otherRead >= m.createdAt ? "Seen" : "Sent"}</p>
+              )}
             </div>
           );
         })}

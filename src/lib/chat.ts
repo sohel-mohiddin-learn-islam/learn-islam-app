@@ -21,6 +21,8 @@ export type ChatSummary = {
   lastMessage: string;
   lastAt: number;
   lastSender: string;
+  lastRead: Record<string, number>;
+  sentBy: Record<string, boolean>;
 };
 
 export type Message = { id: string; from: string; text: string; createdAt: number };
@@ -53,6 +55,8 @@ export async function sendMessage(me: string, other: string, text: string) {
       lastMessage: clean.slice(0, 200),
       lastSender: me,
       lastAt: serverTimestamp(),
+      sentBy: { [me]: true },
+      lastRead: { [me]: Date.now() },
     },
     { merge: true }
   );
@@ -75,6 +79,8 @@ export function watchInbox(me: string, cb: (chats: ChatSummary[]) => void, onErr
           lastMessage: x.lastMessage || "",
           lastAt: millis(x.lastAt),
           lastSender: x.lastSender || "",
+          lastRead: x.lastRead || {},
+          sentBy: x.sentBy || {},
         } as ChatSummary;
       });
       cb(list.sort((a, b) => b.lastAt - a.lastAt));
@@ -90,4 +96,41 @@ export function watchMessages(me: string, other: string, cb: (m: Message[]) => v
     (snap) => cb(snap.docs.map((d) => ({ id: d.id, ...(d.data() as any), createdAt: millis((d.data() as any).createdAt) }))),
     onError
   );
+}
+
+/** Marks the chat as read by `me` (drives the blue dot and the "Seen" label). */
+export async function markRead(me: string, other: string) {
+  await setDoc(doc(db, "chats", chatIdFor(me, other)), { lastRead: { [me]: Date.now() } }, { merge: true }).catch(() => {});
+}
+
+export function watchChat(me: string, other: string, cb: (c: { lastRead: Record<string, number> }) => void): Unsubscribe {
+  return onSnapshot(
+    doc(db, "chats", chatIdFor(me, other)),
+    (d) => cb({ lastRead: ((d.data() as any)?.lastRead as Record<string, number>) || {} }),
+    () => {}
+  );
+}
+
+export const REEL_RE = /\/reels\?reel=([A-Za-z0-9]+)/;
+export function parseReelMessage(text: string): { id: string; by: string; caption: string } | null {
+  const m = REEL_RE.exec(text);
+  if (!m) return null;
+  const head = /^🎬 Reel by ([^:\n]*)(?::\s*([^\n]*))?/.exec(text);
+  return { id: m[1], by: head?.[1]?.trim() || "", caption: head?.[2]?.trim() || "" };
+}
+
+/** Short label for the inbox row. */
+export function previewOf(text: string): string {
+  const r = parseReelMessage(text);
+  if (r) return r.by ? `Sent a reel by ${r.by}` : "Sent a reel";
+  return text;
+}
+
+export function timeAgo(ms: number): string {
+  const s = Math.max(0, (Date.now() - ms) / 1000);
+  if (s < 60) return "now";
+  if (s < 3600) return `${Math.floor(s / 60)}m`;
+  if (s < 86400) return `${Math.floor(s / 3600)}h`;
+  if (s < 7 * 86400) return `${Math.floor(s / 86400)}d`;
+  return `${Math.floor(s / (7 * 86400))}w`;
 }

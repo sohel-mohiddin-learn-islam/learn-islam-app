@@ -3,7 +3,7 @@
 set -euo pipefail
 DIR="$1"; OUT="$2"; VC="${3:-1}"
 cd "$DIR"
-npm ci --no-audit --no-fund
+npm install --no-audit --no-fund
 VITE_MEDIA_BASE=https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/ npx vite build --config vite.config.ts --base=/
 rm -f dist/*.mp4
 npx cap sync android

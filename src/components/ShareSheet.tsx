@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFollowerIds, getFollowingIds, getProfile } from "@/lib/social";
 import { sendMessage } from "@/lib/chat";
+import { useBackClose } from "@/lib/backButton";
 import { addStory } from "@/lib/stories";
 
 export const SITE = "https://sohel-mohiddin-learn-islam.github.io/learn-islam-app";
@@ -11,13 +12,14 @@ type Person = { uid: string; name: string; photo: string | null };
 type Target = { id: string; caption?: string; userName?: string; original?: string; src: string };
 
 export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; onClose: () => void; onShared: () => void }) {
+  useBackClose(onClose);
   const { user } = useAuth();
   const [people, setPeople] = useState<Person[]>([]);
   const [q, setQ] = useState("");
   const [sent, setSent] = useState<string[]>([]);
   const [note, setNote] = useState("");
   const link = reelLink(reel.id);
-  const text = `${reel.caption ? reel.caption + " — " : ""}Watch this reel on Learn Islam`;
+  const text = `🎬 Reel by ${reel.userName || "Learn Islam User"}${reel.caption ? ": " + reel.caption.slice(0, 80) : ""}`;
 
   useEffect(() => {
     if (!user) return;
