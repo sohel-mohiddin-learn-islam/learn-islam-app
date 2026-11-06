@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { deleteStory, markSeen, type Story } from "@/lib/stories";
 import { sendMessage } from "@/lib/chat";
 import { useAuth } from "@/contexts/AuthContext";
+import { useLocation } from "wouter";
 import { useBackClose } from "@/lib/backButton";
 import { recordStoryView } from "@/lib/analytics";
 
@@ -10,11 +11,16 @@ type Props = {
   stories: Story[];
   onClose: () => void;
   onChanged?: () => void;
+  /** highlights: no view tracking, no replies */
+  readOnly?: boolean;
+  /** highlights: owner can delete the whole highlight */
+  onDeleteAll?: () => void;
 };
 
 const IMAGE_MS = 5000;
 
-export default function StoryViewer({ ownerName, stories: initial, onClose, onChanged }: Props) {
+export default function StoryViewer({ ownerName, stories: initial, onClose, onChanged, readOnly, onDeleteAll }: Props) {
+  const [, setLocation] = useLocation();
   useBackClose(onClose);
   const [stories, setStories] = useState<Story[]>(initial);
   const { user } = useAuth();
@@ -30,8 +36,8 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
 
   useEffect(() => {
     if (!story) return onClose();
-    markSeen(story.ownerId, story.createdAt);
-    if (user && !story.closeOnly) recordStoryView(story.ownerId, story.id, user.uid);
+    if (!readOnly) markSeen(story.ownerId, story.createdAt);
+    if (!readOnly && user && !story.closeOnly) recordStoryView(story.ownerId, story.id, user.uid);
     setProgress(0);
   }, [i]);
 
@@ -92,7 +98,8 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
             {ownerName} {story.closeOnly && <span className="text-xs bg-green-600 rounded px-1.5 py-0.5 ml-1">Close friends</span>}
           </span>
           <div className="flex items-center gap-4">
-            {own && <button onClick={remove} aria-label="Delete story" className="text-xl">🗑</button>}
+            {onDeleteAll && <button onClick={() => { if (confirm("Delete this highlight?")) { onDeleteAll(); onClose(); } }} aria-label="Delete highlight" className="text-xl">🗑</button>}
+            {own && !readOnly && <button onClick={remove} aria-label="Delete story" className="text-xl">🗑</button>}
             <button onClick={onClose} aria-label="Close" className="text-3xl leading-none">×</button>
           </div>
         </div>
@@ -120,7 +127,21 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
         <div className="absolute inset-y-24 right-0 w-1/3" onClick={next} />
       </div>
 
-      {!own && user && (
+      {story.caption && (
+        <div className="absolute left-0 right-0 bottom-24 px-6 text-center pointer-events-none">
+          <span className="inline-block bg-black/60 text-white rounded-lg px-3 py-2 text-lg">{story.caption}</span>
+        </div>
+      )}
+      {story.reelId && (
+        <button
+          onClick={() => { try { sessionStorage.setItem("reel-start", story.reelId!); } catch { /* ignore */ } onClose(); setLocation("/reels"); }}
+          className="absolute left-1/2 -translate-x-1/2 bottom-36 z-10 bg-white/90 text-black rounded-full px-4 py-1.5 text-sm font-semibold"
+        >
+          ▶ Watch reel
+        </button>
+      )}
+
+      {!own && !readOnly && user && (
         <div className="p-3 flex gap-2 bg-black/70">
           <input
             value={reply}

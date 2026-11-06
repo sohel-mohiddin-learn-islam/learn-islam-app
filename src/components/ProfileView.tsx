@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { updateProfile } from "firebase/auth";
 import { useAuth } from "@/contexts/AuthContext";
 import StoryViewer from "@/components/StoryViewer";
+import HighlightsRow from "@/components/HighlightsRow";
 import NotificationBell from "@/components/NotificationBell";
 import { notify } from "@/lib/notifications";
 import { recordProfileVisit } from "@/lib/analytics";
@@ -14,6 +15,8 @@ import { deletePost, getUserPosts, postThumbnail } from "@/lib/posts";
 import {
   blockUser,
   follow,
+  hasRequested,
+  cancelRequest,
   getRelations,
   muteUser,
   removeFollower,
@@ -107,6 +110,8 @@ export default function ProfileView({ uid }: { uid: string }) {
   const [followers, setFollowers] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
   const [iFollow, setIFollow] = useState(false);
+  const [iRequested, setIRequested] = useState(false);
+  const [addMenu, setAddMenu] = useState(false);
   const [tab, setTab] = useState<Tab>("grid");
   const [note, setNote] = useState("");
   const [isPrivate, setIsPrivate] = useState(false);
@@ -146,7 +151,10 @@ export default function ProfileView({ uid }: { uid: string }) {
     setPosts((ps as any[]).filter((x) => !x.archived));
     setFollowers(fr);
     setFollowing(fg);
-    if (user && !isOwn) setIFollow(await isFollowing(user.uid, uid).catch(() => false));
+    if (user && !isOwn) {
+      setIFollow(await isFollowing(user.uid, uid).catch(() => false));
+      setIRequested(await hasRequested(user.uid, uid).catch(() => false));
+    }
   }
 
   useEffect(() => {
@@ -164,13 +172,25 @@ export default function ProfileView({ uid }: { uid: string }) {
   const toggleFollow = async () => {
     if (!user) return setLocation("/login");
     setNote("");
+    if (!iFollow && iRequested) {
+      setIRequested(false);
+      await cancelRequest(user.uid, uid).catch(() => setIRequested(true));
+      return;
+    }
     const next = !iFollow;
     setIFollow(next);
     setFollowers((f) => (next ? [...f, user.uid] : f.filter((x) => x !== user.uid)));
     try {
       if (next) {
-        await follow(user.uid, uid);
-        notify(uid, user.uid, "follow");
+        const result = await follow(user.uid, uid);
+        if (result === "requested") {
+          setIFollow(false);
+          setIRequested(true);
+          setFollowers((f) => f.filter((x) => x !== user.uid));
+          notify(uid, user.uid, "request");
+        } else {
+          notify(uid, user.uid, "follow");
+        }
       } else {
         await unfollow(user.uid, uid);
       }
@@ -348,6 +368,15 @@ export default function ProfileView({ uid }: { uid: string }) {
           <div className="flex justify-end mb-2 relative">
             {isOwn ? (
               <>
+                <div className="relative">
+                  <button onClick={() => setAddMenu((m) => !m)} aria-label="Create" className="text-2xl px-2">➕</button>
+                  {addMenu && (
+                    <div className="absolute right-0 top-9 z-20 bg-card border border-border rounded-lg shadow-lg overflow-hidden whitespace-nowrap">
+                      <button onClick={() => setLocation("/create-post")} className="block w-full text-left px-4 py-2.5 hover:bg-muted">🎬 New reel</button>
+                      <button onClick={() => setLocation("/create-story")} className="block w-full text-left px-4 py-2.5 hover:bg-muted">📷 New story</button>
+                    </div>
+                  )}
+                </div>
                 <NotificationBell />
                 <button onClick={() => setLocation("/messages")} aria-label="Messages" className="text-2xl px-2">✉️</button>
                 <button onClick={() => setLocation("/settings")} aria-label="Settings" className="text-2xl px-2">⚙️</button>
@@ -419,9 +448,9 @@ export default function ProfileView({ uid }: { uid: string }) {
             <>
               <button
                 onClick={toggleFollow}
-                className={`flex-1 rounded-lg py-2 font-semibold ${iFollow ? "bg-muted text-foreground" : "bg-primary text-primary-foreground"}`}
+                className={`flex-1 rounded-lg py-2 font-semibold ${iFollow || iRequested ? "bg-muted text-foreground" : "bg-primary text-primary-foreground"}`}
               >
-                {iFollow ? "Following" : "Follow"}
+                {iFollow ? "Following" : iRequested ? "Requested" : "Follow"}
               </button>
               <button onClick={() => (user ? setLocation(`/chat/${uid}`) : setLocation("/login"))} className="flex-1 bg-muted rounded-lg py-2 font-semibold">
                 Message
@@ -434,18 +463,7 @@ export default function ProfileView({ uid }: { uid: string }) {
         </div>
         {note && <p className="text-sm text-foreground/70 mt-2">{note}</p>}
 
-        {isOwn && (
-          <div className="mt-5 flex gap-4 overflow-x-auto">
-            <button onClick={() => setLocation("/create-post")} className="flex flex-col items-center gap-1 shrink-0">
-              <span className="w-16 h-16 rounded-full border border-border flex items-center justify-center text-3xl">＋</span>
-              <span className="text-xs">New reel</span>
-            </button>
-            <button onClick={() => setLocation("/create-story")} className="flex flex-col items-center gap-1 shrink-0">
-              <span className="w-16 h-16 rounded-full border border-border flex items-center justify-center text-3xl">📷</span>
-              <span className="text-xs">New story</span>
-            </button>
-          </div>
-        )}
+        <HighlightsRow owner={uid} isOwn={isOwn} ownerName={profile.displayName} locked={!isOwn && isPrivate && !iFollow} />
 
         <div className="grid grid-cols-4 border-b border-border mt-5">
           {tabBtn("grid", "Posts")}
@@ -456,7 +474,11 @@ export default function ProfileView({ uid }: { uid: string }) {
 
         <div className="mt-1">
           {!isOwn && isPrivate && !iFollow ? (
-            <p className="py-10 text-center text-foreground/60">🔒 This account is private. Follow to see their reels.</p>
+            <div className="py-10 text-center text-foreground/60">
+              <p className="text-3xl mb-2">🔒</p>
+              <p className="font-semibold text-foreground">This account is private</p>
+              <p>{iRequested ? "Your follow request is waiting for approval." : "Follow this account to see their reels, stories, followers and following."}</p>
+            </div>
           ) : null}
           {!(!isOwn && isPrivate && !iFollow) && (tab === "grid" || tab === "reels") &&
             (posts.length === 0 ? (
@@ -466,8 +488,8 @@ export default function ProfileView({ uid }: { uid: string }) {
             ) : (
               grid
             ))}
-          {tab === "followers" && <PeopleList ids={followers} empty="No followers yet." onRemove={isOwn ? onRemoveFollower : undefined} />}
-          {tab === "following" && <PeopleList ids={following} empty="Not following anyone yet." />}
+          {!(!isOwn && isPrivate && !iFollow) && tab === "followers" && <PeopleList ids={followers} empty="No followers yet." onRemove={isOwn ? onRemoveFollower : undefined} />}
+          {!(!isOwn && isPrivate && !iFollow) && tab === "following" && <PeopleList ids={following} empty="Not following anyone yet." />}
         </div>
 
         {isOwn && (

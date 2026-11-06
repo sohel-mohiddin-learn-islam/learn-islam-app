@@ -53,7 +53,13 @@ export async function isFollowing(me: string, other: string) {
   return snap.exists();
 }
 
-export async function follow(me: string, other: string) {
+/** Follows a public account straight away; for a private account it sends a request ("requested"). */
+export async function follow(me: string, other: string): Promise<"following" | "requested"> {
+  const priv = await getDoc(doc(db, "users", other)).then((s) => !!(s.data() as any)?.isPrivate).catch(() => false);
+  if (priv) {
+    await setDoc(doc(db, "followRequests", followId(me, other)), { from: me, to: other, createdAt: Date.now() });
+    return "requested";
+  }
   await setDoc(doc(db, "follows", followId(me, other)), {
     followerId: me,
     followingId: other,
@@ -61,7 +67,29 @@ export async function follow(me: string, other: string) {
   });
   forgetFollowingCache();
   recordFollowEvent(other, me, "follow");
+  return "following";
 }
+
+export async function hasRequested(me: string, other: string): Promise<boolean> {
+  return (await getDoc(doc(db, "followRequests", followId(me, other)))).exists();
+}
+
+export const cancelRequest = (me: string, other: string) => deleteDoc(doc(db, "followRequests", followId(me, other)));
+
+/** People waiting for `me` to accept their follow request. */
+export async function getFollowRequests(me: string): Promise<string[]> {
+  const snap = await getDocs(query(collection(db, "followRequests"), where("to", "==", me)));
+  return snap.docs.map((d) => (d.data() as any).from as string);
+}
+
+export async function acceptRequest(me: string, from: string) {
+  await setDoc(doc(db, "follows", followId(from, me)), { followerId: from, followingId: me, createdAt: Date.now() });
+  await deleteDoc(doc(db, "followRequests", followId(from, me)));
+  forgetFollowingCache();
+  recordFollowEvent(me, me, "follow");
+}
+
+export const declineRequest = (me: string, from: string) => deleteDoc(doc(db, "followRequests", followId(from, me)));
 
 export async function unfollow(me: string, other: string) {
   await deleteDoc(doc(db, "follows", followId(me, other)));

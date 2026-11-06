@@ -59,10 +59,12 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if signedIn() && request.auth.uid == uid;
 
-      // Stories: only the owner and people who follow the owner
+      // Stories: everyone can see a public account's stories; a private account's only its owner and followers
       match /stories/{storyId} {
         allow read: if signedIn() && (request.auth.uid == uid ||
-          exists(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + uid)));
+          exists(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + uid)) ||
+          !exists(/databases/$(database)/documents/users/$(uid)) ||
+          get(/databases/$(database)/documents/users/$(uid)).data.get('isPrivate', false) == false);
         allow write: if signedIn() && request.auth.uid == uid;
 
         // Story views: viewers write their own marker, only the story owner reads them
@@ -70,6 +72,15 @@ service cloud.firestore {
           allow read: if signedIn() && request.auth.uid == uid;
           allow create, update: if signedIn() && request.auth.uid == viewerId;
         }
+      }
+
+      // Highlights follow the same visibility as stories
+      match /highlights/{highlightId} {
+        allow read: if signedIn() && (request.auth.uid == uid ||
+          exists(/databases/$(database)/documents/follows/$(request.auth.uid + '_' + uid)) ||
+          !exists(/databases/$(database)/documents/users/$(uid)) ||
+          get(/databases/$(database)/documents/users/$(uid)).data.get('isPrivate', false) == false);
+        allow write: if signedIn() && request.auth.uid == uid;
       }
 
       // Close-friends stories: only the owner and people on the close friends list
@@ -102,12 +113,26 @@ service cloud.firestore {
       }
     }
 
+    // Follow requests for private accounts
+    match /followRequests/{requestId} {
+      allow read: if signedIn() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+      allow create: if signedIn() && request.resource.data.from == request.auth.uid &&
+        requestId == request.auth.uid + '_' + request.resource.data.to;
+      allow delete: if signedIn() && (resource.data.from == request.auth.uid || resource.data.to == request.auth.uid);
+    }
+
     // Following
     match /follows/{followId} {
       allow read: if signedIn();
-      allow create: if signedIn() &&
-        request.resource.data.followerId == request.auth.uid &&
-        followId == request.auth.uid + '_' + request.resource.data.followingId;
+      // follow a public account directly; a private account needs a request the owner accepts
+      allow create: if signedIn() && (
+        (request.resource.data.followerId == request.auth.uid &&
+          followId == request.auth.uid + '_' + request.resource.data.followingId &&
+          (!exists(/databases/$(database)/documents/users/$(request.resource.data.followingId)) ||
+            get(/databases/$(database)/documents/users/$(request.resource.data.followingId)).data.get('isPrivate', false) == false)) ||
+        (request.resource.data.followingId == request.auth.uid &&
+          followId == request.resource.data.followerId + '_' + request.auth.uid &&
+          exists(/databases/$(database)/documents/followRequests/$(followId))));
       allow delete: if signedIn() && (
         resource.data.followerId == request.auth.uid ||
         resource.data.followingId == request.auth.uid);

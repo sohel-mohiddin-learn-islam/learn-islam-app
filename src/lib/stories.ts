@@ -18,16 +18,20 @@ export type Story = {
   createdAt: number;
   expiresAt: number;
   closeOnly: boolean;
+  caption?: string;
+  reelId?: string;
 };
 
 const DAY = 24 * 60 * 60 * 1000;
 
-export async function addStory(owner: string, mediaUrl: string, type: "image" | "video", closeOnly: boolean) {
+export async function addStory(owner: string, mediaUrl: string, type: "image" | "video", closeOnly: boolean, extra?: { caption?: string; reelId?: string }) {
   const col = closeOnly ? "closeStories" : "stories";
   await addDoc(collection(db, "users", owner, col), {
     mediaUrl,
     type,
     closeOnly,
+    caption: extra?.caption || "",
+    reelId: extra?.reelId || "",
     createdAt: Date.now(),
     expiresAt: Date.now() + DAY,
     serverAt: serverTimestamp(),
@@ -84,3 +88,13 @@ export const hasUnseen = (owner: string, latest: number) => {
     return true;
   }
 };
+
+/** Every story the owner ever posted (including expired ones), newest first. Used for highlights. */
+export async function getStoryArchive(owner: string): Promise<Story[]> {
+  const out: Story[] = [];
+  for (const col of ["stories", "closeStories"] as const) {
+    const snap = await getDocs(collection(db, "users", owner, col)).catch(() => null);
+    snap?.docs.forEach((d) => out.push({ id: d.id, ownerId: owner, closeOnly: col === "closeStories", ...(d.data() as any) } as Story));
+  }
+  return out.sort((a, b) => b.createdAt - a.createdAt);
+}

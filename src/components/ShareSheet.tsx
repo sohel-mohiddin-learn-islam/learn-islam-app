@@ -3,13 +3,13 @@ import { useAuth } from "@/contexts/AuthContext";
 import { getFollowerIds, getFollowingIds, getProfile } from "@/lib/social";
 import { sendMessage } from "@/lib/chat";
 import { useBackClose } from "@/lib/backButton";
-import { addStory } from "@/lib/stories";
+import StoryComposer from "./StoryComposer";
 
 export const SITE = "https://sohel-mohiddin-learn-islam.github.io/learn-islam-app";
 export const reelLink = (id: string) => `${SITE}/reels?reel=${id}`;
 
 type Person = { uid: string; name: string; photo: string | null };
-type Target = { id: string; caption?: string; userName?: string; original?: string; src: string };
+type Target = { id: string; caption?: string; userName?: string; original?: string; src: string; poster?: string };
 
 export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; onClose: () => void; onShared: () => void }) {
   useBackClose(onClose);
@@ -18,6 +18,7 @@ export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; 
   const [q, setQ] = useState("");
   const [sent, setSent] = useState<string[]>([]);
   const [note, setNote] = useState("");
+  const [composer, setComposer] = useState(false);
   const link = reelLink(reel.id);
   const text = `🎬 Reel by ${reel.userName || "Learn Islam User"}${reel.caption ? ": " + reel.caption.slice(0, 80) : ""}`;
 
@@ -61,11 +62,7 @@ export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; 
       else await copy();
     } catch { /* cancelled */ }
   };
-  const toStory = async () => {
-    if (!user) return;
-    try { await addStory(user.uid, reel.original || reel.src, "video", false); flash("Added to your story"); onShared(); }
-    catch { flash("Could not add to story."); }
-  };
+  const toStory = () => setComposer(true);
   const download = () => {
     const url = (reel.original || reel.src).replace("/upload/", "/upload/fl_attachment/");
     open(url);
@@ -86,6 +83,8 @@ export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; 
   ];
 
   return (
+    <>
+    {composer && <StoryComposer reel={reel} onClose={() => setComposer(false)} onDone={() => { setComposer(false); onShared(); onClose(); }} />}
     <div className="absolute inset-0 z-[60] flex flex-col justify-end bg-black/50" onClick={onClose}>
       <div className="bg-neutral-900 text-white rounded-t-3xl max-h-[75%] flex flex-col" onClick={(e) => e.stopPropagation()}>
         <div className="mx-auto mt-3 h-1 w-10 rounded-full bg-white/40" />
@@ -120,5 +119,6 @@ export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; 
         </div>
       </div>
     </div>
+    </>
   );
 }

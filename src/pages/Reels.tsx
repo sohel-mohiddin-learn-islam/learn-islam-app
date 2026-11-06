@@ -9,7 +9,7 @@ import { notify } from "@/lib/notifications";
 import { compact, getReelCounts, recordReelView, recordShare, setSaveMarker, type ReelCounts } from "@/lib/analytics";
 import { follow as followUser, getFollowingIds } from "@/lib/social";
 import { db } from "@/lib/firebase";
-import { deleteDoc, doc, setDoc } from "firebase/firestore";
+import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { Plus } from "lucide-react";
 import { getActiveAds, type Ad } from "@/lib/ads";
 
@@ -367,6 +367,7 @@ export default function Reels() {
 
   const [communityReels, setCommunityReels] = useState<Reel[]>([]);
   const [seed, setSeed] = useState(0);
+  const [privateOwners, setPrivateOwners] = useState<string[]>([]);
   const [refreshing, setRefreshing] = useState(false);
   const [startId, setStartId] = useState<string | null>(() => {
     try {
@@ -420,6 +421,17 @@ export default function Reels() {
           }));
 
         setCommunityReels(firebaseReels);
+        // find which owners have a private account (their reels are only for followers)
+        const owners = Array.from(new Set(firebaseReels.map((r) => r.userId).filter(Boolean))) as string[];
+        const privs: string[] = [];
+        await Promise.all(
+          owners.map(async (id) => {
+            try {
+              if (((await getDoc(doc(db, "users", id))).data() as any)?.isPrivate) privs.push(id);
+            } catch { /* ignore */ }
+          })
+        );
+        if (active) setPrivateOwners(privs);
       } catch (error) {
         console.error("Could not load community posts:", error);
       }
@@ -448,6 +460,7 @@ export default function Reels() {
 
   const allReels = ordered
     .filter((r) => !prefs.notInterested.includes(r.id))
+    .filter((r) => !r.userId || !privateOwners.includes(r.userId) || r.userId === user?.uid || followingIds.includes(r.userId))
     .filter((r) => tab !== "friends" || (r.userId && followingIds.includes(r.userId)));
 
   return (
