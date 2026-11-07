@@ -64,6 +64,7 @@ export default function Notifications() {
     if (n.type === "follow") return "started following you.";
     if (n.type === "request") return "requested to follow you.";
     if (n.type === "mention") return "mentioned you in their story.";
+    if (n.type === "message") return n.text ? `sent you a message: ${n.text}` : "sent you a message.";
     if (n.type === "like") return "liked your reel.";
     return containsHiddenWord(n.text || "") ? "commented (hidden by your Hidden Words)." : `commented: ${n.text}`;
   };
@@ -102,7 +103,7 @@ export default function Notifications() {
                   return (
                     <div
                       key={n.id}
-                      onClick={() => setLocation(n.type === "request" ? "/follow-requests" : n.type === "follow" || n.type === "mention" ? `/user/${n.fromId}` : "/reels")}
+                      onClick={() => setLocation(n.type === "message" ? `/chat/${n.fromId}` : n.type === "request" ? "/follow-requests" : n.type === "follow" || n.type === "mention" ? `/user/${n.fromId}` : "/reels")}
                       className={`flex items-center gap-3 px-4 py-3 cursor-pointer hover:bg-muted ${n.read ? "" : "bg-primary/5"}`}
                     >
                       <span

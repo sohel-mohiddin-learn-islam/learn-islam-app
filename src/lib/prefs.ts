@@ -7,10 +7,12 @@ export type Prefs = {
   saved: string[]; // saved reel ids
   hiddenWords: string[];
   notInterested: string[]; // reel ids
+  jumuah: boolean; // Friday reminder
+  ramadan: boolean; // Suhoor / Iftar mode
 };
 
 const KEY = "li-prefs";
-const DEFAULTS: Prefs = { textScale: 1, dataSaver: false, dailyLimit: 0, saved: [], hiddenWords: [], notInterested: [] };
+const DEFAULTS: Prefs = { textScale: 1, dataSaver: false, dailyLimit: 0, saved: [], hiddenWords: [], notInterested: [], jumuah: true, ramadan: false };
 
 export function getPrefs(): Prefs {
   try {

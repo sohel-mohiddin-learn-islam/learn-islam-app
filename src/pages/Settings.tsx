@@ -19,7 +19,7 @@ import {
 
 type View =
   | "main" | "privacy" | "saved" | "archive" | "activity" | "time"
-  | "blocked" | "muted" | "close" | "messages" | "hidden" | "accessibility" | "data" | "invite" | "about";
+  | "reminders" | "blocked" | "muted" | "close" | "messages" | "hidden" | "accessibility" | "data" | "invite" | "about";
 
 const APP_LINK = "https://github.com/sohel-mohiddin-learn-islam/learn-islam-app/releases/download/apk-latest/learn-islam.apk";
 
@@ -262,6 +262,7 @@ export default function Settings() {
   const titles: Record<View, string> = {
     main: "Settings and activity",
     privacy: "Account privacy",
+    reminders: "Reminders",
     saved: "Saved",
     archive: "Archive",
     activity: "Your activity",
@@ -282,6 +283,27 @@ export default function Settings() {
 
   const body = () => {
     switch (view) {
+      case "reminders":
+        return (
+          <div className="p-4 space-y-5">
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <p className="font-semibold">Jumu'ah reminder</p>
+                <p className="text-sm text-foreground/60">Every Friday at 11:00 AM.</p>
+              </div>
+              <Toggle on={prefs.jumuah} onChange={(v) => setPrefs({ jumuah: v })} />
+            </div>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <p className="font-semibold">Ramadan mode</p>
+                <p className="text-sm text-foreground/60">Suhoor and Iftar times on the home screen, with reminders. It turns on by itself during Ramadan.</p>
+              </div>
+              <Toggle on={prefs.ramadan} onChange={(v) => setPrefs({ ramadan: v })} />
+            </div>
+            <p className="text-xs text-foreground/50">Reminders need notifications to be allowed (use "Enable Prayer Notifications" on the home screen).</p>
+          </div>
+        );
+
       case "privacy":
         return (
           <div className="p-4">
@@ -464,6 +486,7 @@ export default function Settings() {
             <Section title="How you use Learn Islam">
               <Row icon="👥" label="Follow requests" onClick={() => setLocation("/follow-requests")} />
               <Row icon="🔔" label="Notifications" onClick={() => setLocation("/notifications")} />
+              <Row icon="⏰" label="Reminders (Jumu'ah, Ramadan)" onClick={() => setView("reminders")} />
               <Row icon="📑" label="Saved" value={prefs.saved.length ? String(prefs.saved.length) : ""} onClick={() => setView("saved")} />
               <Row icon="🗂" label="Archive" onClick={() => setView("archive")} />
               <Row icon="📈" label="Your activity" onClick={() => setView("activity")} />

@@ -5,6 +5,9 @@ import { CalculationMethod, Coordinates, PrayerTimes } from "adhan";
 import StoriesBar from "@/components/StoriesBar";
 import NotificationBell from "@/components/NotificationBell";
 import { LocalNotifications } from '@capacitor/local-notifications';
+import { HadithCard, VerseCard } from "@/components/DailyCards";
+import { usePrefs } from "@/lib/prefs";
+import { setJumuahReminder, setRamadanReminders } from "@/lib/reminders";
 
 const features = [
   { href: "/prophets", icon: BookOpen, label: "Prophet Stories", color: "bg-emerald-800" },
@@ -131,7 +134,34 @@ export default function HomePage() {
     localStorage.setItem('prayerTimeOffsets', JSON.stringify(newOffsets));
   };
 
+  const prefs = usePrefs();
   const hijri = getHijriDate();
+  const isFriday = new Date().getDay() === 5;
+  const inRamadan = hijri.month === "Ramadan";
+  const ramadanOn = prefs.ramadan || inRamadan;
+  const fajrAt = rawPrayerTimes[0];
+  const maghribAt = rawPrayerTimes[3];
+  const nextOf = (t?: Date) => {
+    if (!t) return "";
+    const d = new Date(t.getTime());
+    if (d.getTime() < Date.now()) d.setDate(d.getDate() + 1);
+    const mins = Math.max(0, Math.round((d.getTime() - Date.now()) / 60000));
+    return `in ${Math.floor(mins / 60)}h ${mins % 60}m`;
+  };
+
+  useEffect(() => {
+    if (notifPermission !== "granted") return;
+    setJumuahReminder(prefs.jumuah);
+  }, [notifPermission, prefs.jumuah]);
+
+  useEffect(() => {
+    if (notifPermission !== "granted" || !fajrAt || !maghribAt) return;
+    const f = new Date(fajrAt.getTime());
+    if (f.getTime() - 40 * 60000 < Date.now()) f.setDate(f.getDate() + 1);
+    const m = new Date(maghribAt.getTime());
+    if (m.getTime() < Date.now()) m.setDate(m.getDate() + 1);
+    setRamadanReminders(ramadanOn, f, m);
+  }, [notifPermission, ramadanOn, rawPrayerTimes]);
   const today = new Date();
   const prayers = ['Fajr', 'Dhuhr', 'Asr', 'Maghrib', 'Isha'];
 
@@ -256,11 +286,36 @@ export default function HomePage() {
       </div>
 
       <div className="px-4 py-5">
-        <div className="bg-gradient-to-r from-emerald-800 to-emerald-700 rounded-2xl p-4 mb-5 border border-yellow-400/30 shadow-md">
-          <p className="text-yellow-300 font-serif text-xs mb-2">Verse of the Day</p>
-          <p className="text-white text-base font-serif leading-relaxed" dir="rtl">إن مع العسر يسرا</p>
-          <p className="text-emerald-200 text-sm mt-2 italic">"Indeed, with hardship comes ease." — Quran 94:6</p>
-        </div>
+        {isFriday && (
+          <div className="rounded-2xl p-4 mb-5 bg-yellow-400/15 border border-yellow-400/40">
+            <p className="font-serif font-bold text-primary">Jumu'ah Mubarak 🕌</p>
+            <p className="text-sm text-foreground/80 mt-1">Read Surah Al-Kahf, send salawat on the Prophet ﷺ, and make dua in the last hour before Maghrib.</p>
+          </div>
+        )}
+
+        {ramadanOn && (
+          <div className="rounded-2xl p-4 mb-5 bg-gradient-to-r from-indigo-900 to-emerald-900 border border-yellow-400/30 text-white">
+            <p className="text-yellow-300 font-serif text-xs mb-2">Ramadan {inRamadan ? "Mubarak 🌙" : "mode 🌙"}</p>
+            {fajrAt && maghribAt ? (
+              <div className="grid grid-cols-2 gap-3">
+                <div>
+                  <p className="text-xs text-emerald-200">Suhoor ends (Fajr)</p>
+                  <p className="text-lg font-bold">{prayerTimes[0]}</p>
+                  <p className="text-xs text-emerald-200">{nextOf(fajrAt)}</p>
+                </div>
+                <div>
+                  <p className="text-xs text-emerald-200">Iftar (Maghrib)</p>
+                  <p className="text-lg font-bold">{prayerTimes[3]}</p>
+                  <p className="text-xs text-emerald-200">{nextOf(maghribAt)}</p>
+                </div>
+              </div>
+            ) : (
+              <p className="text-sm text-emerald-100">Allow location to see Suhoor and Iftar times for your city.</p>
+            )}
+          </div>
+        )}
+
+        <VerseCard />
 
         <h2 className="text-foreground font-serif font-bold text-lg mb-3">Features</h2>
         <div className="grid grid-cols-4 gap-3">
@@ -276,13 +331,7 @@ export default function HomePage() {
           ))}
         </div>
 
-        <div className="mt-5 bg-card border border-border rounded-2xl p-4 shadow-sm">
-          <p className="text-primary font-serif text-xs mb-1">Hadith of the Day</p>
-          <p className="text-foreground font-serif text-sm leading-relaxed">
-            "The best of you are those who learn the Quran and teach it."
-          </p>
-          <p className="text-muted-foreground text-xs mt-1">Prophet Muhammad (Bukhari)</p>
-        </div>
+        <HadithCard />
       </div>
     </div>
   );

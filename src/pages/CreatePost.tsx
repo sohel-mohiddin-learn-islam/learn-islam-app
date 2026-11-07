@@ -301,7 +301,7 @@ export default function CreatePost() {
           <textarea
             value={caption}
             onChange={(e) => setCaption(e.target.value)}
-            placeholder="Write something about this video..."
+            placeholder="Write a caption… add #hashtags so people can find it"
             maxLength={500}
             rows={4}
             disabled={uploading}

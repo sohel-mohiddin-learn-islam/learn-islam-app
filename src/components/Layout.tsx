@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
-import { Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun, Sparkles } from "lucide-react";
+import NotificationWatcher from "@/components/NotificationWatcher";
+import { Search as SearchIcon, Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun, Sparkles } from "lucide-react";
 
 const bottomNav = [
   { href: "/", icon: Home, label: "Home" },
@@ -65,6 +66,9 @@ export function Layout({ children }: LayoutProps) {
             <option value="roman-telugu">తె</option>
             <option value="ar">عر</option>
           </select>
+          <button onClick={() => setLocation("/search")} aria-label="Search" className="p-2 rounded-full bg-muted">
+            <SearchIcon className="w-5 h-5 text-primary" />
+          </button>
           <button onClick={toggleTheme} className="p-2 rounded-full bg-muted">
           {isDark ? <Sun className="w-5 h-5 text-yellow-400"/> : <Moon className="w-5 h-5 text-primary"/>}
         </button>
@@ -92,6 +96,7 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
+        <NotificationWatcher />
         {children}
       </main>
 

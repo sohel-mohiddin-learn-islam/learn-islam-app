@@ -197,7 +197,7 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
         <div className="w-full h-full bg-black" />
       )}
 
-      {reel.caption && (
+      {(reel.caption || reel.userName) && (
         <div className="absolute left-4 bottom-8 right-20 text-white drop-shadow-lg">
           {reel.userName && (
             <div className="flex items-center gap-3 mb-1">
@@ -211,8 +211,8 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
                 <button
                   onClick={async () => {
                     onFollowed(reel.userId!);
-                    await followUser(user.uid, reel.userId!).catch(() => {});
-                    notify(reel.userId!, user.uid, "follow");
+                    const res = await followUser(user.uid, reel.userId!).catch(() => null);
+                    if (res) notify(reel.userId!, user.uid, res === "requested" ? "request" : "follow");
                   }}
                   className="border border-white rounded-lg px-3 py-0.5 text-sm font-semibold"
                 >
@@ -223,7 +223,19 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
           )}
 
           <p className="text-sm">
-            {reel.caption}
+            {(reel.caption || "").split(/(#[\p{L}\p{N}_]+)/u).map((part, i) =>
+              part.startsWith("#") ? (
+                <button
+                  key={i}
+                  onClick={() => { try { sessionStorage.setItem("search-q", part); } catch { /* ignore */ } setLocation("/search"); }}
+                  className="font-semibold text-sky-300"
+                >
+                  {part}
+                </button>
+              ) : (
+                <span key={i}>{part}</span>
+              )
+            )}
           </p>
         </div>
       )}

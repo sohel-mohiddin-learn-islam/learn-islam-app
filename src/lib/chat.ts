@@ -14,6 +14,7 @@ import {
 
 import { db } from "./firebase";
 import { isFollowing } from "./social";
+import { notify } from "./notifications";
 
 export type ChatSummary = {
   id: string;
@@ -65,6 +66,8 @@ export async function sendMessage(me: string, other: string, text: string) {
     text: clean.slice(0, 2000),
     createdAt: serverTimestamp(),
   });
+  // alert the other person (shows in their notifications and as a phone alert while the app is running)
+  notify(other, me, "message", { text: clean.slice(0, 80) });
 }
 
 export function watchInbox(me: string, cb: (chats: ChatSummary[]) => void, onError?: (e: any) => void): Unsubscribe {
