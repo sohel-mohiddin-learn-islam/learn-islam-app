@@ -24,9 +24,61 @@ export type ChatSummary = {
   lastSender: string;
   lastRead: Record<string, number>;
   sentBy: Record<string, boolean>;
+  general: Record<string, boolean>;
+  muted: Record<string, boolean>;
 };
 
-export type Message = { id: string; from: string; text: string; createdAt: number };
+/** Settings shared by the two people in a chat (stored on the chat document). */
+export type ChatSettings = {
+  theme: string;
+  font: string;
+  disappear: number; // seconds, 0 = off
+  muted: Record<string, boolean>;
+  general: Record<string, boolean>;
+  nicks: Record<string, string>; // nicks[viewerUid] = name that viewer gave the other person
+  clearedAt: Record<string, number>;
+};
+
+export const THEMES: Record<string, { name: string; bubble: string }> = {
+  default: { name: "Default", bubble: "" },
+  green: { name: "Green", bubble: "#16a34a" },
+  blue: { name: "Blue", bubble: "#2563eb" },
+  purple: { name: "Purple", bubble: "#9333ea" },
+  pink: { name: "Pink", bubble: "#db2777" },
+  orange: { name: "Orange", bubble: "#ea580c" },
+  teal: { name: "Teal", bubble: "#0d9488" },
+  gold: { name: "Gold", bubble: "#b8860b" },
+};
+export const FONTS: Record<string, { name: string; css: string }> = {
+  default: { name: "Default", css: "" },
+  serif: { name: "Serif", css: "Georgia, serif" },
+  mono: { name: "Typewriter", css: "ui-monospace, monospace" },
+  arabic: { name: "Amiri", css: "'Amiri', serif" },
+  rounded: { name: "Rounded", css: "'Trebuchet MS', sans-serif" },
+};
+
+export const DISAPPEAR_OPTIONS: [string, number][] = [["Off", 0], ["24 hours", 86400], ["7 days", 604800]];
+
+const parseSettings = (x: any): ChatSettings => ({
+  theme: x?.theme || "default",
+  font: x?.font || "default",
+  disappear: x?.disappear || 0,
+  muted: x?.muted || {},
+  general: x?.general || {},
+  nicks: x?.nicks || {},
+  clearedAt: x?.clearedAt || {},
+});
+
+export function watchSettings(me: string, other: string, cb: (s: ChatSettings) => void): Unsubscribe {
+  return onSnapshot(doc(db, "chats", chatIdFor(me, other)), (d) => cb(parseSettings(d.data())), () => cb(parseSettings(null)));
+}
+
+/** Merge-updates settings (nested maps are merged, so each person only changes their own entry). */
+export async function updateSettings(me: string, other: string, patch: Record<string, any>) {
+  await setDoc(doc(db, "chats", chatIdFor(me, other)), { participants: [me, other], ...patch }, { merge: true });
+}
+
+export type Message = { id: string; from: string; text: string; createdAt: number; expiresAt?: number };
 
 export const chatIdFor = (a: string, b: string) => [a, b].sort().join("_");
 
@@ -49,6 +101,8 @@ export async function sendMessage(me: string, other: string, text: string) {
   if (!clean) return;
   await assertCanMessage(me, other);
   const id = chatIdFor(me, other);
+  const existing: any = (await getDoc(doc(db, "chats", id)).catch(() => null))?.data?.() || {};
+  const disappear: number = existing.disappear || 0;
   await setDoc(
     doc(db, "chats", id),
     {
@@ -65,6 +119,7 @@ export async function sendMessage(me: string, other: string, text: string) {
     from: me,
     text: clean.slice(0, 2000),
     createdAt: serverTimestamp(),
+    ...(disappear ? { expiresAt: Date.now() + disappear * 1000 } : {}),
   });
   // alert the other person (shows in their notifications and as a phone alert while the app is running)
   notify(other, me, "message", { text: clean.slice(0, 80) });
@@ -84,6 +139,8 @@ export function watchInbox(me: string, cb: (chats: ChatSummary[]) => void, onErr
           lastSender: x.lastSender || "",
           lastRead: x.lastRead || {},
           sentBy: x.sentBy || {},
+          general: x.general || {},
+          muted: x.muted || {},
         } as ChatSummary;
       });
       cb(list.sort((a, b) => b.lastAt - a.lastAt));
@@ -127,6 +184,13 @@ export function previewOf(text: string): string {
   const r = parseReelMessage(text);
   if (r) return r.by ? `Sent a reel by ${r.by}` : "Sent a reel";
   return text;
+}
+
+/** Hides messages that expired or were cleared by `me`. */
+export function visibleMessages(list: Message[], me: string, st: ChatSettings): Message[] {
+  const now = Date.now();
+  const cleared = st.clearedAt[me] || 0;
+  return list.filter((m) => (!m.expiresAt || m.expiresAt > now) && m.createdAt > cleared);
 }
 
 export function timeAgo(ms: number): string {

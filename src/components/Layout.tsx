@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import NotificationWatcher from "@/components/NotificationWatcher";
+import CallManager from "@/components/CallManager";
 import UnreadDot from "@/components/UnreadDot";
 import { Search as SearchIcon, Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun, Sparkles } from "lucide-react";
 
@@ -99,6 +100,7 @@ export function Layout({ children }: LayoutProps) {
       {/* Main Content */}
       <main className="flex-1 overflow-auto">
         <NotificationWatcher />
+        <CallManager />
         {children}
       </main>
 

@@ -2,7 +2,7 @@ import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
 import { PushNotifications } from "@capacitor/push-notifications";
-import { doc, setDoc } from "firebase/firestore";
+import { doc, getDoc, setDoc } from "firebase/firestore";
 import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
@@ -70,6 +70,11 @@ export default function NotificationWatcher() {
             if (seen.has(key)) return;
             seen.add(key);
             if (first || n.read) return; // existing items on start are not re-announced
+            if (n.type === "message") {
+              const cid = [user.uid, n.fromId].sort().join("_");
+              const c: any = (await getDoc(doc(db, "chats", cid)).catch(() => null))?.data?.();
+              if (c?.muted?.[user.uid]) return;
+            }
             const from = await getProfile(n.fromId).catch(() => null);
             LocalNotifications.schedule({
               notifications: [{

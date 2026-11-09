@@ -35,6 +35,7 @@ const UserProfile = lazy(() => import("@/pages/UserProfile"));
 const Settings = lazy(() => import("@/pages/Settings"));
 const Messages = lazy(() => import("@/pages/Messages"));
 const Chat = lazy(() => import("@/pages/Chat"));
+const ChatInfo = lazy(() => import("@/pages/ChatInfo"));
 const CreateStory = lazy(() => import("@/pages/CreateStory"));
 const AccountsCenter = lazy(() => import("@/pages/AccountsCenter"));
 const Notifications = lazy(() => import("@/pages/Notifications"));
@@ -113,6 +114,7 @@ function Router() {
           <Route path="/user/:uid" component={UserProfile}/>
           <Route path="/settings" component={Settings}/>
           <Route path="/messages" component={Messages}/>
+          <Route path="/chat/:uid/info" component={ChatInfo}/>
           <Route path="/chat/:uid" component={Chat}/>
           <Route path="/create-story" component={CreateStory}/>
           <Route path="/accounts-center" component={AccountsCenter}/>

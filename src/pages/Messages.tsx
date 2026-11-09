@@ -76,7 +76,7 @@ export default function Messages() {
         const iSent = !!c.sentBy[user.uid] || c.lastSender === user.uid;
         const unread = c.lastSender !== user.uid && c.lastAt > (c.lastRead[user.uid] || 0);
         const seen = c.lastSender === user.uid && (c.lastRead[other] || 0) >= c.lastAt;
-        const kind: Tab = iFollow ? "primary" : iSent ? "general" : "requests";
+        const kind: Tab = c.general?.[user.uid] ? "general" : iFollow ? "primary" : iSent ? "general" : "requests";
         return { c, other, unread, seen, kind };
       })
       .filter((r) => r.kind === tab)
@@ -90,7 +90,7 @@ export default function Messages() {
     chats.forEach((c) => {
       const other = c.participants.find((p) => p !== user.uid) || "";
       const iSent = !!c.sentBy[user.uid] || c.lastSender === user.uid;
-      const kind: Tab = following.includes(other) ? "primary" : iSent ? "general" : "requests";
+      const kind: Tab = c.general?.[user.uid] ? "general" : following.includes(other) ? "primary" : iSent ? "general" : "requests";
       if (c.lastSender !== user.uid && c.lastAt > (c.lastRead[user.uid] || 0)) out[kind]++;
     });
     return out;

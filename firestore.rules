@@ -155,11 +155,25 @@ service cloud.firestore {
       allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
 
       match /messages/{messageId} {
+        allow delete: if signedIn() && resource.data.from == request.auth.uid;
         allow read: if signedIn() &&
           request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
         allow create: if signedIn() &&
           request.resource.data.from == request.auth.uid &&
           request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+      }
+    }
+
+    // Audio / video calls: signalling data shared by the two people
+    match /calls/{callId} {
+      allow read: if signedIn() && (request.auth.uid == resource.data.caller || request.auth.uid == resource.data.callee);
+      allow create: if signedIn() && request.resource.data.caller == request.auth.uid;
+      allow update, delete: if signedIn() && (request.auth.uid == resource.data.caller || request.auth.uid == resource.data.callee);
+
+      match /{side}/{candidateId} {
+        allow read, write: if signedIn() && (
+          request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.caller ||
+          request.auth.uid == get(/databases/$(database)/documents/calls/$(callId)).data.callee);
       }
     }
   }

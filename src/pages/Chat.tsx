@@ -1,7 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { markRead, parseReelMessage, sendMessage, watchChat, watchMessages, type Message } from "@/lib/chat";
+import { FONTS, THEMES, markRead, parseReelMessage, sendMessage, visibleMessages, watchChat, watchMessages, watchSettings, type ChatSettings, type Message } from "@/lib/chat";
+import { startCall } from "@/components/CallManager";
+import { deleteDoc, doc as fdoc } from "firebase/firestore";
 import { getProfile, type UserProfile } from "@/lib/social";
 import { containsHiddenWord } from "@/lib/prefs";
 import { doc, getDoc } from "firebase/firestore";
@@ -51,6 +53,12 @@ export default function Chat() {
   const endRef = useRef<HTMLDivElement>(null);
   const [listenKey, setListenKey] = useState(0);
   const [otherRead, setOtherRead] = useState(0);
+  const [st, setSt] = useState<ChatSettings>({ theme: "default", font: "default", disappear: 0, muted: {}, general: {}, nicks: {}, clearedAt: {} });
+  const [tick, setTick] = useState(0);
+  const shown = user ? visibleMessages(messages, user.uid, st) : messages;
+  const bubble = THEMES[st.theme]?.bubble || "";
+  const fontCss = FONTS[st.font]?.css || "";
+  const title = (user && st.nicks[user.uid]) || profile?.displayName || "…";
 
   useEffect(() => {
     if (!user || !other) return;
@@ -72,8 +80,25 @@ export default function Chat() {
   }, [user?.uid, other, listenKey]);
 
   useEffect(() => {
+    if (!user || !other) return;
+    return watchSettings(user.uid, other, setSt);
+  }, [user?.uid, other]);
+
+  // expired disappearing messages vanish live; my own expired ones are also deleted for good
+  useEffect(() => {
+    const id = setInterval(() => setTick((t) => t + 1), 15000);
+    return () => clearInterval(id);
+  }, []);
+  useEffect(() => {
+    if (!user) return;
+    const now = Date.now();
+    messages.filter((m) => m.from === user.uid && m.expiresAt && m.expiresAt < now)
+      .forEach((m) => deleteDoc(fdoc(db, "chats", [user.uid, other].sort().join("_"), "messages", m.id)).catch(() => {}));
+  }, [tick, messages.length]);
+
+  useEffect(() => {
     endRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [messages.length]);
+  }, [shown.length]);
 
   if (!user) {
     setLocation("/login");
@@ -103,17 +128,22 @@ export default function Chat() {
           <span className="w-9 h-9 rounded-full bg-muted overflow-hidden flex items-center justify-center">
             {profile?.photoURL ? <img src={profile.photoURL} alt="" className="w-full h-full object-cover" /> : "👤"}
           </span>
-          <span className="font-semibold">{profile?.displayName || "…"}</span>
+          <span className="font-semibold">{title}</span>
         </button>
+        <span className="ml-auto flex items-center gap-4 text-xl">
+          <button onClick={() => startCall(other, "audio")} aria-label="Voice call">📞</button>
+          <button onClick={() => startCall(other, "video")} aria-label="Video call">🎥</button>
+          <button onClick={() => setLocation(`/chat/${other}/info`)} aria-label="Chat details">ⓘ</button>
+        </span>
       </div>
 
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2">
-        {messages.length === 0 && <p className="text-center text-foreground/50 py-10">Say salam 👋</p>}
-        {messages.map((m, idx) => {
+      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2" style={fontCss ? { fontFamily: fontCss } : undefined}>
+        {shown.length === 0 && <p className="text-center text-foreground/50 py-10">Say salam 👋</p>}
+        {shown.map((m, idx) => {
           const mine = m.from === user.uid;
           const hidden = containsHiddenWord(m.text);
           const reel = parseReelMessage(m.text);
-          const lastMine = mine && !messages.slice(idx + 1).some((x) => x.from === user.uid);
+          const lastMine = mine && !shown.slice(idx + 1).some((x) => x.from === user.uid);
           return (
             <div key={m.id}>
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
@@ -128,7 +158,10 @@ export default function Chat() {
                     }}
                   />
                 ) : (
-                  <div className={`max-w-[78%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
+                  <div
+                    className={`max-w-[78%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? (bubble ? "text-white" : "bg-primary text-primary-foreground") : "bg-muted"}`}
+                    style={mine && bubble ? { backgroundColor: bubble } : undefined}
+                  >
                     {hidden ? <i className="opacity-70">Message hidden</i> : m.text}
                   </div>
                 )}
@@ -148,7 +181,7 @@ export default function Chat() {
           value={text}
           onChange={(e) => setText(e.target.value)}
           onKeyDown={(e) => e.key === "Enter" && send()}
-          placeholder="Message…"
+          placeholder={st.disappear ? "Message… (disappearing)" : "Message…"}
           className="flex-1 bg-muted rounded-full px-4 py-2 outline-none"
         />
         <button onClick={send} disabled={sending || !text.trim()} className="text-primary font-semibold px-2 disabled:opacity-40">

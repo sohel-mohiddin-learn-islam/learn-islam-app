@@ -10,7 +10,7 @@ export function useUnreadMessages(): number {
     if (!user) { setN(0); return; }
     return watchInbox(
       user.uid,
-      (chats) => setN(chats.filter((c) => c.lastSender && c.lastSender !== user.uid && c.lastAt > (c.lastRead[user.uid] || 0)).length),
+      (chats) => setN(chats.filter((c) => !c.muted?.[user.uid] && c.lastSender && c.lastSender !== user.uid && c.lastAt > (c.lastRead[user.uid] || 0)).length),
       () => {}
     );
   }, [user?.uid]);

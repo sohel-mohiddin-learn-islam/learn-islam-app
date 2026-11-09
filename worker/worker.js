@@ -52,6 +52,19 @@ async function ask(req, env) {
   return json({ answer: out.response || "" , uid });
 }
 
+// ---- TURN credentials for calls (optional: Cloudflare Calls TURN, free tier) ----
+async function turn(req, env) {
+  const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
+  try { await verifyIdToken(auth, env); } catch { return json({ error: "auth" }, 401); }
+  if (!env.TURN_KEY_ID || !env.TURN_API_TOKEN) return json({ iceServers: [] });
+  const r = await fetch(`https://rtc.live.cloudflare.com/v1/turn/keys/${env.TURN_KEY_ID}/credentials/generate-ice-servers`, {
+    method: "POST",
+    headers: { Authorization: `Bearer ${env.TURN_API_TOKEN}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ ttl: 86400 }),
+  });
+  return json(await r.json());
+}
+
 // ---- FCM push ----
 async function accessToken(sa) {
   const now = Math.floor(Date.now() / 1000);
@@ -96,6 +109,7 @@ export default {
     const path = new URL(req.url).pathname;
     try {
       if (path === "/ask") return await ask(req, env);
+      if (path === "/turn") return await turn(req, env);
       if (path === "/push") return await push(req, env);
     } catch (e) { return json({ error: String(e.message || e) }, 500); }
     return json({ ok: true });
