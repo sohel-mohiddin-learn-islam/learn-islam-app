@@ -194,7 +194,7 @@ export default function Messages() {
                   {" · "}{timeAgo(c.lastAt)}
                 </span>
               </span>
-              {unread && <span className="w-2.5 h-2.5 rounded-full bg-blue-500 shrink-0" />}
+              {unread && <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />}
             </button>
           );
         })}

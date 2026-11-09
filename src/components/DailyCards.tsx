@@ -1,12 +1,22 @@
 import { useEffect, useState } from "react";
 import { getDailyHadith, getDailyVerse, type DailyHadith, type DailyVerse } from "@/lib/daily";
+import { shareContent } from "@/lib/share";
 
-const share = async (text: string) => {
-  try {
-    if (navigator.share) await navigator.share({ title: "Learn Islam", text });
-    else await navigator.clipboard.writeText(text);
-  } catch { /* cancelled */ }
-};
+function ShareLink({ text, className }: { text: string; className: string }) {
+  const [label, setLabel] = useState("Share");
+  return (
+    <button
+      onClick={async () => {
+        const r = await shareContent({ text });
+        if (r === "copied") { setLabel("Copied!"); setTimeout(() => setLabel("Share"), 2000); }
+        else if (r === "failed") { setLabel("Try again"); setTimeout(() => setLabel("Share"), 2000); }
+      }}
+      className={className}
+    >
+      {label}
+    </button>
+  );
+}
 
 export function VerseCard() {
   const [v, setV] = useState<DailyVerse | null>(null);
@@ -20,7 +30,7 @@ export function VerseCard() {
           <p className="text-emerald-100 text-sm mt-2 italic">"{v.english}"</p>
           <div className="flex items-center justify-between mt-2">
             <p className="text-emerald-200 text-xs">Qur'an — {v.ref}</p>
-            <button onClick={() => share(`${v.arabic}\n\n"${v.english}"\n— Qur'an ${v.ref}`)} className="text-yellow-300 text-xs underline">Share</button>
+            <ShareLink text={`${v.arabic}\n\n"${v.english}"\n— Qur'an ${v.ref}\n\nLearn Islam app`} className="text-yellow-300 text-xs underline" />
           </div>
         </>
       ) : (
@@ -44,7 +54,7 @@ export function HadithCard() {
           <p className="text-foreground font-serif text-sm leading-relaxed">{h.text}</p>
           <div className="flex items-center justify-between mt-1">
             <p className="text-muted-foreground text-xs">{h.ref}</p>
-            <button onClick={() => share(`${h.text}\n— ${h.ref}`)} className="text-primary text-xs underline">Share</button>
+            <ShareLink text={`${h.text}\n— ${h.ref}\n\nLearn Islam app`} className="text-primary text-xs underline" />
           </div>
         </>
       ) : (

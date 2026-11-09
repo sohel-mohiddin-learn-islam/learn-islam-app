@@ -96,6 +96,11 @@ service cloud.firestore {
         allow write: if signedIn() && request.auth.uid == uid;
       }
 
+      // Push tokens of this user's phones (written by the app, read by the push server's service account)
+      match /tokens/{tokenId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+
       // Notifications: anyone signed in can send one to you, only you can read or clear them
       match /notifications/{notificationId} {
         allow read, update, delete: if signedIn() && request.auth.uid == uid;

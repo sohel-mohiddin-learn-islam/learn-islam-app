@@ -1,0 +1,9 @@
+name = "learn-islam-api"
+main = "worker.js"
+compatibility_date = "2025-01-01"
+
+[ai]
+binding = "AI"
+
+[vars]
+FIREBASE_PROJECT_ID = "learn-islam-891c3"

@@ -1,3 +1,5 @@
+import { shareContent } from "@/lib/share";
+import UnreadDot from "@/components/UnreadDot";
 import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { updateProfile } from "firebase/auth";
@@ -291,12 +293,8 @@ export default function ProfileView({ uid }: { uid: string }) {
   const share = async () => {
     const url = `${import.meta.env.VITE_MEDIA_BASE || "https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/"}user/${uid}`;
     try {
-      if (navigator.share) {
-        await navigator.share({ title: profile.displayName, text: `${profile.displayName} on Learn Islam`, url });
-      } else {
-        await navigator.clipboard.writeText(url);
-        setNote("Profile link copied.");
-      }
+      const r = await shareContent({ title: profile.displayName, text: `${profile.displayName} on Learn Islam`, url });
+      if (r === "copied") setNote("Profile link copied.");
     } catch {
       /* user cancelled */
     }
@@ -378,7 +376,7 @@ export default function ProfileView({ uid }: { uid: string }) {
                   )}
                 </div>
                 <NotificationBell />
-                <button onClick={() => setLocation("/messages")} aria-label="Messages" className="text-2xl px-2">✉️</button>
+                <button onClick={() => setLocation("/messages")} aria-label="Messages" className="relative text-2xl px-2">✉️<UnreadDot className="top-0 right-0.5" /></button>
                 <button onClick={() => setLocation("/settings")} aria-label="Settings" className="text-2xl px-2">⚙️</button>
               </>
             ) : (

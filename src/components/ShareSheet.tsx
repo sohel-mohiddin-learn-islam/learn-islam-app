@@ -1,3 +1,4 @@
+import { shareContent } from "@/lib/share";
 import { useEffect, useMemo, useState } from "react";
 import { useAuth } from "@/contexts/AuthContext";
 import { getFollowerIds, getFollowingIds, getProfile } from "@/lib/social";
@@ -60,10 +61,10 @@ export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; 
     try { await navigator.clipboard.writeText(link); flash("Link copied"); onShared(); } catch { flash("Could not copy."); }
   };
   const nativeShare = async () => {
-    try {
-      if (navigator.share) { await navigator.share({ title: "Learn Islam", text, url: link }); onShared(); }
-      else await copy();
-    } catch { /* cancelled */ }
+    const r = await shareContent({ title: "Learn Islam", text, url: link });
+    if (r === "shared") onShared();
+    else if (r === "copied") { flash("Link copied"); onShared(); }
+    else flash("Could not share.");
   };
   const toStory = () => setComposer(true);
   const download = () => {

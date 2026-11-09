@@ -4,6 +4,39 @@ import { useAuth } from "@/contexts/AuthContext";
 import { markRead, parseReelMessage, sendMessage, watchChat, watchMessages, type Message } from "@/lib/chat";
 import { getProfile, type UserProfile } from "@/lib/social";
 import { containsHiddenWord } from "@/lib/prefs";
+import { doc, getDoc } from "firebase/firestore";
+import { db } from "@/lib/firebase";
+import { postThumbnail } from "@/lib/posts";
+
+const thumbCache = new Map<string, string | null>();
+
+/** Instagram-style still picture of a shared reel (looked up from the reel itself, so old messages work too). */
+function ReelPreview({ id, by, caption, onOpen }: { id: string; by: string; caption: string; onOpen: () => void }) {
+  const [thumb, setThumb] = useState<string | null | undefined>(thumbCache.get(id));
+  const [name, setName] = useState(by);
+  useEffect(() => {
+    if (thumbCache.has(id)) return;
+    getDoc(doc(db, "posts", id))
+      .then((s) => {
+        const d: any = s.data();
+        const t = d ? postThumbnail(d) || null : null;
+        thumbCache.set(id, t);
+        setThumb(t);
+        if (!by && d?.userName) setName(d.userName);
+      })
+      .catch(() => { thumbCache.set(id, null); setThumb(null); });
+  }, [id]);
+  return (
+    <button onClick={onOpen} className="relative w-48 h-80 max-w-[70%] rounded-2xl overflow-hidden border border-border text-left bg-black">
+      {thumb ? <img src={thumb} alt="" className="absolute inset-0 w-full h-full object-cover" /> : <span className="absolute inset-0 bg-gradient-to-br from-emerald-900 to-black" />}
+      <span className="absolute inset-x-0 top-0 p-2 bg-gradient-to-b from-black/60 to-transparent text-white text-sm font-semibold truncate">🎬 {name || "Reel"}</span>
+      <span className="absolute inset-0 flex items-center justify-center">
+        <span className="w-14 h-14 rounded-full bg-black/45 border border-white/70 flex items-center justify-center text-white text-2xl pl-1">▶</span>
+      </span>
+      <span className="absolute inset-x-0 bottom-0 p-2 bg-gradient-to-t from-black/70 to-transparent text-white text-xs line-clamp-2">{caption || "Tap to watch"}</span>
+    </button>
+  );
+}
 
 export default function Chat() {
   const { user } = useAuth();
@@ -85,20 +118,15 @@ export default function Chat() {
             <div key={m.id}>
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
                 {reel && !hidden ? (
-                  <button
-                    onClick={() => {
+                  <ReelPreview
+                    id={reel.id}
+                    by={reel.by}
+                    caption={reel.caption}
+                    onOpen={() => {
                       try { sessionStorage.setItem("reel-start", reel.id); } catch { /* ignore */ }
                       setLocation("/reels");
                     }}
-                    className={`max-w-[78%] text-left rounded-2xl overflow-hidden border border-border ${mine ? "bg-primary/10" : "bg-muted"}`}
-                  >
-                    <span className="block h-28 w-44 bg-gradient-to-br from-emerald-900 to-black text-white flex items-center justify-center text-4xl">▶️</span>
-                    <span className="block px-3 py-2">
-                      <span className="block font-semibold text-sm">Reel{reel.by ? ` by ${reel.by}` : ""}</span>
-                      {reel.caption && <span className="block text-sm text-foreground/70 truncate w-40">{reel.caption}</span>}
-                      <span className="block text-xs text-primary mt-1">Tap to watch</span>
-                    </span>
-                  </button>
+                  />
                 ) : (
                   <div className={`max-w-[78%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? "bg-primary text-primary-foreground" : "bg-muted"}`}>
                     {hidden ? <i className="opacity-70">Message hidden</i> : m.text}

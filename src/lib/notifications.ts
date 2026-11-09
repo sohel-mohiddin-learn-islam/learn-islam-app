@@ -11,7 +11,31 @@ import {
   type Unsubscribe,
 } from "firebase/firestore";
 
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
+
+const WORKER = ((import.meta.env.VITE_AI_TUTOR_ENDPOINT as string | undefined) || "").replace(/\/$/, "");
+const PUSH_TEXT: Record<string, string> = {
+  follow: "started following you",
+  like: "liked your post",
+  comment: "commented on your post",
+  request: "sent you a follow request",
+  mention: "mentioned you",
+  message: "sent you a message",
+};
+
+/** Ask the free push server to wake the other phone (works even when the app is closed). */
+async function sendPush(toUid: string, type: string, text?: string) {
+  if (!WORKER || !auth.currentUser) return;
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const name = auth.currentUser.displayName || "Someone";
+    await fetch(`${WORKER}/push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ toUid, title: "Learn Islam", body: `${name} ${PUSH_TEXT[type] || "sent a notification"}${type === "comment" && text ? `: ${text}` : ""}` }),
+    });
+  } catch {}
+}
 
 export type NotifType = "follow" | "like" | "comment" | "request" | "mention" | "message";
 
@@ -44,6 +68,7 @@ export async function notify(
     createdAt: Date.now(),
     read: false,
   }).catch((e) => console.warn("Could not send notification:", e));
+  void sendPush(toUid, type, extra.text);
 }
 
 export function watchNotifications(uid: string, cb: (n: Notif[]) => void, onError?: (e: any) => void): Unsubscribe {

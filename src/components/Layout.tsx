@@ -3,6 +3,7 @@ import { Link, useLocation } from "wouter";
 import { useLanguage } from "@/contexts/LanguageContext";
 import { useAuth } from "@/contexts/AuthContext";
 import NotificationWatcher from "@/components/NotificationWatcher";
+import UnreadDot from "@/components/UnreadDot";
 import { Search as SearchIcon, Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun, Sparkles } from "lucide-react";
 
 const bottomNav = [
@@ -73,7 +74,7 @@ export function Layout({ children }: LayoutProps) {
           {isDark ? <Sun className="w-5 h-5 text-yellow-400"/> : <Moon className="w-5 h-5 text-primary"/>}
         </button>
           {user ? (
-  <button onClick={() => setLocation('/account')} className="p-2 rounded-full bg-muted overflow-hidden">
+  <button onClick={() => setLocation('/account')} className="relative p-2 rounded-full bg-muted">
     {user.photoURL && !photoFailed ? (
       <img
         src={user.photoURL}
@@ -85,6 +86,7 @@ export function Layout({ children }: LayoutProps) {
     ) : (
       <span className="w-5 h-5 flex items-center justify-center text-xs">👤</span>
     )}
+    <UnreadDot className="top-0 right-0" />
   </button>
 ) : (
   <Link href="/login" className="p-2 rounded-full bg-muted">

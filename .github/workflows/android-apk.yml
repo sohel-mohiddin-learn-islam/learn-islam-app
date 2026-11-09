@@ -31,6 +31,7 @@ jobs:
       - name: Build web app for the phone (served from / inside the app)
         env:
           VITE_MEDIA_BASE: https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/
+          VITE_AI_TUTOR_ENDPOINT: ${{ vars.AI_ENDPOINT }}
         run: |
           npx vite build --config vite.config.ts --base=/
           # keep the APK small: the big intro/reel videos stream from the website

@@ -1,3 +1,5 @@
+import { shareContent } from "@/lib/share";
+import { useUnreadMessages } from "@/components/UnreadDot";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -239,6 +241,7 @@ export default function Settings() {
   const { user, signOut } = useAuth();
   const [, setLocation] = useLocation();
   const prefs = usePrefs();
+  const unreadMsgs = useUnreadMessages();
   const [view, setView] = useState<View>("main");
   const [isPrivate, setIsPriv] = useState(false);
   const [counts, setCounts] = useState({ blocked: 0, muted: 0 });
@@ -458,11 +461,8 @@ export default function Settings() {
             <button
               onClick={async () => {
                 try {
-                  if (navigator.share) await navigator.share({ title: "Learn Islam", text: "Install the Learn Islam app", url: APP_LINK });
-                  else {
-                    await navigator.clipboard.writeText(APP_LINK);
-                    setMsg("Link copied.");
-                  }
+                  const r = await shareContent({ title: "Learn Islam", text: "Install the Learn Islam app", url: APP_LINK });
+                  if (r === "copied") setMsg("Link copied.");
                 } catch {
                   /* cancelled */
                 }
@@ -498,7 +498,7 @@ export default function Settings() {
               <Row icon="🚫" label="Blocked" value={String(counts.blocked)} onClick={() => setView("blocked")} />
             </Section>
             <Section title="How others can interact with you">
-              <Row icon="✉️" label="Messages" onClick={() => setLocation("/messages")} />
+              <Row icon="✉️" label="Messages" value={unreadMsgs > 0 ? `● ${unreadMsgs} new` : ""} onClick={() => setLocation("/messages")} />
               <Row icon="⚙️" label="Messages and story replies" onClick={() => setView("messages")} />
             </Section>
             <Section title="What you see">

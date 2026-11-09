@@ -1,6 +1,8 @@
 import { useEffect } from "react";
 import { Capacitor } from "@capacitor/core";
 import { LocalNotifications } from "@capacitor/local-notifications";
+import { PushNotifications } from "@capacitor/push-notifications";
+import { doc, setDoc } from "firebase/firestore";
 import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
@@ -23,6 +25,24 @@ const bodyFor = (type: string, text?: string) =>
  */
 export default function NotificationWatcher() {
   const { user } = useAuth();
+
+  // Register this phone for push alerts (delivered even when the app is closed)
+  useEffect(() => {
+    if (!user || !Capacitor.isNativePlatform()) return;
+    let handle: { remove: () => void } | undefined;
+    (async () => {
+      try {
+        let perm = await PushNotifications.checkPermissions();
+        if (perm.receive !== "granted") perm = await PushNotifications.requestPermissions();
+        if (perm.receive !== "granted") return;
+        handle = await PushNotifications.addListener("registration", (t) => {
+          setDoc(doc(db, "users", user.uid, "tokens", t.value), { token: t.value, updatedAt: Date.now() }).catch(() => {});
+        });
+        await PushNotifications.register();
+      } catch {}
+    })();
+    return () => handle?.remove();
+  }, [user]);
 
   useEffect(() => {
     if (!user || !Capacitor.isNativePlatform()) return;

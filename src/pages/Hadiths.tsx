@@ -6,11 +6,12 @@ import { useSpeech } from '@/hooks/useSpeech';
 import { AudioButton } from '@/components/AudioButton';
 import { GoldenText } from '@/components/GoldenText';
 import { IslamicDivider } from '@/components/IslamicDivider';
+import HadithBooks from '@/components/HadithBooks';
 import { hadiths, topicLabels, type HadithTopic } from '@/data/hadiths';
 
 const ALL_TOPICS = Object.keys(topicLabels) as HadithTopic[];
 
-export default function Hadiths() {
+function TopicHadiths() {
   const { language } = useLanguage();
   const { speak, stop, isSpeaking, volume, setVolume } = useSpeech();
   const [search, setSearch] = useState('');
@@ -233,6 +234,34 @@ export default function Hadiths() {
             All hadith are sourced from authentic collections. For detailed chain of narration (isnad),
             please refer to the original hadith books.
           </p>
+        </div>
+      )}
+    </div>
+  );
+}
+
+export default function Hadiths() {
+  const [tab, setTab] = useState<'books' | 'topics'>('books');
+  return (
+    <div>
+      <div className="max-w-4xl mx-auto px-6 pt-6 md:pt-10">
+        <div className="flex rounded-xl bg-muted p-1 mb-2">
+          {(['books', 'topics'] as const).map((t) => (
+            <button
+              key={t}
+              onClick={() => setTab(t)}
+              className={`flex-1 py-2 rounded-lg text-sm font-medium transition-colors ${tab === t ? 'bg-card text-primary shadow' : 'text-muted-foreground'}`}
+            >
+              {t === 'books' ? 'Books' : 'By Topic'}
+            </button>
+          ))}
+        </div>
+      </div>
+      {tab === 'topics' ? (
+        <TopicHadiths />
+      ) : (
+        <div className="max-w-4xl mx-auto p-6 md:px-12">
+          <HadithBooks />
         </div>
       )}
     </div>
