@@ -96,8 +96,11 @@ export async function recordFollowEvent(ownerId: string, me: string, type: "foll
   await setDoc(doc(db, "users", ownerId, "followEvents", `${type}_${me}_${Date.now()}`), { by: me, type, at: Date.now() }).catch(() => {});
 }
 
-export async function recordShare(postId: string, me: string) {
-  await setDoc(doc(db, "posts", postId, "shares", me), { at: Date.now() }, { merge: true }).catch(() => {});
+/** One share is counted per person it was sent to (sending to 5 people = 5). `recipients` are user ids or unique ids for outside apps. */
+export async function recordShares(postId: string, me: string, recipients: string[]) {
+  await Promise.all(
+    recipients.map((r) => setDoc(doc(db, "posts", postId, "shares", `${me}_${r}`), { by: me, to: r, at: Date.now() }, { merge: true }).catch(() => {}))
+  );
 }
 
 export async function setSaveMarker(postId: string, me: string, on: boolean) {

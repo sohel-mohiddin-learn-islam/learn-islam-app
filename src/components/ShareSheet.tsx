@@ -8,6 +8,7 @@ import StoryEditor from "./StoryEditor";
 import { addStory } from "@/lib/stories";
 import { prepareAudio } from "@/lib/storyTools";
 import { notify } from "@/lib/notifications";
+import { sendGroupMessage, watchGroups, type Group } from "@/lib/groups";
 
 export const SITE = "https://sohel-mohiddin-learn-islam.github.io/learn-islam-app";
 export const reelLink = (id: string) => `${SITE}/reels?reel=${id}`;
@@ -15,16 +16,25 @@ export const reelLink = (id: string) => `${SITE}/reels?reel=${id}`;
 type Person = { uid: string; name: string; photo: string | null };
 type Target = { id: string; caption?: string; userName?: string; original?: string; src: string; poster?: string };
 
-export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; onClose: () => void; onShared: () => void }) {
+export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; onClose: () => void; onShared: (recipients: string[]) => void }) {
   useBackClose(onClose);
   const { user } = useAuth();
   const [people, setPeople] = useState<Person[]>([]);
   const [q, setQ] = useState("");
   const [sent, setSent] = useState<string[]>([]);
+  const [picked, setPicked] = useState<string[]>([]); // user ids or "g:<groupId>"
+  const [groups, setGroups] = useState<Group[]>([]);
+  const [busy, setBusy] = useState(false);
+  const ext = () => `ext_${Date.now()}_${Math.floor(Math.random() * 1e6)}`; // each outside share counts as one person
   const [note, setNote] = useState("");
   const [composer, setComposer] = useState(false);
   const link = reelLink(reel.id);
   const text = `🎬 Reel by ${reel.userName || "Learn Islam User"}${reel.caption ? ": " + reel.caption.slice(0, 80) : ""}`;
+
+  useEffect(() => {
+    if (!user) return;
+    return watchGroups(user.uid, setGroups, () => {});
+  }, [user?.uid]);
 
   useEffect(() => {
     if (!user) return;
@@ -40,30 +50,50 @@ export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; 
   const shown = useMemo(() => people.filter((p) => p.name.toLowerCase().includes(q.toLowerCase())), [people, q]);
   const flash = (m: string) => { setNote(m); setTimeout(() => setNote(""), 2500); };
 
-  const sendTo = async (p: Person) => {
-    if (!user || sent.includes(p.uid)) return;
-    try {
-      await sendMessage(user.uid, p.uid, `${text}\n${link}`);
-      setSent((s) => [...s, p.uid]);
-      onShared();
-    } catch (e: any) {
-      flash(e?.message || "Could not send.");
+  const toggle = (id: string) => setPicked((a) => (a.includes(id) ? a.filter((x) => x !== id) : [...a, id]));
+
+  // sends to everyone selected; the share count grows by the number of people reached
+  const sendPicked = async () => {
+    if (!user || !picked.length || busy) return;
+    setBusy(true);
+    const reached: string[] = [];
+    const failed: string[] = [];
+    for (const id of picked) {
+      try {
+        if (id.startsWith("g:")) {
+          const g = groups.find((x) => x.id === id.slice(2));
+          if (!g) continue;
+          await sendGroupMessage(user.uid, g, `${text}\n${link}`);
+          g.members.filter((m) => m !== user.uid).forEach((m) => reached.push(m));
+        } else {
+          await sendMessage(user.uid, id, `${text}\n${link}`);
+          reached.push(id);
+        }
+      } catch (e: any) {
+        failed.push(e?.message || "Could not send.");
+      }
     }
+    setSent((s) => [...s, ...picked]);
+    setPicked([]);
+    setBusy(false);
+    if (reached.length) onShared(Array.from(new Set(reached)));
+    if (failed.length) flash(failed[0]);
+    else flash(`Sent to ${reached.length} ${reached.length === 1 ? "person" : "people"}`);
   };
 
   const open = (url: string, scheme = false) => {
-    onShared();
+    onShared([ext()]);
     if (scheme) window.location.href = url;
     else window.open(url, "_blank");
   };
 
   const copy = async () => {
-    try { await navigator.clipboard.writeText(link); flash("Link copied"); onShared(); } catch { flash("Could not copy."); }
+    try { await navigator.clipboard.writeText(link); flash("Link copied"); onShared([ext()]); } catch { flash("Could not copy."); }
   };
   const nativeShare = async () => {
     const r = await shareContent({ title: "Learn Islam", text, url: link });
-    if (r === "shared") onShared();
-    else if (r === "copied") { flash("Link copied"); onShared(); }
+    if (r === "shared") onShared([ext()]);
+    else if (r === "copied") { flash("Link copied"); onShared([ext()]); }
     else flash("Could not share.");
   };
   const toStory = () => setComposer(true);
@@ -99,7 +129,7 @@ export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; 
           await addStory(user.uid, reel.original || reel.src, "video", closeOnly, { reelId: reel.id, overlays, ...a });
           overlays.filter((o) => o.kind === "mention" && o.uid).forEach((o) => notify(o.uid!, user.uid, "mention"));
           setComposer(false);
-          onShared();
+          onShared([ext()]);
           onClose();
         }}
       />
@@ -116,17 +146,37 @@ export default function ShareSheet({ reel, onClose, onShared }: { reel: Target; 
           />
         </div>
         <div className="flex-1 overflow-y-auto px-4 py-4 grid grid-cols-3 gap-y-5 min-h-[140px]">
-          {shown.length === 0 && <p className="col-span-3 text-center text-white/60 py-6">Follow people to send them reels directly.</p>}
+          {shown.length === 0 && groups.length === 0 && <p className="col-span-3 text-center text-white/60 py-6">Follow people to send them reels directly.</p>}
+          {groups.filter((g) => g.name.toLowerCase().includes(q.toLowerCase())).map((g) => {
+            const id = `g:${g.id}`;
+            return (
+              <button key={id} onClick={() => toggle(id)} className="flex flex-col items-center gap-1.5">
+                <div className="relative w-20 h-20 rounded-full overflow-hidden bg-white/10">
+                  {g.photo ? <img src={g.photo} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-3xl">👥</div>}
+                  {picked.includes(id) && <div className="absolute inset-0 bg-green-600/70 flex items-center justify-center text-2xl">✓</div>}
+                </div>
+                <span className="text-sm truncate w-24 text-center">{g.name}</span>
+              </button>
+            );
+          })}
           {shown.map((p) => (
-            <button key={p.uid} onClick={() => sendTo(p)} className="flex flex-col items-center gap-1.5">
+            <button key={p.uid} onClick={() => toggle(p.uid)} className="flex flex-col items-center gap-1.5">
               <div className="relative w-20 h-20 rounded-full overflow-hidden bg-white/10">
                 {p.photo ? <img src={p.photo} alt="" className="w-full h-full object-cover" /> : <div className="w-full h-full flex items-center justify-center text-3xl">👤</div>}
-                {sent.includes(p.uid) && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-2xl">✓</div>}
+                {picked.includes(p.uid) && <div className="absolute inset-0 bg-green-600/70 flex items-center justify-center text-2xl">✓</div>}
+                {!picked.includes(p.uid) && sent.includes(p.uid) && <div className="absolute inset-0 bg-black/60 flex items-center justify-center text-2xl">✓</div>}
               </div>
-              <span className="text-sm truncate w-24 text-center">{sent.includes(p.uid) ? "Sent" : p.name}</span>
+              <span className="text-sm truncate w-24 text-center">{sent.includes(p.uid) && !picked.includes(p.uid) ? "Sent" : p.name}</span>
             </button>
           ))}
         </div>
+        {picked.length > 0 && (
+          <div className="px-4 pb-3">
+            <button onClick={sendPicked} disabled={busy} className="w-full rounded-xl bg-blue-600 py-3 font-semibold disabled:opacity-60">
+              {busy ? "Sending…" : `Send to ${picked.length}`}
+            </button>
+          </div>
+        )}
         {note && <p className="text-center text-sm text-white/80 pb-2">{note}</p>}
         <div className="border-t border-white/10 px-2 py-4 flex gap-1 overflow-x-auto">
           {actions.map((a) => (

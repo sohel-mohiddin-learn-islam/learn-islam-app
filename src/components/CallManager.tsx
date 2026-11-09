@@ -1,9 +1,12 @@
 import { useEffect, useRef, useState } from "react";
-import { collection, onSnapshot, query, where } from "firebase/firestore";
+import { collection, doc, getDoc, onSnapshot, query, where } from "firebase/firestore";
 import { Mic, MicOff, Phone, PhoneOff, RefreshCw, Video, VideoOff } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { getProfile, type UserProfile } from "@/lib/social";
+import GroupCallScreen from "@/components/GroupCallScreen";
+import { createGroupCall, watchLiveCalls, type GCall } from "@/lib/groupcall";
+import { watchGroup } from "@/lib/groups";
 import { connect, createCall, logMissed, setCallStatus, watchCall, type CallDoc, type CallType, type Session } from "@/lib/call";
 
 type Active = { id: string; role: "caller" | "callee"; type: CallType; other: string };
@@ -129,12 +132,52 @@ function CallScreen({ active, me, onDone }: { active: Active; me: string; onDone
   );
 }
 
+/** Start a group call: startGroupCall(groupId, "audio" | "video") */
+export function startGroupCall(gid: string, type: CallType) {
+  window.dispatchEvent(new CustomEvent("start-group-call", { detail: { gid, type } }));
+}
+/** Join an already running group call */
+export function joinCall(callId: string, type: CallType) {
+  window.dispatchEvent(new CustomEvent("join-group-call", { detail: { callId, type } }));
+}
+
 export default function CallManager() {
   const { user } = useAuth();
   const [active, setActive] = useState<Active | null>(null);
   const [incoming, setIncoming] = useState<CallDoc | null>(null);
   const [caller, setCaller] = useState<UserProfile | null>(null);
   const ringRef = useRef<any>(null);
+  const [gActive, setGActive] = useState<{ callId: string; type: CallType } | null>(null);
+  const [gInvite, setGInvite] = useState<(GCall & { name: string }) | null>(null);
+  const dismissed = useRef<Set<string>>(new Set());
+
+  // a group call started in one of my groups
+  useEffect(() => {
+    if (!user) return;
+    return watchLiveCalls(user.uid, (list) => {
+      const c = list.find((x) => x.host !== user.uid && !x.active.includes(user.uid) && !dismissed.current.has(x.id) && Date.now() - x.startedAt < 60000);
+      if (!c) { setGInvite(null); return; }
+      getDoc(doc(db, "groups", c.gid)).then((d) => setGInvite({ ...c, name: (d.data() as any)?.name || "Group" })).catch(() => setGInvite({ ...c, name: "Group" }));
+    });
+  }, [user?.uid]);
+  useEffect(() => { ring(!!gInvite && !gActive, ringRef); return () => ring(false, ringRef); }, [gInvite?.id, !!gActive]);
+
+  useEffect(() => {
+    if (!user) return;
+    const start = async (e: any) => {
+      if (gActive || active) return;
+      try {
+        const g: any = await new Promise((res) => { const u = watchGroup(e.detail.gid, (x) => { u(); res(x); }); });
+        if (!g) return;
+        const id = await createGroupCall(user.uid, g, e.detail.type);
+        setGActive({ callId: id, type: e.detail.type });
+      } catch (err: any) { alert(err?.message || "Could not start the group call."); }
+    };
+    const join = (e: any) => { if (!gActive && !active) setGActive({ callId: e.detail.callId, type: e.detail.type }); };
+    window.addEventListener("start-group-call", start);
+    window.addEventListener("join-group-call", join);
+    return () => { window.removeEventListener("start-group-call", start); window.removeEventListener("join-group-call", join); };
+  }, [user?.uid, !!gActive, !!active]);
 
   // someone is calling me
   useEffect(() => {
@@ -172,6 +215,17 @@ export default function CallManager() {
   }, [user?.uid, !!active]);
 
   if (!user) return null;
+  if (gActive) return <GroupCallScreen callId={gActive.callId} me={user.uid} type={gActive.type} onDone={() => setGActive(null)} />;
+  if (gInvite && !active && !incoming) {
+    return (
+      <div className="fixed inset-x-3 top-3 z-[100] rounded-2xl bg-neutral-900 text-white p-4 shadow-xl flex items-center gap-3">
+        <span className="text-2xl">{gInvite.type === "video" ? "📹" : "📞"}</span>
+        <span className="flex-1 min-w-0"><b className="block truncate">{gInvite.name}</b><span className="text-sm opacity-70">Group {gInvite.type} call</span></span>
+        <button onClick={() => { dismissed.current.add(gInvite.id); setGInvite(null); }} className="px-3 py-2 rounded-xl bg-white/15">Ignore</button>
+        <button onClick={() => { dismissed.current.add(gInvite.id); setGActive({ callId: gInvite.id, type: gInvite.type }); setGInvite(null); }} className="px-3 py-2 rounded-xl bg-green-600 font-semibold">Join</button>
+      </div>
+    );
+  }
   if (active) return <CallScreen active={active} me={user.uid} onDone={() => setActive(null)} />;
   if (!incoming) return null;
 

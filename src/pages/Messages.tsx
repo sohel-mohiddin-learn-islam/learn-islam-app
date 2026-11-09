@@ -6,6 +6,7 @@ import { db } from "@/lib/firebase";
 import { previewOf, timeAgo, watchInbox, type ChatSummary } from "@/lib/chat";
 import { getProfile, getFollowingIds, type UserProfile } from "@/lib/social";
 import { containsHiddenWord } from "@/lib/prefs";
+import { watchGroups, type Group } from "@/lib/groups";
 
 type Tab = "primary" | "requests" | "general";
 type Note = { text: string; at: number };
@@ -22,6 +23,7 @@ export default function Messages() {
   const [tab, setTab] = useState<Tab>("primary");
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [q, setQ] = useState("");
+  const [groups, setGroups] = useState<Group[]>([]);
   const [editNote, setEditNote] = useState(false);
   const [noteText, setNoteText] = useState("");
 
@@ -49,6 +51,7 @@ export default function Messages() {
         setError("Could not load your messages.");
       }
     );
+    const stopGroups = watchGroups(user.uid, setGroups, () => {});
     getFollowingIds(user.uid)
       .then((ids) => {
         setFollowing(ids);
@@ -56,7 +59,7 @@ export default function Messages() {
         loadNotes([user.uid, ...ids]);
       })
       .catch(() => {});
-    return stop;
+    return () => { stop(); stopGroups(); };
   }, [user?.uid]);
 
   useEffect(() => {
@@ -131,6 +134,7 @@ export default function Messages() {
         <div className="flex items-center gap-4 px-4 py-4 sticky top-0 bg-background z-10">
           <button onClick={() => window.history.back()} className="text-2xl" aria-label="Back">←</button>
           <h1 className="text-lg font-semibold flex-1 truncate">{user.displayName || "Messages"}</h1>
+          <button onClick={() => setLocation("/group/new")} aria-label="New group" className="text-xl">👥</button>
           <button onClick={() => setLocation("/dashboard")} aria-label="Dashboard" className="text-xl">📈</button>
         </div>
 
@@ -176,6 +180,25 @@ export default function Messages() {
             {error || (tab === "primary" ? "No conversations yet. Open a profile of someone you follow and press Message." : tab === "requests" ? "No message requests." : "Nothing here.")}
           </p>
         )}
+
+        {tab === "primary" && groups
+          .filter((g) => !unreadOnly || (g.lastSender !== user.uid && g.lastAt > (g.lastRead[user.uid] || 0)))
+          .filter((g) => !q || g.name.toLowerCase().includes(q.toLowerCase()))
+          .map((g) => {
+            const unread = g.lastSender !== user.uid && g.lastAt > (g.lastRead[user.uid] || 0) && !g.muted[user.uid];
+            return (
+              <button key={g.id} onClick={() => setLocation(`/group/${g.id}`)} className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted text-left">
+                <span className="w-14 h-14 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0 text-2xl">
+                  {g.photo ? <img src={g.photo} alt="" className="w-full h-full object-cover" /> : "👥"}
+                </span>
+                <span className="flex-1 min-w-0">
+                  <span className={`block truncate ${unread ? "font-bold" : "font-semibold"}`}>{g.name}</span>
+                  <span className={`block text-sm truncate ${unread ? "text-foreground font-semibold" : "text-foreground/60"}`}>{previewOf(g.lastMessage)} · {timeAgo(g.lastAt)}</span>
+                </span>
+                {unread && <span className="w-2.5 h-2.5 rounded-full bg-green-500 shrink-0" />}
+              </button>
+            );
+          })}
 
         {rows.map(({ c, other, unread, seen }) => {
           const pr = profiles[other];

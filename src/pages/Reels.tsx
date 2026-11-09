@@ -6,7 +6,7 @@ import { getRelations } from "@/lib/social";
 import ShareSheet from "@/components/ShareSheet";
 import CommentsSheet from "@/components/CommentsSheet";
 import { notify } from "@/lib/notifications";
-import { compact, getReelCounts, recordReelView, recordShare, setSaveMarker, type ReelCounts } from "@/lib/analytics";
+import { compact, getReelCounts, recordReelView, recordShares, countOf, setSaveMarker, type ReelCounts } from "@/lib/analytics";
 import { follow as followUser, getFollowingIds } from "@/lib/social";
 import { db } from "@/lib/firebase";
 import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
@@ -119,6 +119,22 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
     setMuted(videoRef.current.muted);
   };
 
+  // single tap = mute / unmute, double tap = like (with a heart)
+  const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const [heart, setHeart] = useState<{ x: number; y: number; k: number } | null>(null);
+  const onTap = (e: React.MouseEvent) => {
+    if (tapTimer.current) {
+      clearTimeout(tapTimer.current);
+      tapTimer.current = null;
+      const r = (e.currentTarget as HTMLElement).getBoundingClientRect();
+      setHeart({ x: e.clientX - r.left, y: e.clientY - r.top, k: Date.now() });
+      setTimeout(() => setHeart(null), 800);
+      if (!liked) toggleLike();
+      return;
+    }
+    tapTimer.current = setTimeout(() => { tapTimer.current = null; toggleMute(); }, 260);
+  };
+
   const toggleLike = () => {
     const next = !liked;
 
@@ -190,11 +206,24 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
           muted
           playsInline
           preload={reel.original ? "metadata" : "auto"}
-          onClick={toggleMute}
+          onClick={onTap}
           onError={handleError}
         />
       ) : (
         <div className="w-full h-full bg-black" />
+      )}
+
+      {heart && (
+        <span
+          key={heart.k}
+          className="absolute pointer-events-none text-7xl drop-shadow-lg animate-ping"
+          style={{ left: heart.x - 36, top: heart.y - 48 }}
+        >
+          ❤️
+        </span>
+      )}
+      {muted && shouldLoad && !failed && (
+        <span className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-none text-white/80 text-xs bg-black/40 rounded-full px-3 py-1">🔇 Tap to unmute · double-tap to like</span>
       )}
 
       {(reel.caption || reel.userName) && (
@@ -310,16 +339,12 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
         <ShareSheet
           reel={reel}
           onClose={() => setShowShare(false)}
-          onShared={() => {
-            if (!user) return;
-            // one share per person: repeated actions do not add to the count
-            const key = `reel-shared-${reel.id}-${user.uid}`;
-            let already = false;
-            try { already = localStorage.getItem(key) === "1"; localStorage.setItem(key, "1"); } catch { /* ignore */ }
-            if (!already) {
-              recordShare(reel.id, user.uid);
-              setCounts((c) => ({ ...c, shares: c.shares + 1 }));
-            }
+          onShared={async (recipients) => {
+            if (!user || !recipients.length) return;
+            // the share count is the number of people it was shared with
+            await recordShares(reel.id, user.uid, recipients);
+            const n = await countOf(["posts", reel.id, "shares"]);
+            setCounts((c) => ({ ...c, shares: n || c.shares + recipients.length }));
           }}
         />
       )}

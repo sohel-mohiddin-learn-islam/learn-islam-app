@@ -83,7 +83,7 @@ export default function ChatInfo() {
           <Row icon={<MessageSquare />} title="Chat controls" onClick={() => setPanel("controls")} />
           <Row icon={<Shield />} title="Privacy & safety" onClick={() => setPanel("privacy")} />
           <Row icon={<Type />} title="Nicknames" sub={st.nicks[me] || undefined} onClick={() => setPanel("nick")} />
-          <Row icon={<Users />} title="Create a group chat" onClick={() => setMsg("Group chats are coming soon.")} />
+          <Row icon={<Users />} title="Create a group chat" onClick={() => setLocation(`/group/new?with=${other}`)} />
           <div className="flex gap-3 px-5 mt-2">
             <button onClick={() => startCall(other, "video")} className="flex items-center gap-2 px-4 py-2 rounded-full bg-muted"><Video className="w-4 h-4" /> Video call</button>
           </div>
