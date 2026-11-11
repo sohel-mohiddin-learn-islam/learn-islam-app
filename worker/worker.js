@@ -52,6 +52,24 @@ async function ask(req, env) {
   return json({ answer: out.response || "" , uid });
 }
 
+// ---- Roman Hindi translation of hadith text ----
+async function translate(req, env) {
+  const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
+  try { await verifyIdToken(auth, env); } catch { return json({ error: "Please sign in." }, 401); }
+  const { text } = await req.json();
+  const clean = String(text || "").slice(0, 3000);
+  if (!clean) return json({ error: "No text." }, 400);
+  const out = await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
+    messages: [
+      { role: "system", content: "You translate English hadith text into Roman Hindi: simple Hindi/Urdu written in English (Latin) letters, as people type on WhatsApp. Keep Arabic terms and names (Allah, salah/namaz, zakat, Rasulullah ﷺ). Be faithful: do not add, remove, explain or comment. Output ONLY the translation, no quotes, no notes, no Arabic script." },
+      { role: "user", content: clean },
+    ],
+    max_tokens: 900,
+    temperature: 0.2,
+  });
+  return json({ text: String(out.response || "").trim() });
+}
+
 // ---- Razorpay Payment Links (opens in the phone's browser, so PhonePe / Google Pay / UPI apps work) ----
 // Secrets: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET
 const rz = (env, path, init = {}) =>
@@ -158,6 +176,7 @@ export default {
     const path = new URL(req.url).pathname;
     try {
       if (path === "/ask") return await ask(req, env);
+      if (path === "/translate") return await translate(req, env);
       if (path === "/pay/create") return await payCreate(req, env);
       if (path === "/pay/status") return await payStatus(req, env);
       if (path === "/turn") return await turn(req, env);

@@ -1,39 +1,55 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { motion } from "framer-motion";
+import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
 import { shareContent } from "@/lib/share";
+import { auth } from "@/lib/firebase";
+import { useLanguage } from "@/contexts/LanguageContext";
+import { hadiths as LOCAL } from "@/data/hadiths";
 
 /**
- * Hadith "book edition" browser. Data is fetched on demand from the free,
- * open hadith-api (github.com/fawazahmed0/hadith-api, Unlicense) served by jsDelivr.
- * Only the six canonical collections + two small classics are listed.
+ * Hadith "book edition" browser. Texts are loaded on demand from the free, open hadith-api
+ * (github.com/fawazahmed0/hadith-api, Unlicense). Several mirrors are tried; if all fail, the hadith
+ * bundled inside the app are shown so a book is never empty.
  */
-const CDN = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions";
+const PATH = "gh/fawazahmed0/hadith-api@1/editions";
+const HOSTS = [
+  (p: string) => `https://cdn.jsdelivr.net/${PATH}/${p}`,
+  (p: string) => `https://fastly.jsdelivr.net/${PATH}/${p}`,
+  (p: string) => `https://raw.githubusercontent.com/fawazahmed0/hadith-api/1/editions/${p}`,
+];
+const WORKER = ((import.meta.env.VITE_AI_TUTOR_ENDPOINT as string | undefined) || "").replace(/\/$/, "");
 
-type Book = { id: string; name: string; arabic: string; by: string; from: string; to: string };
+type Book = { id: string; name: string; arabic: string; by: string; from: string; to: string; local?: string };
 const BOOKS: Book[] = [
-  { id: "bukhari", name: "Sahih al-Bukhari", arabic: "صحيح البخاري", by: "Imam al-Bukhari", from: "#14532d", to: "#052e16" },
-  { id: "muslim", name: "Sahih Muslim", arabic: "صحيح مسلم", by: "Imam Muslim", from: "#7f1d1d", to: "#450a0a" },
-  { id: "abudawud", name: "Sunan Abi Dawud", arabic: "سنن أبي داود", by: "Imam Abu Dawud", from: "#1e3a8a", to: "#172554" },
-  { id: "tirmidhi", name: "Jami at-Tirmidhi", arabic: "جامع الترمذي", by: "Imam at-Tirmidhi", from: "#581c87", to: "#3b0764" },
+  { id: "bukhari", name: "Sahih al-Bukhari", arabic: "صحيح البخاري", by: "Imam al-Bukhari", from: "#14532d", to: "#052e16", local: "Sahih Bukhari" },
+  { id: "muslim", name: "Sahih Muslim", arabic: "صحيح مسلم", by: "Imam Muslim", from: "#7f1d1d", to: "#450a0a", local: "Sahih Muslim" },
+  { id: "abudawud", name: "Sunan Abi Dawud", arabic: "سنن أبي داود", by: "Imam Abu Dawud", from: "#1e3a8a", to: "#172554", local: "Sunan Abu Dawud" },
+  { id: "tirmidhi", name: "Jami at-Tirmidhi", arabic: "جامع الترمذي", by: "Imam at-Tirmidhi", from: "#581c87", to: "#3b0764", local: "Sahih Tirmidhi" },
   { id: "nasai", name: "Sunan an-Nasa'i", arabic: "سنن النسائي", by: "Imam an-Nasa'i", from: "#134e4a", to: "#042f2e" },
-  { id: "ibnmajah", name: "Sunan Ibn Majah", arabic: "سنن ابن ماجه", by: "Imam Ibn Majah", from: "#78350f", to: "#451a03" },
+  { id: "ibnmajah", name: "Sunan Ibn Majah", arabic: "سنن ابن ماجه", by: "Imam Ibn Majah", from: "#78350f", to: "#451a03", local: "Sunan Ibn Majah" },
   { id: "malik", name: "Muwatta Malik", arabic: "موطأ مالك", by: "Imam Malik", from: "#3f3f46", to: "#18181b" },
   { id: "nawawi", name: "40 Hadith of Nawawi", arabic: "الأربعون النووية", by: "Imam an-Nawawi", from: "#9a3412", to: "#431407" },
   { id: "qudsi", name: "40 Hadith Qudsi", arabic: "الأحاديث القدسية", by: "Compiled", from: "#0c4a6e", to: "#082f49" },
 ];
 
 type Sec = { no: string; title: string; first?: number; last?: number };
-type Had = { n: number; text: string; ar?: string; grade?: string; ref?: string };
+type Had = { n: number; text: string; ar?: string; grade?: string; ref?: string; rh?: string };
+type Loaded = { sections: Sec[]; full?: any; offline?: boolean };
 
 const cache = new Map<string, any>();
-async function getJson(url: string) {
-  if (cache.has(url)) return cache.get(url);
-  const r = await fetch(url);
-  if (!r.ok) throw new Error(String(r.status));
-  const j = await r.json();
-  cache.set(url, j);
-  return j;
+async function getJson(path: string) {
+  if (cache.has(path)) return cache.get(path);
+  let lastErr: any;
+  for (const h of HOSTS) {
+    try {
+      const r = await fetch(h(path));
+      if (!r.ok) { lastErr = new Error(String(r.status)); continue; }
+      const j = await r.json();
+      cache.set(path, j);
+      return j;
+    } catch (e) { lastErr = e; }
+  }
+  throw lastErr || new Error("offline");
 }
 
 function parseSections(j: any): Sec[] {
@@ -41,18 +57,126 @@ function parseSections(j: any): Sec[] {
   const det = j?.metadata?.section_detail || {};
   return Object.keys(names)
     .filter((k) => k !== "0" && String(names[k]).trim() !== "")
-    .map((k) => ({
-      no: k,
-      title: String(names[k]),
-      first: det[k]?.hadithnumber_first,
-      last: det[k]?.hadithnumber_last,
-    }));
+    .map((k) => ({ no: k, title: String(names[k]), first: det[k]?.hadithnumber_first, last: det[k]?.hadithnumber_last }))
+    .sort((a, b) => Number(a.no) - Number(b.no));
 }
 
 function gradeOf(h: any): string | undefined {
   const g = h?.grades;
   if (!Array.isArray(g) || !g.length) return undefined;
   return g.map((x: any) => `${x.grade}${x.name ? ` (${x.name})` : ""}`).join(", ");
+}
+
+const toHad = (h: any, arMap?: Map<number, string>): Had => ({
+  n: h.hadithnumber,
+  text: h.text,
+  ar: arMap?.get(h.hadithnumber),
+  grade: gradeOf(h),
+  ref: h.reference ? `Book ${h.reference.book}, Hadith ${h.reference.hadith}` : undefined,
+});
+
+/** hadith bundled in the app (works without internet) */
+function localFor(b: Book): Had[] {
+  if (!b.local) return [];
+  return LOCAL.filter((h) => h.source.startsWith(b.local!)).map((h) => ({
+    n: Number(h.source.replace(/\D+/g, "")) || 0,
+    text: h.english,
+    ar: h.arabic,
+    ref: h.source,
+    rh: h.romanHindi,
+  }));
+}
+
+async function loadBook(b: Book): Promise<Loaded> {
+  // 1) a single chapter file already lists every chapter name
+  try {
+    const j = await getJson(`eng-${b.id}/sections/1.json`);
+    const secs = parseSections(j);
+    if (secs.length > 1) return { sections: secs };
+  } catch { /* try next */ }
+  // 2) the whole book file (bigger, but always has the chapter list)
+  try {
+    const full = await getJson(`eng-${b.id}.min.json`);
+    const secs = parseSections(full);
+    if (secs.length) return { sections: secs, full };
+    if (full?.hadiths?.length) return { sections: [{ no: "all", title: "All hadith" }], full };
+  } catch { /* offline */ }
+  const local = localFor(b);
+  if (local.length) return { sections: [{ no: "local", title: "Selected hadith" }], offline: true };
+  throw new Error("offline");
+}
+
+async function loadSection(b: Book, data: Loaded, sec: Sec): Promise<Had[]> {
+  if (sec.no === "local") return localFor(b);
+  let en: any[] = [];
+  if (data.full) {
+    const all: any[] = data.full.hadiths || [];
+    en = sec.no === "all" || sec.first == null ? all : all.filter((h) => h.hadithnumber >= sec.first! && h.hadithnumber <= sec.last!);
+  } else {
+    en = (await getJson(`eng-${b.id}/sections/${sec.no}.json`)).hadiths || [];
+  }
+  const arMap = new Map<number, string>();
+  try {
+    const ar = await getJson(`ara-${b.id}/sections/${sec.no}.json`);
+    (ar.hadiths || []).forEach((h: any) => arMap.set(h.hadithnumber, h.text));
+  } catch { /* Arabic is optional */ }
+  return en.map((h) => toHad(h, arMap));
+}
+
+// ---- Roman Hindi (translated by the AI on request, saved on the phone) ----
+let running = 0;
+const waiting: (() => void)[] = [];
+const slot = () => new Promise<void>((res) => { if (running < 3) { running++; res(); } else waiting.push(() => { running++; res(); }); });
+const free = () => { running--; waiting.shift()?.(); };
+async function toRomanHindi(key: string, text: string): Promise<string> {
+  const k = `rh:${key}`;
+  try { const c = localStorage.getItem(k); if (c) return c; } catch { /* ignore */ }
+  if (!WORKER || !auth.currentUser) throw new Error("no server");
+  await slot();
+  try {
+    const t = await auth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER}/translate`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` }, body: JSON.stringify({ text }) });
+    const j = await r.json();
+    if (!r.ok || !j.text) throw new Error(j?.error || "failed");
+    try { localStorage.setItem(k, j.text); } catch { /* ignore */ }
+    return j.text;
+  } finally { free(); }
+}
+
+const T = {
+  en: { all: "All books", read: "Read in", load: "Load more", left: "left", chap: "Chapter", share: "Share", grade: "Grade", empty: "No hadith in this chapter.", err: "Could not load this book. Check your internet and try again.", retry: "Try again", offline: "No internet: showing hadith saved inside the app.", tr: "Translating…" },
+  rh: { all: "Saari kitaabein", read: "Padhein", load: "Aur dikhayein", left: "baaki", chap: "Baab", share: "Share karein", grade: "Darja", empty: "Is baab mein koi hadees nahi.", err: "Kitaab load nahi hui. Internet check karke dobara koshish karein.", retry: "Dobara koshish karein", offline: "Internet nahi hai: app mein saved hadees dikha rahe hain.", tr: "Roman Hindi mein ho raha hai…" },
+};
+
+function HadithCard({ h, book, roman, tx, onShare, note }: { h: Had; book: Book; roman: boolean; tx: typeof T.en; onShare: (h: Had) => void; note: string }) {
+  const [rh, setRh] = useState<string | null>(h.rh || null);
+  const [state, setState] = useState<"" | "loading" | "err">("");
+  useEffect(() => {
+    if (!roman || rh) return;
+    setState("loading");
+    toRomanHindi(`${book.id}:${h.n}`, h.text).then((t) => { setRh(t); setState(""); }).catch(() => setState("err"));
+  }, [roman]);
+  return (
+    <div className="bg-card border border-border rounded-2xl p-5">
+      <div className="flex justify-between text-xs text-muted-foreground mb-3">
+        <span>{book.name} · {roman ? "Hadees" : "Hadith"} {h.n || ""}</span>
+        <button onClick={() => onShare({ ...h, text: roman && rh ? rh : h.text })} className="text-primary">{note || tx.share}</button>
+      </div>
+      {h.ar && (
+        <p className="text-xl font-serif text-primary leading-loose text-right mb-3" dir="rtl" style={{ fontFamily: "'Amiri', serif" }}>{h.ar}</p>
+      )}
+      {roman ? (
+        state === "loading" ? <p className="text-muted-foreground text-sm flex items-center gap-2"><Loader2 className="w-4 h-4 animate-spin" />{tx.tr}</p>
+        : rh ? <p className="leading-relaxed">{rh}</p>
+        : <p className="leading-relaxed text-foreground/80">{h.text}</p>
+      ) : (
+        <p className="leading-relaxed">{h.text}</p>
+      )}
+      {(h.grade || h.ref) && (
+        <p className="text-xs text-muted-foreground mt-3">{h.grade && <>{tx.grade}: {h.grade}. </>}{h.ref}</p>
+      )}
+    </div>
+  );
 }
 
 function Cover({ b }: { b: Book }) {
@@ -109,11 +233,15 @@ function OpeningBook({ b }: { b: Book }) {
 }
 
 export default function HadithBooks() {
+  const { language } = useLanguage();
+  const [roman, setRoman] = useState(language === "roman-hindi");
+  const tx = roman ? T.rh : T.en;
   const [book, setBook] = useState<Book | null>(null);
-  const [sections, setSections] = useState<Sec[] | null>(null);
+  const [data, setData] = useState<Loaded | null>(null);
   const [section, setSection] = useState<Sec | null>(null);
   const [items, setItems] = useState<Had[] | null>(null);
-  const [error, setError] = useState("");
+  const [error, setError] = useState(false);
+  const [tries, setTries] = useState(0);
   const [limit, setLimit] = useState(30);
   const [note, setNote] = useState("");
   const [opening, setOpening] = useState<Book | null>(null);
@@ -121,37 +249,18 @@ export default function HadithBooks() {
 
   useEffect(() => {
     if (!book) return;
-    setSections(null);
-    setError("");
-    getJson(`${CDN}/eng-${book.id}/sections/0.json`)
-      .then((j) => setSections(parseSections(j)))
-      .catch(() => setError("Could not load this book. Check your internet connection."));
-  }, [book]);
+    setData(null);
+    setError(false);
+    loadBook(book).then(setData).catch(() => setError(true));
+  }, [book, tries]);
 
   useEffect(() => {
-    if (!book || !section) return;
+    if (!book || !section || !data) return;
     setItems(null);
-    setError("");
+    setError(false);
     setLimit(30);
-    Promise.all([
-      getJson(`${CDN}/eng-${book.id}/sections/${section.no}.json`),
-      getJson(`${CDN}/ara-${book.id}/sections/${section.no}.json`).catch(() => null),
-    ])
-      .then(([en, ar]) => {
-        const arMap = new Map<number, string>();
-        (ar?.hadiths || []).forEach((h: any) => arMap.set(h.hadithnumber, h.text));
-        setItems(
-          (en.hadiths || []).map((h: any) => ({
-            n: h.hadithnumber,
-            text: h.text,
-            ar: arMap.get(h.hadithnumber),
-            grade: gradeOf(h),
-            ref: h.reference ? `Book ${h.reference.book}, Hadith ${h.reference.hadith}` : undefined,
-          })),
-        );
-      })
-      .catch(() => setError("Could not load this chapter."));
-  }, [book, section]);
+    loadSection(book, data, section).then(setItems).catch(() => setError(true));
+  }, [book, section, data, tries]);
 
   const share = async (h: Had) => {
     const r = await shareContent({
@@ -162,26 +271,28 @@ export default function HadithBooks() {
     setTimeout(() => setNote(""), 1500);
   };
 
+  const langSwitch = (
+    <div className="flex items-center justify-end gap-2 mb-4 text-sm">
+      <span className="text-muted-foreground">{tx.read}:</span>
+      {([["English", false], ["Roman Hindi", true]] as const).map(([label, v]) => (
+        <button key={label} onClick={() => setRoman(v)} className={`px-3 py-1 rounded-full border ${roman === v ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>{label}</button>
+      ))}
+    </div>
+  );
+
   if (!book) {
     return (
       <>
         {opening && <OpeningBook b={opening} />}
+        {langSwitch}
         <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-8 px-2 pt-2">
           {BOOKS.map((b) => (
-            <motion.button
-              key={b.id}
-              onClick={() => openBook(b)}
-              whileTap={{ scale: 0.96 }}
-              whileHover={{ y: -4 }}
-              className="relative aspect-[3/4] w-full"
-              aria-label={b.name}
-            >
+            <motion.button key={b.id} onClick={() => openBook(b)} whileTap={{ scale: 0.96 }} whileHover={{ y: -4 }} className="relative aspect-[3/4] w-full" aria-label={b.name}>
               <Cover b={b} />
             </motion.button>
           ))}
           <p className="col-span-full text-xs text-muted-foreground italic text-center">
-            Texts are loaded live from the free open hadith-api project (fawazahmed0/hadith-api).
-            Gradings shown are those given by the classical scholars named in the source data.
+            Texts are loaded from the free open hadith-api project (fawazahmed0/hadith-api). Roman Hindi is an AI translation of the English text; please check important meanings with a scholar.
           </p>
         </div>
       </>
@@ -189,31 +300,35 @@ export default function HadithBooks() {
   }
 
   const back = () => {
-    if (section) { setSection(null); setItems(null); }
-    else { setBook(null); setSections(null); }
+    if (section) { setSection(null); setItems(null); setError(false); }
+    else { setBook(null); setData(null); setError(false); }
   };
 
   return (
     <div>
       <button onClick={back} className="flex items-center gap-1 text-sm text-primary mb-4">
-        <ArrowLeft className="w-4 h-4" /> {section ? book.name : "All books"}
+        <ArrowLeft className="w-4 h-4" /> {section ? book.name : tx.all}
       </button>
+      {langSwitch}
       <h2 className="text-2xl font-serif text-primary mb-1">{book.name}</h2>
       {section && <p className="text-muted-foreground mb-4">{section.title}</p>}
-      {error && <p className="text-destructive py-6">{error}</p>}
-      {!error && ((!section && !sections) || (section && !items)) && (
+      {data?.offline && !section && <p className="text-xs text-muted-foreground mb-3">{tx.offline}</p>}
+
+      {error && (
+        <div className="py-8 text-center">
+          <p className="text-destructive mb-3">{tx.err}</p>
+          <button onClick={() => setTries((n) => n + 1)} className="px-5 py-2 rounded-xl border border-border text-primary">{tx.retry}</button>
+        </div>
+      )}
+      {!error && ((!section && !data) || (section && !items)) && (
         <div className="py-10 flex justify-center"><Loader2 className="w-6 h-6 animate-spin text-primary" /></div>
       )}
 
-      {!section && sections && (
+      {!section && data && (
         <div className="space-y-2 mt-3">
-          {sections.map((s) => (
-            <button
-              key={s.no}
-              onClick={() => setSection(s)}
-              className="w-full flex items-center gap-3 bg-card border border-border rounded-xl p-3 text-left hover:border-primary/50"
-            >
-              <span className="w-8 h-8 shrink-0 rounded-full bg-primary/10 text-primary text-sm flex items-center justify-center">{s.no}</span>
+          {data.sections.map((s) => (
+            <button key={s.no} onClick={() => setSection(s)} className="w-full flex items-center gap-3 bg-card border border-border rounded-xl p-3 text-left hover:border-primary/50">
+              <span className="w-8 h-8 shrink-0 rounded-full bg-primary/10 text-primary text-sm flex items-center justify-center">{/^\d+$/.test(s.no) ? s.no : "★"}</span>
               <span className="flex-1">{s.title}</span>
               <ChevronRight className="w-4 h-4 text-muted-foreground" />
             </button>
@@ -223,29 +338,13 @@ export default function HadithBooks() {
 
       {section && items && (
         <div className="space-y-5">
-          {items.slice(0, limit).map((h) => (
-            <div key={h.n} className="bg-card border border-border rounded-2xl p-5">
-              <div className="flex justify-between text-xs text-muted-foreground mb-3">
-                <span>{book.name} · Hadith {h.n}</span>
-                <button onClick={() => share(h)} className="text-primary">{note || "Share"}</button>
-              </div>
-              {h.ar && (
-                <p className="text-xl font-serif text-primary leading-loose text-right mb-3" dir="rtl" style={{ fontFamily: "'Amiri', serif" }}>
-                  {h.ar}
-                </p>
-              )}
-              <p className="leading-relaxed">{h.text}</p>
-              {(h.grade || h.ref) && (
-                <p className="text-xs text-muted-foreground mt-3">
-                  {h.grade && <>Grade: {h.grade}. </>}{h.ref}
-                </p>
-              )}
-            </div>
+          {items.slice(0, limit).map((h, i) => (
+            <HadithCard key={`${h.n}-${i}`} h={h} book={book} roman={roman} tx={tx} onShare={share} note={note} />
           ))}
-          {items.length === 0 && <p className="text-muted-foreground">No hadith in this chapter.</p>}
+          {items.length === 0 && <p className="text-muted-foreground">{tx.empty}</p>}
           {limit < items.length && (
             <button onClick={() => setLimit(limit + 30)} className="w-full py-3 rounded-xl border border-border text-primary">
-              Load more ({items.length - limit} left)
+              {tx.load} ({items.length - limit} {tx.left})
             </button>
           )}
         </div>

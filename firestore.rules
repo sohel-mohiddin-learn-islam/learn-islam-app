@@ -95,6 +95,11 @@ service cloud.firestore {
         allow read: if signedIn() && (request.auth.uid == uid ||
           exists(/databases/$(database)/documents/users/$(uid)/closeFriends/$(request.auth.uid)));
         allow write: if signedIn() && request.auth.uid == uid;
+
+        match /views/{viewerId} {
+          allow read: if signedIn() && request.auth.uid == uid;
+          allow create, update: if signedIn() && request.auth.uid == viewerId;
+        }
       }
 
       // Push tokens of this user's phones (written by the app, read by the push server's service account)

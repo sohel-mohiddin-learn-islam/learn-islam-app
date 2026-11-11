@@ -104,3 +104,13 @@ export async function getStoryArchive(owner: string): Promise<Story[]> {
   }
   return out.sort((a, b) => b.createdAt - a.createdAt);
 }
+
+export type StoryViewer = { uid: string; at: number; liked: boolean };
+
+/** Who viewed one of my stories (only the owner can read this). */
+export async function getStoryViewers(owner: string, story: Story): Promise<StoryViewer[]> {
+  const snap = await getDocs(collection(db, "users", owner, story.closeOnly ? "closeStories" : "stories", story.id, "views"));
+  return snap.docs
+    .map((d) => ({ uid: d.id, at: (d.data() as any).lastAt || 0, liked: !!(d.data() as any).liked }))
+    .sort((a, b) => b.at - a.at);
+}

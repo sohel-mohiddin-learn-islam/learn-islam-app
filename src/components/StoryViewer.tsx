@@ -1,11 +1,13 @@
 import { useEffect, useRef, useState } from "react";
-import { deleteStory, markSeen, type Story } from "@/lib/stories";
+import { deleteStory, getStoryViewers, markSeen, type Story, type StoryViewer } from "@/lib/stories";
+import { getProfile, type UserProfile } from "@/lib/social";
+import BoostStory from "./BoostStory";
 import { sendMessage } from "@/lib/chat";
 import { useAuth } from "@/contexts/AuthContext";
 import { useLocation } from "wouter";
 import OverlayLayer from "./OverlayLayer";
 import { useBackClose } from "@/lib/backButton";
-import { recordStoryView } from "@/lib/analytics";
+import { likeStory, recordStoryView } from "@/lib/analytics";
 
 type Props = {
   ownerName: string;
@@ -30,6 +32,11 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
   const [reply, setReply] = useState("");
   const [note, setNote] = useState("");
   const [paused, setPaused] = useState(false);
+  const [viewers, setViewers] = useState<StoryViewer[] | null>(null);
+  const [showViewers, setShowViewers] = useState(false);
+  const [vProfiles, setVProfiles] = useState<Record<string, UserProfile>>({});
+  const [boost, setBoost] = useState(false);
+  const [liked, setLiked] = useState(false);
   const videoRef = useRef<HTMLVideoElement>(null);
   const audioRef = useRef<HTMLAudioElement>(null);
 
@@ -44,9 +51,22 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
   useEffect(() => {
     if (!story) return onClose();
     if (!readOnly) markSeen(story.ownerId, story.createdAt);
-    if (!readOnly && user && !story.closeOnly) recordStoryView(story.ownerId, story.id, user.uid);
+    if (!readOnly && user) recordStoryView(story.ownerId, story.id, user.uid, story.closeOnly);
     setProgress(0);
+    setLiked(false);
+    setViewers(null);
+    if (!readOnly && user && story.ownerId === user.uid) {
+      getStoryViewers(user.uid, story).then(setViewers).catch(() => setViewers([]));
+    }
   }, [i]);
+
+  // viewers' names and pictures
+  useEffect(() => {
+    if (!showViewers || !viewers) return;
+    viewers.forEach((v) => { if (!vProfiles[v.uid]) getProfile(v.uid).then((p) => setVProfiles((o) => ({ ...o, [v.uid]: p }))).catch(() => {}); });
+  }, [showViewers, viewers?.length]);
+
+  useEffect(() => { setPaused(showViewers || boost); }, [showViewers, boost]);
 
   // image timer
   useEffect(() => {
@@ -181,6 +201,49 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
             className="flex-1 bg-white/10 text-white rounded-full px-4 py-2 outline-none"
           />
           <button onClick={sendReply} className="text-white font-semibold px-3">Send</button>
+          <button
+            onClick={() => { const v = !liked; setLiked(v); likeStory(story.ownerId, story.id, user.uid, v, story.closeOnly); }}
+            aria-label="Like story" className="text-2xl px-2"
+          >{liked ? "❤️" : "🤍"}</button>
+        </div>
+      )}
+      {own && !readOnly && (
+        <div className="p-3 flex items-center gap-3 bg-black/70 text-white">
+          <button onClick={() => setShowViewers(true)} className="flex items-center gap-2 px-4 py-2 rounded-full bg-white/10">
+            👁 <span className="font-semibold">{viewers ? viewers.length : "…"}</span> <span className="text-sm text-white/70">viewers</span>
+          </button>
+          <button onClick={() => setBoost(true)} className="ml-auto flex items-center gap-2 px-4 py-2 rounded-full bg-indigo-500 font-semibold">📈 Boost</button>
+        </div>
+      )}
+      {boost && <BoostStory story={story} ownerName={ownerName} onClose={() => setBoost(false)} />}
+      {showViewers && (
+        <div className="absolute inset-0 z-30 bg-neutral-950 text-white flex flex-col">
+          <div className="flex items-center justify-between px-4 pt-6 pb-3 border-b border-white/10">
+            <span className="font-semibold text-lg">👁 {viewers?.length ?? 0}</span>
+            <div className="flex items-center gap-5">
+              <button onClick={() => { setShowViewers(false); remove(); }} aria-label="Delete story" className="text-xl">🗑</button>
+              <button onClick={() => setShowViewers(false)} aria-label="Close" className="text-3xl leading-none">×</button>
+            </div>
+          </div>
+          <div className="flex-1 overflow-y-auto">
+            <button onClick={() => { setShowViewers(false); setBoost(true); }} className="w-full flex items-center gap-4 px-4 py-4 text-left">
+              <span className="w-14 h-14 rounded-full border border-white/30 flex items-center justify-center text-2xl">📈</span>
+              <span className="flex-1 text-lg font-semibold">Boost this story</span><span className="text-xl text-white/60">›</span>
+            </button>
+            <p className="px-4 py-3 text-xl font-semibold">Who viewed your story</p>
+            {viewers === null && <p className="px-4 text-white/60">Loading…</p>}
+            {viewers?.length === 0 && <p className="px-4 text-white/60">No views yet.</p>}
+            {viewers?.map((v) => (
+              <button key={v.uid} onClick={() => { onClose(); setLocation(`/user/${v.uid}`); }} className="w-full flex items-center gap-4 px-4 py-3 text-left">
+                <span className="relative w-14 h-14 rounded-full bg-white/10 flex items-center justify-center shrink-0">
+                  <span className="w-14 h-14 rounded-full overflow-hidden flex items-center justify-center">{vProfiles[v.uid]?.photoURL ? <img src={vProfiles[v.uid].photoURL!} alt="" className="w-full h-full object-cover" /> : "👤"}</span>
+                  {v.liked && <span className="absolute -bottom-1 -right-1 w-6 h-6 rounded-full bg-pink-600 flex items-center justify-center text-xs">♥</span>}
+                </span>
+                <span className="flex-1 min-w-0"><span className="block font-semibold truncate">{vProfiles[v.uid]?.displayName || "…"}</span>
+                  <span className="block text-sm text-white/50">{v.at ? new Date(v.at).toLocaleString() : ""}</span></span>
+              </button>
+            ))}
+          </div>
         </div>
       )}
       {note && <p className="text-center text-white/80 text-sm pb-2 bg-black/70">{note}</p>}

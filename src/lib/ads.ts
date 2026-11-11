@@ -18,6 +18,11 @@ export type Ad = {
   days: number;
   amount: number;
   paymentId: string;
+  goal?: "profile" | "website" | "message";
+  audience?: "all" | "country";
+  country?: string;
+  dailyBudget?: number;
+  storyId?: string;
   status: "pending" | "approved" | "rejected";
   createdAt: number;
   endsAt: number;

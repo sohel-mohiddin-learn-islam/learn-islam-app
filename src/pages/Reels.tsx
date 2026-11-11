@@ -12,6 +12,7 @@ import { db } from "@/lib/firebase";
 import { deleteDoc, doc, getDoc, setDoc } from "firebase/firestore";
 import { Plus } from "lucide-react";
 import { getActiveAds, type Ad } from "@/lib/ads";
+import { deviceInfo } from "@/lib/analytics";
 
 import { deletePost, getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
 
@@ -386,6 +387,13 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
 }
 
 function AdItem({ ad }: { ad: Ad }) {
+  const [, go] = useLocation();
+  const cta = ad.goal === "profile" ? "Visit profile" : ad.goal === "message" ? "Message" : "Learn more";
+  const act = () => {
+    if (ad.goal === "profile") go(`/user/${ad.ownerId}`);
+    else if (ad.goal === "message") go(`/chat/${ad.ownerId}`);
+    else if (ad.link) window.open(ad.link, "_blank");
+  };
   return (
     <div className="relative w-full h-full snap-start shrink-0 bg-black flex items-center justify-center">
       {ad.mediaType === "video" ? (
@@ -397,9 +405,9 @@ function AdItem({ ad }: { ad: Ad }) {
         <span className="inline-block text-xs bg-white/25 rounded px-2 py-0.5 mb-2">Sponsored</span>
         <p className="font-semibold">{ad.title}</p>
         {ad.text && <p className="text-sm opacity-90">{ad.text}</p>}
-        {ad.link && (
-          <button onClick={() => window.open(ad.link, "_blank")} className="mt-3 rounded-lg bg-primary text-primary-foreground px-5 py-2 font-semibold">
-            Learn more
+        {(ad.link || ad.goal === "profile" || ad.goal === "message") && (
+          <button onClick={act} className="mt-3 rounded-lg bg-primary text-primary-foreground px-5 py-2 font-semibold">
+            {cta}
           </button>
         )}
       </div>
@@ -445,7 +453,14 @@ export default function Reels() {
     }
   });
   const [ads, setAds] = useState<Ad[]>([]);
-  useEffect(() => { getActiveAds().then(setAds).catch(() => {}); }, [seed]);
+  useEffect(() => {
+    getActiveAds().then((list) => {
+      const mine = deviceInfo().country;
+      // country-targeted ads only for people in that country; bigger daily budgets appear more often
+      const ok = list.filter((a) => a.audience !== "country" || !a.country || a.country === mine);
+      setAds(ok.flatMap((a) => Array(Math.min(5, Math.max(1, Math.floor((a.dailyBudget || 299) / 299)))).fill(a)));
+    }).catch(() => {});
+  }, [seed]);
   const scrollRef = useRef<HTMLDivElement>(null);
   const touchY = useRef<number | null>(null);
   const lastWheel = useRef(0);

@@ -78,10 +78,10 @@ export async function recordReelView(postId: string, ownerId: string, me: string
   ).catch(() => {});
 }
 
-export async function recordStoryView(ownerId: string, storyId: string, me: string) {
+export async function recordStoryView(ownerId: string, storyId: string, me: string, closeOnly = false) {
   if (me === ownerId || !once(`sview-${storyId}`)) return;
   await setDoc(
-    doc(db, "users", ownerId, "stories", storyId, "views", me),
+    doc(db, "users", ownerId, closeOnly ? "closeStories" : "stories", storyId, "views", me),
     { isFollower: await followsOwner(me, ownerId), lastAt: Date.now() },
     { merge: true }
   ).catch(() => {});
@@ -149,3 +149,12 @@ export async function getReelCounts(postId: string): Promise<ReelCounts> {
 }
 
 export const compact = (n: number) => (n >= 1e6 ? `${(n / 1e6).toFixed(1)}M` : n >= 1e3 ? `${(n / 1e3).toFixed(1)}K` : String(n));
+
+/** A viewer likes (or un-likes) a story; the owner sees a heart next to their name. */
+export async function likeStory(ownerId: string, storyId: string, me: string, liked: boolean, closeOnly = false) {
+  await setDoc(
+    doc(db, "users", ownerId, closeOnly ? "closeStories" : "stories", storyId, "views", me),
+    { liked, lastAt: Date.now() },
+    { merge: true }
+  ).catch(() => {});
+}
