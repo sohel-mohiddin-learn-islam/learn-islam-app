@@ -53,7 +53,7 @@ export default function CreateStory() {
         <label className="block border-2 border-dashed border-border rounded-xl py-20 text-center cursor-pointer">
           <span className="text-4xl block mb-2">📷</span>
           Choose a photo or video
-          <input type="file" accept="image/*,video/*" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
+          <input type="file" accept="image/*,video/*,.mp4,.mov,.webm,.jpg,.jpeg,.png,application/octet-stream" className="hidden" onChange={(e) => pick(e.target.files?.[0])} />
         </label>
         <p className="text-sm text-foreground/60 mt-4">Next you can add text, Islamic stickers, a naat and mentions. Stories disappear after 24 hours.</p>
       </div>

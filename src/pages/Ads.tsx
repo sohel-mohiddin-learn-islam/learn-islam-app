@@ -155,7 +155,7 @@ export default function Ads() {
         <input value={link} onChange={(e) => setLink(e.target.value)} placeholder="Website link (optional, https://…)" className="w-full rounded-lg bg-muted px-3 py-3 mb-3" />
         <label className="block rounded-lg bg-muted px-3 py-3 mb-3">
           <span className="block text-sm text-foreground/70 mb-1">Video or image</span>
-          <input type="file" accept="video/*,image/*" onChange={(e) => setFile(e.target.files?.[0] || null)} />
+          <input type="file" accept="video/*,image/*,.mp4,.mov,.webm,.jpg,.jpeg,.png,application/octet-stream" onChange={(e) => { const f = e.target.files?.[0] || null; if (f && !/^(video|image)\//.test(f.type) && !/\.(mp4|mov|webm|jpe?g|png)$/i.test(f.name)) { setError("Please choose a video or an image."); return; } setFile(f); }} />
         </label>
         <div className="flex items-center gap-3 mb-4">
           <span>Days:</span>

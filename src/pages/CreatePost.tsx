@@ -288,7 +288,7 @@ export default function CreatePost() {
         <input
           ref={fileInputRef}
           type="file"
-          accept="video/*"
+          accept="video/*,.mp4,.mov,.webm,application/octet-stream"
           onChange={handleFileChange}
           className="hidden"
         />
