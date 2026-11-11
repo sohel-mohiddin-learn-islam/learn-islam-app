@@ -122,7 +122,27 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
   // single tap = mute / unmute, double tap = like (with a heart)
   const tapTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const [heart, setHeart] = useState<{ x: number; y: number; k: number } | null>(null);
+  // press and hold = 2x speed while the finger is down (like Instagram)
+  const holdTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const held = useRef(false);
+  const [fast, setFast] = useState(false);
+  const holdStart = () => {
+    held.current = false;
+    if (holdTimer.current) clearTimeout(holdTimer.current);
+    holdTimer.current = setTimeout(() => {
+      held.current = true;
+      if (videoRef.current) videoRef.current.playbackRate = 2;
+      setFast(true);
+      navigator.vibrate?.(15);
+    }, 350);
+  };
+  const holdEnd = () => {
+    if (holdTimer.current) { clearTimeout(holdTimer.current); holdTimer.current = null; }
+    if (videoRef.current) videoRef.current.playbackRate = 1;
+    setFast(false);
+  };
   const onTap = (e: React.MouseEvent) => {
+    if (held.current) { held.current = false; return; } // the press was a hold, not a tap
     if (tapTimer.current) {
       clearTimeout(tapTimer.current);
       tapTimer.current = null;
@@ -201,18 +221,27 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
           ref={videoRef}
           src={useOriginal && reel.original ? reel.original : reel.src}
           poster={reel.poster}
-          className="w-full h-full object-contain"
+          className="w-full h-full object-contain select-none"
+          style={{ WebkitTouchCallout: "none", WebkitUserSelect: "none" }}
           loop
           muted
           playsInline
           preload={reel.original ? "metadata" : "auto"}
           onClick={onTap}
+          onPointerDown={holdStart}
+          onPointerUp={holdEnd}
+          onPointerCancel={holdEnd}
+          onPointerLeave={holdEnd}
+          onContextMenu={(e) => e.preventDefault()}
           onError={handleError}
         />
       ) : (
         <div className="w-full h-full bg-black" />
       )}
 
+      {fast && (
+        <span className="absolute top-20 left-1/2 -translate-x-1/2 pointer-events-none text-white font-semibold text-sm bg-black/50 rounded-full px-3 py-1">⏩ 2x</span>
+      )}
       {heart && (
         <span
           key={heart.k}

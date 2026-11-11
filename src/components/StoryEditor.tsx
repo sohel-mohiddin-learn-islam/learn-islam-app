@@ -3,11 +3,12 @@ import { useAuth } from "@/contexts/AuthContext";
 import { useBackClose } from "@/lib/backButton";
 import { getFollowerIds, getFollowingIds, getProfile } from "@/lib/social";
 import { COLORS, STICKERS, TEXT_STYLES, getNaats, searchUsers, type Naat, type Overlay, type PickedAudio } from "@/lib/storyTools";
+import { getCloseFriendIds, setCloseFriend } from "@/lib/stories";
 import { overlayStyle } from "./OverlayLayer";
 
 export type EditorResult = { overlays: Overlay[]; audio: PickedAudio | null; closeOnly: boolean };
 
-type Panel = null | "text" | "sticker" | "music" | "mention";
+type Panel = null | "text" | "sticker" | "music" | "mention" | "close";
 type Person = { uid: string; name: string; photo: string | null };
 
 const uid = () => Math.random().toString(36).slice(2, 9);
@@ -81,6 +82,31 @@ export default function StoryEditor({
   const selected = overlays.find((o) => o.id === sel);
   const resize = (d: number) => setOverlays((l) => l.map((o) => (o.id === sel ? { ...o, scale: Math.min(3, Math.max(0.4, o.scale + d)) } : o)));
   const remove = () => { setOverlays((l) => l.filter((o) => o.id !== sel)); setSel(null); };
+
+  // close friends: if the list is empty, open it (with followers) so the person can add people first
+  const [cfPeople, setCfPeople] = useState<Person[] | null>(null);
+  const [cfIds, setCfIds] = useState<string[]>([]);
+  const openCloseFriends = async () => {
+    if (!user || busy) return;
+    setError("");
+    let ids: string[] = [];
+    try { ids = await getCloseFriendIds(user.uid); } catch { /* treat as empty */ }
+    if (ids.length > 0) return publish(true);
+    setCfIds([]);
+    setPanel("close");
+    setCfPeople(null);
+    try {
+      const followers = await getFollowerIds(user.uid).catch(() => []);
+      const list = await Promise.all(followers.slice(0, 80).map((id) => getProfile(id).then((p) => ({ uid: id, name: p.displayName, photo: p.photoURL })).catch(() => null)));
+      setCfPeople(list.filter(Boolean) as Person[]);
+    } catch { setCfPeople([]); }
+  };
+  const toggleClose = async (id: string) => {
+    if (!user) return;
+    const on = !cfIds.includes(id);
+    setCfIds((a) => (on ? [...a, id] : a.filter((x) => x !== id)));
+    await setCloseFriend(user.uid, id, on).catch(() => setCfIds((a) => (on ? a.filter((x) => x !== id) : [...a, id])));
+  };
 
   const publish = async (closeOnly: boolean) => {
     if (busy) return;
@@ -168,7 +194,7 @@ export default function StoryEditor({
         <button disabled={busy} onClick={() => publish(false)} className="flex-1 rounded-full bg-white/10 py-4 font-semibold disabled:opacity-50">
           {busy ? "Sharing…" : "Your story"}
         </button>
-        <button disabled={busy} onClick={() => publish(true)} className="flex-1 rounded-full bg-white/10 py-4 font-semibold disabled:opacity-50">
+        <button disabled={busy} onClick={openCloseFriends} className="flex-1 rounded-full bg-white/10 py-4 font-semibold disabled:opacity-50">
           <span className="inline-block w-5 h-5 rounded-full bg-green-500 mr-2 align-middle text-xs leading-5">★</span>Close Friends
         </button>
       </div>
@@ -177,6 +203,28 @@ export default function StoryEditor({
         <div className="absolute inset-0 z-30 bg-black/60 flex flex-col justify-end" onClick={() => setPanel(null)}>
           <div className="bg-neutral-900 rounded-t-3xl max-h-[78%] overflow-y-auto p-4" onClick={(e) => e.stopPropagation()}>
             <div className="mx-auto mb-3 h-1 w-10 rounded-full bg-white/40" />
+
+            {panel === "close" && (
+              <>
+                <p className="font-semibold text-lg mb-1">Add close friends</p>
+                <p className="text-sm text-white/60 mb-3">Your close friends list is empty. Pick people from your followers. Only they will see this story, with a green “Close friends” label.</p>
+                {cfPeople === null && <p className="text-white/60 py-4">Loading followers…</p>}
+                {cfPeople && cfPeople.length === 0 && <p className="text-white/60 py-4">You have no followers yet. Share your stories normally for now.</p>}
+                {cfPeople?.map((p) => {
+                  const on = cfIds.includes(p.uid);
+                  return (
+                    <button key={p.uid} onClick={() => toggleClose(p.uid)} className="w-full flex items-center gap-3 py-2 text-left">
+                      <span className="w-10 h-10 rounded-full bg-white/10 overflow-hidden flex items-center justify-center">{p.photo ? <img src={p.photo} alt="" className="w-full h-full object-cover" /> : "👤"}</span>
+                      <span className="flex-1 truncate">{p.name}</span>
+                      <span className={`w-6 h-6 rounded-full border-2 flex items-center justify-center text-xs ${on ? "bg-green-500 border-green-500" : "border-white/40"}`}>{on ? "✓" : ""}</span>
+                    </button>
+                  );
+                })}
+                <button disabled={!cfIds.length || busy} onClick={() => { setPanel(null); publish(true); }} className="w-full mt-4 rounded-xl bg-green-600 py-3 font-semibold disabled:opacity-40">
+                  {cfIds.length ? `Share with ${cfIds.length} close friend${cfIds.length > 1 ? "s" : ""}` : "Select at least one person"}
+                </button>
+              </>
+            )}
 
             {panel === "text" && (
               <>

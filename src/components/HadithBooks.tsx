@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
-import { ArrowLeft, BookOpen, ChevronRight, Loader2 } from "lucide-react";
+import { ArrowLeft, ChevronRight, Loader2 } from "lucide-react";
+import { motion } from "framer-motion";
 import { shareContent } from "@/lib/share";
 
 /**
@@ -9,17 +10,17 @@ import { shareContent } from "@/lib/share";
  */
 const CDN = "https://cdn.jsdelivr.net/gh/fawazahmed0/hadith-api@1/editions";
 
-type Book = { id: string; name: string; arabic: string; by: string };
+type Book = { id: string; name: string; arabic: string; by: string; from: string; to: string };
 const BOOKS: Book[] = [
-  { id: "bukhari", name: "Sahih al-Bukhari", arabic: "صحيح البخاري", by: "Imam al-Bukhari" },
-  { id: "muslim", name: "Sahih Muslim", arabic: "صحيح مسلم", by: "Imam Muslim" },
-  { id: "abudawud", name: "Sunan Abi Dawud", arabic: "سنن أبي داود", by: "Imam Abu Dawud" },
-  { id: "tirmidhi", name: "Jami at-Tirmidhi", arabic: "جامع الترمذي", by: "Imam at-Tirmidhi" },
-  { id: "nasai", name: "Sunan an-Nasa'i", arabic: "سنن النسائي", by: "Imam an-Nasa'i" },
-  { id: "ibnmajah", name: "Sunan Ibn Majah", arabic: "سنن ابن ماجه", by: "Imam Ibn Majah" },
-  { id: "malik", name: "Muwatta Malik", arabic: "موطأ مالك", by: "Imam Malik" },
-  { id: "nawawi", name: "40 Hadith of Nawawi", arabic: "الأربعون النووية", by: "Imam an-Nawawi" },
-  { id: "qudsi", name: "40 Hadith Qudsi", arabic: "الأحاديث القدسية", by: "Compiled" },
+  { id: "bukhari", name: "Sahih al-Bukhari", arabic: "صحيح البخاري", by: "Imam al-Bukhari", from: "#14532d", to: "#052e16" },
+  { id: "muslim", name: "Sahih Muslim", arabic: "صحيح مسلم", by: "Imam Muslim", from: "#7f1d1d", to: "#450a0a" },
+  { id: "abudawud", name: "Sunan Abi Dawud", arabic: "سنن أبي داود", by: "Imam Abu Dawud", from: "#1e3a8a", to: "#172554" },
+  { id: "tirmidhi", name: "Jami at-Tirmidhi", arabic: "جامع الترمذي", by: "Imam at-Tirmidhi", from: "#581c87", to: "#3b0764" },
+  { id: "nasai", name: "Sunan an-Nasa'i", arabic: "سنن النسائي", by: "Imam an-Nasa'i", from: "#134e4a", to: "#042f2e" },
+  { id: "ibnmajah", name: "Sunan Ibn Majah", arabic: "سنن ابن ماجه", by: "Imam Ibn Majah", from: "#78350f", to: "#451a03" },
+  { id: "malik", name: "Muwatta Malik", arabic: "موطأ مالك", by: "Imam Malik", from: "#3f3f46", to: "#18181b" },
+  { id: "nawawi", name: "40 Hadith of Nawawi", arabic: "الأربعون النووية", by: "Imam an-Nawawi", from: "#9a3412", to: "#431407" },
+  { id: "qudsi", name: "40 Hadith Qudsi", arabic: "الأحاديث القدسية", by: "Compiled", from: "#0c4a6e", to: "#082f49" },
 ];
 
 type Sec = { no: string; title: string; first?: number; last?: number };
@@ -54,6 +55,59 @@ function gradeOf(h: any): string | undefined {
   return g.map((x: any) => `${x.grade}${x.name ? ` (${x.name})` : ""}`).join(", ");
 }
 
+function Cover({ b }: { b: Book }) {
+  return (
+    <div
+      className="relative w-full h-full rounded-r-xl rounded-l-sm overflow-hidden text-center flex flex-col items-center justify-center px-4"
+      style={{
+        background: `linear-gradient(135deg, ${b.from}, ${b.to})`,
+        boxShadow: "inset 0 0 0 1px rgba(255,215,120,.25), 4px 6px 14px rgba(0,0,0,.45)",
+      }}
+    >
+      {/* spine */}
+      <span className="absolute left-0 inset-y-0 w-4" style={{ background: "linear-gradient(90deg, rgba(0,0,0,.55), rgba(255,255,255,.08) 60%, rgba(0,0,0,.25))" }} />
+      {/* gold frame */}
+      <span className="absolute inset-3 left-6 rounded-md border border-amber-300/60" />
+      <span className="absolute inset-[18px] left-[30px] rounded border border-amber-300/30" />
+      <span className="text-amber-300 text-xl mb-2">✦</span>
+      <span className="text-amber-200 text-xl leading-snug" dir="rtl" style={{ fontFamily: "'Amiri', serif" }}>{b.arabic}</span>
+      <span className="mt-3 text-amber-100/90 text-sm font-serif leading-tight">{b.name}</span>
+      <span className="mt-2 text-[10px] text-amber-200/60 tracking-wide">{b.by}</span>
+      <span className="absolute bottom-5 text-amber-300/70 text-xs">❖ ❖ ❖</span>
+    </div>
+  );
+}
+
+function OpeningBook({ b }: { b: Book }) {
+  return (
+    <motion.div className="fixed inset-0 z-[90] bg-black/70 flex items-center justify-center" initial={{ opacity: 0 }} animate={{ opacity: 1 }}>
+      <motion.div
+        className="relative w-56 h-72"
+        style={{ perspective: 1200 }}
+        initial={{ scale: 0.6, x: 0 }}
+        animate={{ scale: 1.25, x: 60 }}
+        transition={{ duration: 0.9, ease: "easeInOut" }}
+      >
+        {/* pages */}
+        <div className="absolute inset-0 rounded-r-xl bg-amber-50 shadow-xl overflow-hidden">
+          <div className="absolute inset-0 opacity-40" style={{ backgroundImage: "repeating-linear-gradient(transparent 0 22px, rgba(120,80,20,.35) 22px 23px)" }} />
+          <p className="absolute inset-0 flex items-center justify-center text-amber-900/70 text-2xl" dir="rtl" style={{ fontFamily: "'Amiri', serif" }}>بسم الله الرحمن الرحيم</p>
+        </div>
+        {/* cover swings open from the spine */}
+        <motion.div
+          className="absolute inset-0"
+          style={{ transformOrigin: "left center", backfaceVisibility: "hidden" }}
+          initial={{ rotateY: 0 }}
+          animate={{ rotateY: -158 }}
+          transition={{ duration: 0.9, ease: "easeInOut", delay: 0.15 }}
+        >
+          <Cover b={b} />
+        </motion.div>
+      </motion.div>
+    </motion.div>
+  );
+}
+
 export default function HadithBooks() {
   const [book, setBook] = useState<Book | null>(null);
   const [sections, setSections] = useState<Sec[] | null>(null);
@@ -62,6 +116,8 @@ export default function HadithBooks() {
   const [error, setError] = useState("");
   const [limit, setLimit] = useState(30);
   const [note, setNote] = useState("");
+  const [opening, setOpening] = useState<Book | null>(null);
+  const openBook = (b: Book) => { setOpening(b); setTimeout(() => { setBook(b); setOpening(null); }, 1150); };
 
   useEffect(() => {
     if (!book) return;
@@ -108,24 +164,27 @@ export default function HadithBooks() {
 
   if (!book) {
     return (
-      <div className="grid sm:grid-cols-2 gap-4">
-        {BOOKS.map((b) => (
-          <button
-            key={b.id}
-            onClick={() => setBook(b)}
-            className="text-left bg-card border border-border rounded-2xl p-5 hover:border-primary/50 hover:shadow-md transition"
-          >
-            <BookOpen className="w-6 h-6 text-primary mb-2" />
-            <p className="font-serif text-xl text-primary" dir="rtl">{b.arabic}</p>
-            <p className="font-semibold">{b.name}</p>
-            <p className="text-xs text-muted-foreground">{b.by}</p>
-          </button>
-        ))}
-        <p className="sm:col-span-2 text-xs text-muted-foreground italic text-center">
-          Texts are loaded live from the free open hadith-api project (fawazahmed0/hadith-api).
-          Gradings shown are those given by the classical scholars named in the source data.
-        </p>
-      </div>
+      <>
+        {opening && <OpeningBook b={opening} />}
+        <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-5 gap-y-8 px-2 pt-2">
+          {BOOKS.map((b) => (
+            <motion.button
+              key={b.id}
+              onClick={() => openBook(b)}
+              whileTap={{ scale: 0.96 }}
+              whileHover={{ y: -4 }}
+              className="relative aspect-[3/4] w-full"
+              aria-label={b.name}
+            >
+              <Cover b={b} />
+            </motion.button>
+          ))}
+          <p className="col-span-full text-xs text-muted-foreground italic text-center">
+            Texts are loaded live from the free open hadith-api project (fawazahmed0/hadith-api).
+            Gradings shown are those given by the classical scholars named in the source data.
+          </p>
+        </div>
+      </>
     );
   }
 
