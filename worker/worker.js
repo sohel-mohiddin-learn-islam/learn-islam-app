@@ -52,6 +52,55 @@ async function ask(req, env) {
   return json({ answer: out.response || "" , uid });
 }
 
+// ---- Razorpay Payment Links (opens in the phone's browser, so PhonePe / Google Pay / UPI apps work) ----
+// Secrets: RAZORPAY_KEY_ID, RAZORPAY_KEY_SECRET
+const rz = (env, path, init = {}) =>
+  fetch(`https://api.razorpay.com/v1${path}`, {
+    ...init,
+    headers: { Authorization: "Basic " + btoa(`${env.RAZORPAY_KEY_ID}:${env.RAZORPAY_KEY_SECRET}`), "Content-Type": "application/json" },
+  });
+
+async function payCreate(req, env) {
+  const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
+  let uid;
+  try { uid = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "Please sign in." }, 401); }
+  if (!env.RAZORPAY_KEY_SECRET) return json({ error: "Payments are not set up on the server yet." }, 500);
+  const { amount, description, email, name } = await req.json();
+  const rupees = Math.round(Number(amount));
+  if (!(rupees >= 1 && rupees <= 50000)) return json({ error: "Bad amount." }, 400);
+  const r = await rz(env, "/payment_links", {
+    method: "POST",
+    body: JSON.stringify({
+      amount: rupees * 100,
+      currency: "INR",
+      description: String(description || "Learn Islam ad").slice(0, 200),
+      reference_id: `${uid.slice(0, 20)}_${Date.now()}`.slice(0, 40),
+      customer: { name: String(name || "").slice(0, 50) || undefined, email: String(email || "") || undefined },
+      notify: { sms: false, email: false },
+      reminder_enable: false,
+      notes: { uid },
+      callback_url: "https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/",
+      callback_method: "get",
+    }),
+  });
+  const j = await r.json();
+  if (!r.ok) return json({ error: j?.error?.description || "Could not start the payment." }, 502);
+  return json({ id: j.id, url: j.short_url });
+}
+
+async function payStatus(req, env) {
+  const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
+  let uid;
+  try { uid = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "Please sign in." }, 401); }
+  const { id } = await req.json();
+  if (!/^plink_[A-Za-z0-9]+$/.test(String(id))) return json({ error: "Bad id." }, 400);
+  const j = await (await rz(env, `/payment_links/${id}`)).json();
+  if (j?.notes?.uid !== uid) return json({ error: "Not your payment." }, 403);
+  const paid = j.status === "paid";
+  const pay = (j.payments || []).find((p) => p.status === "captured") || (j.payments || [])[0];
+  return json({ status: j.status, paid, paymentId: paid ? pay?.payment_id || id : null, amount: (j.amount_paid || 0) / 100 });
+}
+
 // ---- TURN credentials for calls (optional: Cloudflare Calls TURN, free tier) ----
 async function turn(req, env) {
   const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
@@ -109,6 +158,8 @@ export default {
     const path = new URL(req.url).pathname;
     try {
       if (path === "/ask") return await ask(req, env);
+      if (path === "/pay/create") return await payCreate(req, env);
+      if (path === "/pay/status") return await payStatus(req, env);
       if (path === "/turn") return await turn(req, env);
       if (path === "/push") return await push(req, env);
     } catch (e) { return json({ error: String(e.message || e) }, 500); }

@@ -1,9 +1,9 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadImage, uploadVideo } from "@/lib/posts";
 import { addNaat, deleteNaat, getNaats, type Naat } from "@/lib/storyTools";
-import { ADMIN_EMAIL, PRICE_PER_DAY, approveAd, createAd, getAllAds, getMyAds, payForAd, rejectAd, removeAd, type Ad } from "@/lib/ads";
+import { ADMIN_EMAIL, PRICE_PER_DAY, approveAd, checkPayment, createAd, getAllAds, getMyAds, getPending, hasPaymentServer, payForAd, rejectAd, removeAd, setPending, startBrowserPayment, type Ad } from "@/lib/ads";
 
 function Status({ ad }: { ad: Ad }) {
   const label =
@@ -20,6 +20,10 @@ export default function Ads() {
   const [days, setDays] = useState(3);
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState("");
+  const [percent, setPercent] = useState(0);
+  const [waiting, setWaiting] = useState(false);
+  const uploaded = useRef<{ key: string; url: string } | null>(null); // a finished upload is reused if payment is retried
+  const polling = useRef(false);
   const [error, setError] = useState("");
   const [mine, setMine] = useState<Ad[]>([]);
   const [all, setAll] = useState<Ad[]>([]);
@@ -51,6 +55,41 @@ export default function Ads() {
   };
   useEffect(load, [user?.uid]);
 
+  // a payment started in the browser: wait for it (also resumes after the app was closed)
+  const waitForPayment = async (): Promise<void> => {
+    const p = getPending();
+    if (!p || polling.current || !user) return;
+    polling.current = true;
+    setWaiting(true);
+    setError("");
+    const until = Date.now() + 15 * 60 * 1000;
+    try {
+      while (Date.now() < until) {
+        const r = await checkPayment(p.linkId).catch(() => null);
+        if (r?.paid && r.paymentId) {
+          setBusy("Saving your ad…");
+          await createAd({ ...p.form, paymentId: r.paymentId });
+          setPending(null);
+          setTitle(""); setText(""); setLink(""); setFile(null); uploaded.current = null;
+          alert("Payment received. Your ad will start running once it is approved.");
+          load();
+          return;
+        }
+        if (r && (r.status === "expired" || r.status === "cancelled")) { setPending(null); setError("The payment was cancelled or expired."); return; }
+        if (!getPending()) return; // cancelled by the person
+        await new Promise((res) => setTimeout(res, 3000));
+      }
+      setError("Still waiting for the payment. If you already paid, tap “Check payment” in a minute.");
+    } catch (e: any) {
+      setError(e?.message || "Could not confirm the payment.");
+    } finally {
+      polling.current = false;
+      setWaiting(false);
+      setBusy("");
+    }
+  };
+  useEffect(() => { if (user && getPending()) waitForPayment(); }, [user?.uid]);
+
   if (!user) {
     setLocation("/login");
     return null;
@@ -64,22 +103,36 @@ export default function Ads() {
     if (link && !/^https?:\/\//i.test(link)) return setError("The link must start with https://");
     try {
       const isVideo = file.type.startsWith("video/");
-      setBusy("Uploading your ad…");
-      const mediaUrl = isVideo ? await uploadVideo(file, user.uid) : await uploadImage(file);
+      const key = `${file.name}-${file.size}-${file.lastModified}`;
+      let mediaUrl = uploaded.current?.key === key ? uploaded.current.url : "";
+      if (!mediaUrl) {
+        setPercent(0);
+        setBusy("Uploading your ad…");
+        mediaUrl = isVideo ? await uploadVideo(file, user.uid, setPercent) : await uploadImage(file);
+        uploaded.current = { key, url: mediaUrl };
+      }
+      setPercent(100);
       setBusy("Opening payment…");
+      const form = {
+        ownerId: user.uid, ownerName: user.displayName || "Learn Islam User", title: title.trim(), text: text.trim(),
+        mediaUrl, mediaType: (isVideo ? "video" : "image") as "video" | "image", link: link.trim(), days, amount: total,
+      };
+      if (hasPaymentServer) {
+        const linkId = await startBrowserPayment(total, `Ad: ${title.trim()} (${days} days)`, user.email, user.displayName);
+        setPending({ linkId, form });
+        await waitForPayment();
+        return;
+      }
       const paymentId = await payForAd(total, `Ad: ${title.trim()} (${days} days)`, user.email, user.displayName);
       setBusy("Saving your ad…");
-      await createAd({
-        ownerId: user.uid, ownerName: user.displayName || "Learn Islam User", title: title.trim(), text: text.trim(),
-        mediaUrl, mediaType: isVideo ? "video" : "image", link: link.trim(), days, amount: total, paymentId,
-      });
-      setTitle(""); setText(""); setLink(""); setFile(null);
+      await createAd({ ...form, paymentId });
+      setTitle(""); setText(""); setLink(""); setFile(null); uploaded.current = null;
       alert("Payment received. Your ad will start running once it is approved.");
       load();
     } catch (e: any) {
       setError(e?.message || "Something went wrong.");
     } finally {
-      setBusy("");
+      if (!polling.current) setBusy("");
     }
   };
 
@@ -113,8 +166,21 @@ export default function Ads() {
         </div>
         {error && <p className="text-red-500 mb-3">{error}</p>}
         <button disabled={!!busy} onClick={submit} className="w-full rounded-lg bg-primary text-primary-foreground py-3 font-semibold disabled:opacity-60">
-          {busy || `Pay ₹${total} and submit`}
+          {busy ? (busy.startsWith("Uploading") && percent > 0 && percent < 100 ? `Uploading… ${percent}%` : busy) : `Pay ₹${total} and submit`}
         </button>
+        {busy.startsWith("Uploading") && (
+          <div className="h-1.5 rounded-full bg-muted mt-2 overflow-hidden"><div className="h-full bg-primary transition-all" style={{ width: `${percent}%` }} /></div>
+        )}
+        {waiting && (
+          <div className="mt-3 rounded-lg border border-border p-3 text-sm">
+            <p className="font-semibold">Waiting for your payment…</p>
+            <p className="text-foreground/70">Finish paying in the browser window (PhonePe, Google Pay or any UPI app), then come back here. This updates by itself.</p>
+            <button onClick={() => { setPending(null); }} className="mt-2 text-red-500 font-semibold">Cancel</button>
+          </div>
+        )}
+        {!waiting && getPending() && (
+          <button onClick={() => waitForPayment()} className="w-full mt-2 rounded-lg border border-border py-2 font-semibold">Check payment</button>
+        )}
         <p className="text-xs text-foreground/50 mt-2">Ads are checked before they run. If an ad is rejected, contact support for a refund.</p>
 
         <h2 className="font-semibold text-lg mt-8 mb-2">Your ads</h2>

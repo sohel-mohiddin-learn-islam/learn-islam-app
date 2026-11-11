@@ -1,5 +1,5 @@
 import { addDoc, collection, deleteDoc, doc, getDocs, query, updateDoc, where } from "firebase/firestore";
-import { db } from "./firebase";
+import { auth, db } from "./firebase";
 
 // Razorpay Key ID is a public key and is safe to ship in the app. The Key Secret is never used here.
 export const RAZORPAY_KEY_ID = "rzp_live_TMRe5v9zAXb2yJ";
@@ -34,6 +34,42 @@ function loadRazorpay(): Promise<any> {
     document.body.appendChild(s);
   });
 }
+
+const WORKER = ((import.meta.env.VITE_AI_TUTOR_ENDPOINT as string | undefined) || "").replace(/\/$/, "");
+const PENDING = "pending-ad-payment";
+
+async function authedPost(path: string, body: any) {
+  const t = await auth.currentUser?.getIdToken();
+  if (!t) throw new Error("Please sign in first.");
+  const r = await fetch(`${WORKER}${path}`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` }, body: JSON.stringify(body) });
+  const j = await r.json().catch(() => ({}));
+  if (!r.ok) throw new Error(j?.error || "Payment server error.");
+  return j;
+}
+
+export type PendingAd = { linkId: string; form: Omit<Ad, "id" | "status" | "createdAt" | "endsAt" | "paymentId"> };
+export const getPending = (): PendingAd | null => { try { return JSON.parse(localStorage.getItem(PENDING) || "null"); } catch { return null; } };
+export const setPending = (p: PendingAd | null) => { try { p ? localStorage.setItem(PENDING, JSON.stringify(p)) : localStorage.removeItem(PENDING); } catch { /* ignore */ } };
+
+/** Starts a payment in the phone's browser (UPI apps like PhonePe work there). Returns the link id. */
+export async function startBrowserPayment(amountRupees: number, description: string, email?: string | null, name?: string | null): Promise<string> {
+  const { id, url } = await authedPost("/pay/create", { amount: amountRupees, description, email, name });
+  try {
+    const { Browser } = await import("@capacitor/browser");
+    await Browser.open({ url });
+  } catch {
+    window.open(url, "_blank");
+  }
+  return id;
+}
+
+/** Asks the server whether the payment link was paid. */
+export async function checkPayment(linkId: string): Promise<{ paid: boolean; paymentId: string | null; status: string }> {
+  return authedPost("/pay/status", { id: linkId });
+}
+
+/** True when the secure payment server is available. */
+export const hasPaymentServer = !!WORKER;
 
 /** Opens Razorpay checkout. Resolves with the payment id once paid. */
 export async function payForAd(amountRupees: number, description: string, email?: string | null, name?: string | null): Promise<string> {
