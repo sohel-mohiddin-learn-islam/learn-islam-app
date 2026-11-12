@@ -33,7 +33,7 @@ const BOOKS: Book[] = [
 ];
 
 type Sec = { no: string; title: string; first?: number; last?: number };
-type Had = { n: number; text: string; ar?: string; grade?: string; ref?: string; rh?: string };
+type Had = { n: number; text: string; ar?: string; grade?: string; ref?: string; rh?: string; rt?: string };
 type Loaded = { sections: Sec[]; full?: any; offline?: boolean };
 
 const cache = new Map<string, any>();
@@ -61,6 +61,10 @@ function parseSections(j: any): Sec[] {
     .sort((a, b) => Number(a.no) - Number(b.no));
 }
 
+const inSec = (h: any, s: Sec) =>
+  (s.first != null && s.last != null && h.hadithnumber >= s.first && h.hadithnumber <= s.last) ||
+  (h.reference?.book != null && String(h.reference.book) === s.no);
+
 function gradeOf(h: any): string | undefined {
   const g = h?.grades;
   if (!Array.isArray(g) || !g.length) return undefined;
@@ -72,7 +76,7 @@ const toHad = (h: any, arMap?: Map<number, string>): Had => ({
   text: h.text,
   ar: arMap?.get(h.hadithnumber),
   grade: gradeOf(h),
-  ref: h.reference ? `Book ${h.reference.book}, Hadith ${h.reference.hadith}` : undefined,
+  ref: h.reference && h.reference.book ? `Book ${h.reference.book}, Hadith ${h.reference.hadith}` : undefined,
 });
 
 /** hadith bundled in the app (works without internet) */
@@ -84,6 +88,7 @@ function localFor(b: Book): Had[] {
     ar: h.arabic,
     ref: h.source,
     rh: h.romanHindi,
+    rt: (h as any).romanTelugu,
   }));
 }
 
@@ -97,7 +102,13 @@ async function loadBook(b: Book): Promise<Loaded> {
   // 2) the whole book file (bigger, but always has the chapter list)
   try {
     const full = await getJson(`eng-${b.id}.min.json`);
-    const secs = parseSections(full);
+    const hads: any[] = (full?.hadiths || []).filter((h: any) => String(h?.text || "").trim());
+    let secs = parseSections(full).filter((s) => !hads.length || hads.some((h) => inSec(h, s)));
+    if (!secs.length && hads.length) {
+      const seen = new Map<string, number>();
+      hads.forEach((h) => { const b = h.reference?.book; if (b != null && !seen.has(String(b))) seen.set(String(b), 1); });
+      secs = [...seen.keys()].sort((a, b) => Number(a) - Number(b)).map((k) => ({ no: k, title: `Book ${k}` }));
+    }
     if (secs.length) return { sections: secs, full };
     if (full?.hadiths?.length) return { sections: [{ no: "all", title: "All hadith" }], full };
   } catch { /* offline */ }
@@ -111,10 +122,17 @@ async function loadSection(b: Book, data: Loaded, sec: Sec): Promise<Had[]> {
   let en: any[] = [];
   if (data.full) {
     const all: any[] = data.full.hadiths || [];
-    en = sec.no === "all" || sec.first == null ? all : all.filter((h) => h.hadithnumber >= sec.first! && h.hadithnumber <= sec.last!);
+    en = sec.no === "all" ? all : all.filter((h) => inSec(h, sec));
   } else {
     en = (await getJson(`eng-${b.id}/sections/${sec.no}.json`)).hadiths || [];
+    if (!en.some((h) => String(h?.text || "").trim())) {
+      try {
+        const full = await getJson(`eng-${b.id}.min.json`);
+        en = (full.hadiths || []).filter((h: any) => inSec(h, sec));
+      } catch { /* keep what we have */ }
+    }
   }
+  en = en.filter((h) => String(h?.text || "").trim());
   const arMap = new Map<number, string>();
   try {
     const ar = await getJson(`ara-${b.id}/sections/${sec.no}.json`);
@@ -128,14 +146,15 @@ let running = 0;
 const waiting: (() => void)[] = [];
 const slot = () => new Promise<void>((res) => { if (running < 3) { running++; res(); } else waiting.push(() => { running++; res(); }); });
 const free = () => { running--; waiting.shift()?.(); };
-async function toRomanHindi(key: string, text: string): Promise<string> {
-  const k = `rh:${key}`;
+type Lang = "en" | "rh" | "rt";
+async function toRoman(lang: "rh" | "rt", key: string, text: string): Promise<string> {
+  const k = `${lang}:${key}`;
   try { const c = localStorage.getItem(k); if (c) return c; } catch { /* ignore */ }
   if (!WORKER || !auth.currentUser) throw new Error("no server");
   await slot();
   try {
     const t = await auth.currentUser.getIdToken();
-    const r = await fetch(`${WORKER}/translate`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` }, body: JSON.stringify({ text }) });
+    const r = await fetch(`${WORKER}/translate`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${t}` }, body: JSON.stringify({ text, lang: lang === "rt" ? "te" : "hi" }) });
     const j = await r.json();
     if (!r.ok || !j.text) throw new Error(j?.error || "failed");
     try { localStorage.setItem(k, j.text); } catch { /* ignore */ }
@@ -145,17 +164,22 @@ async function toRomanHindi(key: string, text: string): Promise<string> {
 
 const T = {
   en: { all: "All books", read: "Read in", load: "Load more", left: "left", chap: "Chapter", share: "Share", grade: "Grade", empty: "No hadith in this chapter.", err: "Could not load this book. Check your internet and try again.", retry: "Try again", offline: "No internet: showing hadith saved inside the app.", tr: "Translating…" },
+  rt: { all: "Anni pustakalu", read: "Chadavandi", load: "Inka chupinchu", left: "migilindi", chap: "Adhyayam", share: "Share cheyyandi", grade: "Sthayi", empty: "Ee adhyayamlo hadees ledu.", err: "Pustakam load kaaledu. Internet check chesi malli prayatninchandi.", retry: "Malli prayatninchandi", offline: "Internet ledu: app lo saved hadees chupistunnam.", tr: "Roman Telugu loki marchutunnam…" },
   rh: { all: "Saari kitaabein", read: "Padhein", load: "Aur dikhayein", left: "baaki", chap: "Baab", share: "Share karein", grade: "Darja", empty: "Is baab mein koi hadees nahi.", err: "Kitaab load nahi hui. Internet check karke dobara koshish karein.", retry: "Dobara koshish karein", offline: "Internet nahi hai: app mein saved hadees dikha rahe hain.", tr: "Roman Hindi mein ho raha hai…" },
 };
 
-function HadithCard({ h, book, roman, tx, onShare, note }: { h: Had; book: Book; roman: boolean; tx: typeof T.en; onShare: (h: Had) => void; note: string }) {
-  const [rh, setRh] = useState<string | null>(h.rh || null);
+function HadithCard({ h, book, lang, tx, onShare, note }: { h: Had; book: Book; lang: Lang; tx: typeof T.en; onShare: (h: Had) => void; note: string }) {
+  const roman = lang !== "en";
+  const [tr, setTr] = useState<{ rh: string | null; rt: string | null }>({ rh: h.rh || null, rt: h.rt || null });
   const [state, setState] = useState<"" | "loading" | "err">("");
+  const rh = lang === "en" ? null : tr[lang];
   useEffect(() => {
-    if (!roman || rh) return;
+    if (lang === "en" || tr[lang]) { setState(""); return; }
+    let live = true;
     setState("loading");
-    toRomanHindi(`${book.id}:${h.n}`, h.text).then((t) => { setRh(t); setState(""); }).catch(() => setState("err"));
-  }, [roman]);
+    toRoman(lang, `${book.id}:${h.n}`, h.text).then((t) => { if (live) { setTr((o) => ({ ...o, [lang]: t })); setState(""); } }).catch(() => live && setState("err"));
+    return () => { live = false; };
+  }, [lang]);
   return (
     <div className="bg-card border border-border rounded-2xl p-5">
       <div className="flex justify-between text-xs text-muted-foreground mb-3">
@@ -234,8 +258,8 @@ function OpeningBook({ b }: { b: Book }) {
 
 export default function HadithBooks() {
   const { language } = useLanguage();
-  const [roman, setRoman] = useState(language === "roman-hindi");
-  const tx = roman ? T.rh : T.en;
+  const [lang, setLang] = useState<Lang>(language === "roman-hindi" ? "rh" : language === "roman-telugu" ? "rt" : "en");
+  const tx = T[lang];
   const [book, setBook] = useState<Book | null>(null);
   const [data, setData] = useState<Loaded | null>(null);
   const [section, setSection] = useState<Sec | null>(null);
@@ -272,10 +296,10 @@ export default function HadithBooks() {
   };
 
   const langSwitch = (
-    <div className="flex items-center justify-end gap-2 mb-4 text-sm">
+    <div className="flex flex-wrap items-center justify-end gap-2 mb-4 text-sm">
       <span className="text-muted-foreground">{tx.read}:</span>
-      {([["English", false], ["Roman Hindi", true]] as const).map(([label, v]) => (
-        <button key={label} onClick={() => setRoman(v)} className={`px-3 py-1 rounded-full border ${roman === v ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>{label}</button>
+      {([["English", "en"], ["Roman Hindi", "rh"], ["Roman Telugu", "rt"]] as const).map(([label, v]) => (
+        <button key={label} onClick={() => setLang(v)} className={`px-3 py-1 rounded-full border ${lang === v ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>{label}</button>
       ))}
     </div>
   );
@@ -292,7 +316,7 @@ export default function HadithBooks() {
             </motion.button>
           ))}
           <p className="col-span-full text-xs text-muted-foreground italic text-center">
-            Texts are loaded from the free open hadith-api project (fawazahmed0/hadith-api). Roman Hindi is an AI translation of the English text; please check important meanings with a scholar.
+            Texts are loaded from the free open hadith-api project (fawazahmed0/hadith-api). Roman Hindi and Roman Telugu are AI translations of the English text; please check important meanings with a scholar.
           </p>
         </div>
       </>
@@ -339,7 +363,7 @@ export default function HadithBooks() {
       {section && items && (
         <div className="space-y-5">
           {items.slice(0, limit).map((h, i) => (
-            <HadithCard key={`${h.n}-${i}`} h={h} book={book} roman={roman} tx={tx} onShare={share} note={note} />
+            <HadithCard key={`${h.n}-${i}`} h={h} book={book} lang={lang} tx={tx} onShare={share} note={note} />
           ))}
           {items.length === 0 && <p className="text-muted-foreground">{tx.empty}</p>}
           {limit < items.length && (

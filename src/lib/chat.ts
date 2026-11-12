@@ -8,6 +8,7 @@ import {
   query,
   serverTimestamp,
   setDoc,
+  updateDoc,
   where,
   type Unsubscribe,
 } from "firebase/firestore";
@@ -76,6 +77,16 @@ export function watchSettings(me: string, other: string, cb: (s: ChatSettings) =
 /** Merge-updates settings (nested maps are merged, so each person only changes their own entry). */
 export async function updateSettings(me: string, other: string, patch: Record<string, any>) {
   await setDoc(doc(db, "chats", chatIdFor(me, other)), { participants: [me, other], ...patch }, { merge: true });
+}
+
+/** Move a chat between General and Primary for me. Throws on failure. */
+export async function moveChat(me: string, other: string, toGeneral: boolean) {
+  const ref = doc(db, "chats", chatIdFor(me, other));
+  try {
+    await updateDoc(ref, { [`general.${me}`]: toGeneral });
+  } catch {
+    await setDoc(ref, { participants: [me, other], general: { [me]: toGeneral } }, { merge: true });
+  }
 }
 
 export type Message = { id: string; from: string; text: string; createdAt: number; expiresAt?: number };

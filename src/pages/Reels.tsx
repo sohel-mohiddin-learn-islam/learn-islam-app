@@ -458,7 +458,7 @@ export default function Reels() {
       const mine = deviceInfo().country;
       // country-targeted ads only for people in that country; bigger daily budgets appear more often
       const ok = list.filter((a) => a.audience !== "country" || !a.country || a.country === mine);
-      setAds(ok.flatMap((a) => Array(Math.min(5, Math.max(1, Math.floor((a.dailyBudget || 299) / 299)))).fill(a)));
+      setAds(ok.flatMap((a) => Array(Math.min(5, Math.max(1, Math.round((a.dailyBudget || 50) / 50)))).fill(a)));
     }).catch(() => {});
   }, [seed]);
   const scrollRef = useRef<HTMLDivElement>(null);

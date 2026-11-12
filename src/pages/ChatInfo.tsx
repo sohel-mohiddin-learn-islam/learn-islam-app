@@ -3,7 +3,7 @@ import { useLocation, useRoute } from "wouter";
 import { ArrowLeft, Bell, BellOff, Clock, Palette, Search, Shield, Type, UserRound, Users, MoreHorizontal, MessageSquare, Phone, Video } from "lucide-react";
 import { useAuth } from "@/contexts/AuthContext";
 import {
-  DISAPPEAR_OPTIONS, FONTS, THEMES, updateSettings, visibleMessages, watchMessages, watchSettings, previewOf,
+  DISAPPEAR_OPTIONS, FONTS, moveChat, THEMES, updateSettings, visibleMessages, watchMessages, watchSettings, previewOf,
   type ChatSettings, type Message,
 } from "@/lib/chat";
 import { blockUser, getProfile, getRelations, unblockUser, type UserProfile } from "@/lib/social";
@@ -147,7 +147,19 @@ export default function ChatInfo() {
         <div className="px-5">
           <div className="flex items-center justify-between py-2">
             <span>{st.general[me] ? "Move to Primary" : "Move to General"}</span>
-            <button onClick={() => { save({ general: { [me]: !st.general[me] } }); setMsg("Moved."); }} className="px-5 py-2 rounded-xl bg-muted font-semibold">Move</button>
+            <button
+              onClick={async () => {
+                const toGeneral = !st.general[me];
+                try {
+                  await moveChat(me, other, toGeneral);
+                  try { sessionStorage.setItem("inbox-tab", toGeneral ? "general" : "primary"); } catch { /* ignore */ }
+                  setLocation("/messages");
+                } catch (e: any) {
+                  setMsg("Could not move this chat: " + (e?.message || "try again"));
+                }
+              }}
+              className="px-5 py-2 rounded-xl bg-muted font-semibold"
+            >Move</button>
           </div>
           <p className="text-sm text-foreground/60">{name || "They"} won't know they've been moved. You can move them back anytime.</p>
           {msg && <p className="text-sm mt-2 text-primary">{msg}</p>}

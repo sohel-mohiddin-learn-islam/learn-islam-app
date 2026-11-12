@@ -5,9 +5,11 @@ import { checkPayment, createAd, hasPaymentServer, payForAd, setPending, startBr
 import { deviceInfo } from "@/lib/analytics";
 import type { Story } from "@/lib/stories";
 
-export const BOOST_MIN = 299; // rupees per day, the lowest budget
+export const BOOST_MIN = 50;
 export const BOOST_MAX = 5000;
-const GST_RATE = 0.18; // shown on the review screen and added to the payment; set to 0 if you do not charge GST
+// Fixed packages: days -> total price in rupees
+const PACKAGES: Record<number, number> = { 1: 50, 3: 150, 7: 299, 14: 1400, 30: 5000 };
+const GST_RATE = 0; // shown on the review screen and added to the payment; set to 0 if you do not charge GST
 const DAYS = [1, 3, 7, 14, 30];
 
 type Goal = "profile" | "website" | "message";
@@ -25,22 +27,22 @@ export default function BoostStory({ story, ownerName, onClose }: { story: Story
   const [goal, setGoal] = useState<Goal>("profile");
   const [link, setLink] = useState("");
   const [audience, setAudience] = useState<"all" | "country">("all");
-  const [budget, setBudget] = useState(BOOST_MIN);
   const [days, setDays] = useState(3);
+  const budget = Math.round(PACKAGES[days] / days); // per-day figure kept for ad weighting
   const [busy, setBusy] = useState("");
   const [error, setError] = useState("");
   const [done, setDone] = useState(false);
   const stop = useRef(false);
 
   const country = deviceInfo().country;
-  const base = budget * days;
+  const base = PACKAGES[days];
   const gst = Math.round(base * GST_RATE * 100) / 100;
   const total = Math.round(base + gst);
 
   const next = () => {
     setError("");
     if (step === 0 && goal === "website" && !/^https?:\/\//i.test(link.trim())) return setError("Enter your website link, starting with https://");
-    if (step === 2 && (!(budget >= BOOST_MIN) || budget > BOOST_MAX)) return setError(`Daily budget must be between ${rupees(BOOST_MIN)} and ${rupees(BOOST_MAX)}.`);
+    
     setStep((s) => s + 1);
   };
 
@@ -63,7 +65,7 @@ export default function BoostStory({ story, ownerName, onClose }: { story: Story
         return;
       }
       setBusy("Opening payment…");
-      const linkId = await startBrowserPayment(total, `Boost story (${days} days at ${rupees(budget)}/day)`, user.email, user.displayName);
+      const linkId = await startBrowserPayment(total, `Boost story (${days} days)`, user.email, user.displayName);
       setPending({ linkId, form });
       setBusy("Waiting for your payment… finish it in the browser, then come back.");
       const until = Date.now() + 15 * 60 * 1000;
@@ -147,20 +149,23 @@ export default function BoostStory({ story, ownerName, onClose }: { story: Story
           <>
             <p className="text-center text-xl font-semibold my-6">What's your ad budget?</p>
             <div className="flex items-center gap-4 mb-3">
-              <span className="text-xl font-semibold flex-1">Daily budget</span>
-              <span className="text-xl">₹</span>
-              <input
-                inputMode="numeric" value={budget || ""}
-                onChange={(e) => setBudget(Math.min(BOOST_MAX, Number(e.target.value.replace(/\D/g, "")) || 0))}
-                className="w-28 rounded-xl border border-white/30 bg-transparent px-3 py-3 text-lg outline-none"
-              />
+              <span className="text-xl font-semibold flex-1">Total budget</span>
+              <span className="text-2xl font-bold">{rupees(PACKAGES[days])}</span>
             </div>
-            <input type="range" min={BOOST_MIN} max={BOOST_MAX} step={1} value={Math.max(BOOST_MIN, budget)} onChange={(e) => setBudget(Number(e.target.value))} className="w-full accent-sky-500" />
-            <p className="text-sm text-white/50 mt-1">Starts from {rupees(BOOST_MIN)} a day. A bigger budget shows your ad more often.</p>
+            <input
+              type="range" min={BOOST_MIN} max={BOOST_MAX} step={1} value={PACKAGES[days]}
+              onChange={(e) => {
+                const v = Number(e.target.value);
+                const best = DAYS.reduce((p, d) => (Math.abs(PACKAGES[d] - v) < Math.abs(PACKAGES[p] - v) ? d : p), DAYS[0]);
+                setDays(best);
+              }}
+              className="w-full accent-sky-500 transition-all"
+            />
+            <p className="text-sm text-white/50 mt-1">{days} day{days > 1 ? "s" : ""} for {rupees(PACKAGES[days])}. Pick a duration below and the slider moves for you.</p>
             <p className="text-xl font-semibold mt-8 mb-2">Duration</p>
             <div className="flex flex-wrap gap-2">
               {DAYS.map((d) => (
-                <button key={d} onClick={() => setDays(d)} className={`px-4 py-2 rounded-full border ${days === d ? "bg-white text-black border-white" : "border-white/30"}`}>{d} day{d > 1 ? "s" : ""}</button>
+                <button key={d} onClick={() => setDays(d)} className={`px-4 py-2 rounded-full border ${days === d ? "bg-white text-black border-white" : "border-white/30"}`}>{d} day{d > 1 ? "s" : ""} · {rupees(PACKAGES[d])}</button>
               ))}
             </div>
           </>
@@ -172,15 +177,14 @@ export default function BoostStory({ story, ownerName, onClose }: { story: Story
             <div className="space-y-5">
               <div><p className="font-semibold">Goal</p><p className="text-white/60">{goal === "profile" ? `Profile visits to ${ownerName}` : goal === "website" ? `Website visits: ${link}` : "Messages to you"}</p></div>
               <div><p className="font-semibold">Audience</p><p className="text-white/60">{audience === "all" ? "Everyone on Learn Islam" : `People in ${country}`}</p></div>
-              <div><p className="font-semibold">Budget &amp; duration</p><p className="text-white/60">{rupees(budget)} daily | {days} day{days > 1 ? "s" : ""}</p></div>
+              <div><p className="font-semibold">Budget &amp; duration</p><p className="text-white/60">{rupees(PACKAGES[days])} total | {days} day{days > 1 ? "s" : ""}</p></div>
               <div className="flex items-center gap-3">
                 <span className="flex-1 font-semibold">Preview ad</span>
                 {story.type === "video" ? <video src={story.mediaUrl} muted className="w-10 h-14 object-cover rounded" /> : <img src={story.mediaUrl} alt="" className="w-10 h-14 object-cover rounded" />}
               </div>
               <div className="border-t border-white/15 pt-4 space-y-2">
                 <p className="text-xl font-semibold">Payment summary</p>
-                <p className="flex justify-between"><span className="text-white/70">Ad budget ({rupees(budget)} × {days})</span><span>{rupees(base)}</span></p>
-                <p className="flex justify-between"><span className="text-white/70">Estimated GST ({Math.round(GST_RATE * 100)}%)</span><span>{rupees(gst)}</span></p>
+                <p className="flex justify-between"><span className="text-white/70">Ad budget ({days} day{days > 1 ? "s" : ""})</span><span>{rupees(base)}</span></p>
                 <p className="flex justify-between font-semibold text-lg"><span>Total</span><span>{rupees(total)}</span></p>
               </div>
               <p className="text-xs text-white/50">Paid securely with Razorpay (UPI, cards, netbanking). Ads are checked before they run; if yours is rejected, contact support for a refund.</p>

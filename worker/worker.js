@@ -56,12 +56,14 @@ async function ask(req, env) {
 async function translate(req, env) {
   const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
   try { await verifyIdToken(auth, env); } catch { return json({ error: "Please sign in." }, 401); }
-  const { text } = await req.json();
+  const { text, lang } = await req.json();
   const clean = String(text || "").slice(0, 3000);
   if (!clean) return json({ error: "No text." }, 400);
   const out = await env.AI.run("@cf/meta/llama-3.3-70b-instruct-fp8-fast", {
     messages: [
-      { role: "system", content: "You translate English hadith text into Roman Hindi: simple Hindi/Urdu written in English (Latin) letters, as people type on WhatsApp. Keep Arabic terms and names (Allah, salah/namaz, zakat, Rasulullah ﷺ). Be faithful: do not add, remove, explain or comment. Output ONLY the translation, no quotes, no notes, no Arabic script." },
+      { role: "system", content: lang === "te"
+        ? "You translate English hadith text into Roman Telugu: simple Telugu written in English (Latin) letters, as people type on WhatsApp (example: \"Rasulullah ﷺ ila annaru: ...\"). Keep Arabic terms and names (Allah, salah/namaz, zakat, Rasulullah ﷺ). Be faithful: do not add, remove, explain or comment. Output ONLY the translation, no quotes, no notes, no Telugu or Arabic script."
+        : "You translate English hadith text into Roman Hindi: simple Hindi/Urdu written in English (Latin) letters, as people type on WhatsApp. Keep Arabic terms and names (Allah, salah/namaz, zakat, Rasulullah ﷺ). Be faithful: do not add, remove, explain or comment. Output ONLY the translation, no quotes, no notes, no Arabic script." },
       { role: "user", content: clean },
     ],
     max_tokens: 900,

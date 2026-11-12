@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
@@ -6,10 +6,11 @@ import { db } from "@/lib/firebase";
 import { previewOf, timeAgo, watchInbox, type ChatSummary } from "@/lib/chat";
 import { getProfile, getFollowingIds, type UserProfile } from "@/lib/social";
 import { containsHiddenWord } from "@/lib/prefs";
+import { getNaats, type Naat } from "@/lib/storyTools";
 import { watchGroups, type Group } from "@/lib/groups";
 
 type Tab = "primary" | "requests" | "general";
-type Note = { text: string; at: number };
+type Note = { text: string; at: number; naat?: { title: string; url: string } };
 const DAY = 86400000;
 
 export default function Messages() {
@@ -20,7 +21,14 @@ export default function Messages() {
   const [following, setFollowing] = useState<string[]>([]);
   const [notes, setNotes] = useState<Record<string, Note>>({});
   const [error, setError] = useState("");
-  const [tab, setTab] = useState<Tab>("primary");
+  const [tab, setTab] = useState<Tab>(() => {
+    try {
+      const t = sessionStorage.getItem("inbox-tab") as Tab | null;
+      sessionStorage.removeItem("inbox-tab");
+      if (t === "primary" || t === "general" || t === "requests") return t;
+    } catch { /* ignore */ }
+    return "primary";
+  });
   const [unreadOnly, setUnreadOnly] = useState(false);
   const [q, setQ] = useState("");
   const [groups, setGroups] = useState<Group[]>([]);
@@ -33,7 +41,7 @@ export default function Messages() {
       ids.slice(0, 40).map(async (id) => {
         try {
           const d: any = (await getDoc(doc(db, "users", id))).data();
-          if (d?.note && d.noteAt && Date.now() - d.noteAt < DAY) out[id] = { text: d.note, at: d.noteAt };
+          if ((d?.note || d?.noteNaat) && d.noteAt && Date.now() - d.noteAt < DAY) out[id] = { text: d.note || "", at: d.noteAt, naat: d.noteNaat?.url ? d.noteNaat : undefined };
         } catch { /* ignore */ }
       })
     );
@@ -79,7 +87,8 @@ export default function Messages() {
         const iSent = !!c.sentBy[user.uid] || c.lastSender === user.uid;
         const unread = c.lastSender !== user.uid && c.lastAt > (c.lastRead[user.uid] || 0);
         const seen = c.lastSender === user.uid && (c.lastRead[other] || 0) >= c.lastAt;
-        const kind: Tab = c.general?.[user.uid] ? "general" : iFollow ? "primary" : iSent ? "general" : "requests";
+        const g = c.general?.[user.uid];
+        const kind: Tab = g === true ? "general" : g === false ? "primary" : iFollow ? "primary" : iSent ? "general" : "requests";
         return { c, other, unread, seen, kind };
       })
       .filter((r) => r.kind === tab)
@@ -93,7 +102,8 @@ export default function Messages() {
     chats.forEach((c) => {
       const other = c.participants.find((p) => p !== user.uid) || "";
       const iSent = !!c.sentBy[user.uid] || c.lastSender === user.uid;
-      const kind: Tab = c.general?.[user.uid] ? "general" : following.includes(other) ? "primary" : iSent ? "general" : "requests";
+      const g = c.general?.[user.uid];
+      const kind: Tab = g === true ? "general" : g === false ? "primary" : following.includes(other) ? "primary" : iSent ? "general" : "requests";
       if (c.lastSender !== user.uid && c.lastAt > (c.lastRead[user.uid] || 0)) out[kind]++;
     });
     return out;
@@ -106,18 +116,52 @@ export default function Messages() {
 
   const saveNote = async (override?: string) => {
     const t = (override ?? noteText).trim().slice(0, 60);
-    await setDoc(doc(db, "users", user.uid), { note: t, noteAt: t ? Date.now() : 0 }, { merge: true }).catch(() => {});
+    const naat = override === "" ? null : pickedNaat;
+    const empty = !t && !naat;
+    await setDoc(doc(db, "users", user.uid), { note: t, noteNaat: naat ? { title: naat.title, url: naat.url } : null, noteAt: empty ? 0 : Date.now() }, { merge: true }).catch(() => {});
     setNotes((n) => {
       const c = { ...n };
-      if (t) c[user.uid] = { text: t, at: Date.now() };
+      if (!empty) c[user.uid] = { text: t, at: Date.now(), naat: naat ? { title: naat.title, url: naat.url } : undefined };
       else delete c[user.uid];
       return c;
     });
+    stopNaat();
     setEditNote(false);
   };
 
-  const noteBubble = (text: string) => (
-    <span className="absolute -top-1 left-1/2 -translate-x-1/2 max-w-[88px] truncate rounded-xl bg-muted px-2 py-1 text-[11px] shadow">{text}</span>
+  // Naat Sharif on a note: tap the 🎵 on someone's note to listen
+  const [naats, setNaats] = useState<Naat[] | null>(null);
+  const [pickedNaat, setPickedNaat] = useState<Naat | null>(null);
+  const [showNaats, setShowNaats] = useState(false);
+  const [playing, setPlaying] = useState("");
+  const noteAudio = useRef<HTMLAudioElement | null>(null);
+  const stopNaat = () => { noteAudio.current?.pause(); setPlaying(""); };
+  const playNaat = (url: string) => {
+    if (playing === url) return stopNaat();
+    noteAudio.current?.pause();
+    const a = new Audio(url);
+    a.onended = () => setPlaying("");
+    a.play().catch(() => setPlaying(""));
+    noteAudio.current = a;
+    setPlaying(url);
+  };
+  useEffect(() => () => { noteAudio.current?.pause(); }, []);
+  const openNaatPicker = () => {
+    setShowNaats(true);
+    if (naats === null) getNaats().then(setNaats).catch(() => setNaats([]));
+  };
+
+  const noteBubble = (text: string, naat?: { title: string; url: string }) => (
+    <span className="absolute -top-3 left-1/2 -translate-x-1/2 w-[92px] rounded-xl bg-muted px-2 py-1 text-[11px] shadow text-center">
+      {naat && (
+        <span
+          role="button"
+          onClick={(e) => { e.stopPropagation(); playNaat(naat.url); }}
+          className="block truncate text-primary font-semibold"
+        >{playing === naat.url ? "⏸" : "🎵"} {naat.title}</span>
+      )}
+      {text && <span className="block truncate">{text}</span>}
+    </span>
   );
 
   const Chip = ({ t, label }: { t: Tab; label: string }) => (
@@ -147,8 +191,8 @@ export default function Messages() {
 
         {/* Notes row: your note and notes of people you follow (24 hours) */}
         <div className="flex gap-4 overflow-x-auto px-4 pt-8 pb-2">
-          <button onClick={() => { setNoteText(notes[user.uid]?.text || ""); setEditNote(true); }} className="relative flex flex-col items-center shrink-0 w-20">
-            {noteBubble(notes[user.uid]?.text || "Your note")}
+          <button onClick={() => { setNoteText(notes[user.uid]?.text || ""); setPickedNaat(notes[user.uid]?.naat ? ({ id: "cur", title: notes[user.uid].naat!.title, artist: "", url: notes[user.uid].naat!.url, license: "" } as Naat) : null); setShowNaats(false); setEditNote(true); }} className="relative flex flex-col items-center shrink-0 w-20">
+            {notes[user.uid] ? noteBubble(notes[user.uid].text, notes[user.uid].naat) : noteBubble("Your note")}
             <span className="w-16 h-16 rounded-full bg-muted overflow-hidden flex items-center justify-center">
               {user.photoURL ? <img src={user.photoURL} alt="" className="w-full h-full object-cover" /> : "👤"}
             </span>
@@ -156,7 +200,7 @@ export default function Messages() {
           </button>
           {noteIds.map((id) => (
             <button key={id} onClick={() => setLocation(`/chat/${id}`)} className="relative flex flex-col items-center shrink-0 w-20">
-              {noteBubble(notes[id].text)}
+              {noteBubble(notes[id].text, notes[id].naat)}
               <span className="w-16 h-16 rounded-full bg-muted overflow-hidden flex items-center justify-center">
                 {profiles[id]?.photoURL ? <img src={profiles[id].photoURL!} alt="" className="w-full h-full object-cover" /> : "👤"}
               </span>
@@ -224,11 +268,32 @@ export default function Messages() {
       </div>
 
       {editNote && (
-        <div className="fixed inset-0 z-50 bg-black/50 flex items-end" onClick={() => setEditNote(false)}>
-          <div className="w-full bg-background rounded-t-3xl p-5" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 bg-black/50 flex items-end" onClick={() => { stopNaat(); setEditNote(false); }}>
+          <div className="w-full bg-background rounded-t-3xl p-5 max-h-[85%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="font-semibold text-lg mb-1">Share a note</h2>
             <p className="text-sm text-foreground/60 mb-3">Followers see it for 24 hours.</p>
             <input value={noteText} onChange={(e) => setNoteText(e.target.value)} maxLength={60} placeholder="What's on your mind?" className="w-full rounded-lg bg-muted px-3 py-3 mb-3" />
+            {pickedNaat ? (
+              <div className="flex items-center gap-2 rounded-lg bg-primary/10 px-3 py-2 mb-3">
+                <span>🎵</span><span className="flex-1 truncate font-semibold">{pickedNaat.title}</span>
+                <button onClick={() => { setPickedNaat(null); stopNaat(); }} aria-label="Remove Naat">✕</button>
+              </div>
+            ) : (
+              <button onClick={openNaatPicker} className="w-full rounded-lg border border-border py-3 mb-3 font-semibold">🎵 Add Naat Sharif</button>
+            )}
+            {showNaats && !pickedNaat && (
+              <div className="rounded-lg border border-border mb-3 max-h-56 overflow-y-auto divide-y divide-border">
+                {naats === null && <p className="p-3 text-foreground/60">Loading…</p>}
+                {naats?.length === 0 && <p className="p-3 text-foreground/60">No Naats added yet.</p>}
+                {naats?.map((n) => (
+                  <div key={n.id} className="flex items-center gap-2 px-3 py-2">
+                    <button onClick={() => playNaat(n.url)} className="w-9 h-9 rounded-full bg-muted shrink-0">{playing === n.url ? "⏸" : "▶"}</button>
+                    <span className="flex-1 min-w-0"><span className="block truncate font-semibold">{n.title}</span><span className="block truncate text-xs text-foreground/60">{n.artist}</span></span>
+                    <button onClick={() => { setPickedNaat(n); setShowNaats(false); stopNaat(); }} className="text-primary font-semibold">Select</button>
+                  </div>
+                ))}
+              </div>
+            )}
             <div className="flex gap-2">
               {notes[user.uid] && <button onClick={() => saveNote("")} className="flex-1 rounded-lg border border-border py-3">Delete</button>}
               <button onClick={() => saveNote()} className="flex-1 rounded-lg bg-primary text-primary-foreground py-3 font-semibold">Share</button>
