@@ -14,6 +14,8 @@ import { Plus } from "lucide-react";
 import { getActiveAds, type Ad } from "@/lib/ads";
 import { deviceInfo } from "@/lib/analytics";
 
+import CollectionSheet from "@/components/CollectionSheet";
+import { savePostCloud, unsavePostCloud } from "@/lib/collections";
 import { deletePost, getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
 
 type Reel = {
@@ -41,6 +43,10 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
   const [counts, setCounts] = useState<ReelCounts>({ likes: 0, comments: 0, shares: 0, saves: 0 });
   const [menu, setMenu] = useState(false);
   const [showShare, setShowShare] = useState(false);
+  const [showCols, setShowCols] = useState(false);
+  const [saveToast, setSaveToast] = useState(false);
+  const holdSave = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const heldSave = useRef(false);
   const viewTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const isCommunity = !reel.id.startsWith("local-");
   const videoRef = useRef<HTMLVideoElement>(null);
@@ -325,11 +331,17 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
 
         {isCommunity && (
           <button
+            onPointerDown={() => { heldSave.current = false; holdSave.current = setTimeout(() => { heldSave.current = true; if (user) { if (!saved) { toggleSaved(reel.id); savePostCloud(user.uid, reel.id).catch(() => {}); } setShowCols(true); } }, 450); }}
+            onPointerUp={() => { if (holdSave.current) clearTimeout(holdSave.current); }}
+            onPointerLeave={() => { if (holdSave.current) clearTimeout(holdSave.current); }}
             onClick={() => {
+              if (heldSave.current) return;
               const next = toggleSaved(reel.id);
               if (user) {
                 setSaveMarker(reel.id, user.uid, next);
                 setCounts((c) => ({ ...c, saves: Math.max(0, c.saves + (next ? 1 : -1)) }));
+                if (next) { savePostCloud(user.uid, reel.id).catch(() => {}); setSaveToast(true); setTimeout(() => setSaveToast(false), 3500); }
+                else { unsavePostCloud(user.uid, reel.id).catch(() => {}); setSaveToast(false); }
               }
             }}
             className="flex flex-col items-center"
@@ -365,6 +377,13 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
         )}
       </div>
 
+      {saveToast && (
+        <div className="absolute bottom-24 left-3 right-3 z-30 flex items-center justify-between rounded-xl bg-black/80 text-white px-4 py-3 text-sm">
+          <span>Saved</span>
+          <button onClick={() => { setSaveToast(false); setShowCols(true); }} className="font-semibold text-sky-400">Add to collection</button>
+        </div>
+      )}
+      {showCols && <CollectionSheet postId={reel.id} onClose={() => setShowCols(false)} onUnsaved={() => { if (user) setSaveMarker(reel.id, user.uid, false); }} />}
       {showShare && (
         <ShareSheet
           reel={reel}

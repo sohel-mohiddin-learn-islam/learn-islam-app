@@ -66,6 +66,14 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if signedIn() && request.auth.uid == uid;
 
+      // Saved posts and collections: private to the owner
+      match /saved/{postId} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+      match /collections/{cid} {
+        allow read, write: if signedIn() && request.auth.uid == uid;
+      }
+
       // Stories: everyone can see a public account's stories; a private account's only its owner and followers
       match /stories/{storyId} {
         allow read: if signedIn() && (request.auth.uid == uid ||

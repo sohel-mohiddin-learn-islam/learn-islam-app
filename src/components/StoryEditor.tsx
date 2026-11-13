@@ -124,6 +124,22 @@ export default function StoryEditor({
     <button onClick={() => setPanel(p)} aria-label={label} className="w-12 h-12 rounded-full bg-black/55 text-white text-xl flex items-center justify-center">{icon}</button>
   );
 
+  // sound while editing: the video's own sound (unless music is picked) and the picked Naat / audio
+  const [soundOff, setSoundOff] = useState(false);
+  const stageAudio = useRef<HTMLAudioElement | null>(null);
+  useEffect(() => {
+    stageAudio.current?.pause();
+    stageAudio.current = null;
+    if (!audio || panel === "music" || soundOff) return;
+    const src = audio.url || (audio.file ? URL.createObjectURL(audio.file) : "");
+    if (!src) return;
+    const a = new Audio(src);
+    a.loop = true;
+    a.play().catch(() => {});
+    stageAudio.current = a;
+    return () => { a.pause(); if (!audio.url) URL.revokeObjectURL(src); };
+  }, [audio, panel, soundOff]);
+
   const playPreview = (n: Naat) => {
     if (preview === n.id) { previewAudio.current?.pause(); setPreview(""); return; }
     previewAudio.current?.pause();
@@ -151,7 +167,7 @@ export default function StoryEditor({
           onPointerDown={() => setSel(null)}
         >
           {type === "video" ? (
-            <video src={previewUrl} className="absolute inset-0 w-full h-full object-cover" autoPlay muted loop playsInline />
+            <video src={previewUrl} className="absolute inset-0 w-full h-full object-cover" autoPlay muted={!!audio || soundOff} loop playsInline />
           ) : (
             <img src={previewUrl} alt="" className="absolute inset-0 w-full h-full object-cover" />
           )}
@@ -172,6 +188,7 @@ export default function StoryEditor({
             );
           })}
 
+          <button onClick={() => setSoundOff((v) => !v)} aria-label="Sound" className="absolute top-3 left-3 z-20 w-10 h-10 rounded-full bg-black/55 text-white text-lg flex items-center justify-center">{soundOff ? "🔇" : "🔊"}</button>
           {audio && (
             <div className="absolute bottom-3 left-3 right-3 bg-black/60 rounded-full px-4 py-2 text-sm flex items-center gap-2">
               <span>🎵</span><span className="flex-1 truncate">{audio.title}</span>

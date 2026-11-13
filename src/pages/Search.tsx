@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { collection, doc, getDoc, getDocs, limit, query, where } from "firebase/firestore";
 import { db } from "@/lib/firebase";
@@ -43,6 +43,22 @@ export default function Search() {
   const [allPosts, setAllPosts] = useState<any[] | null>(null);
   const [priv, setPriv] = useState<string[]>([]);
   const [following, setFollowing] = useState<string[]>([]);
+  const [privOwners, setPrivOwners] = useState<string[]>([]);
+
+  // explore feed shown before anything is typed
+  useEffect(() => {
+    if (!allPosts) return;
+    const owners = Array.from(new Set(allPosts.map((p: any) => p.userId).filter(Boolean))).slice(0, 80) as string[];
+    Promise.all(owners.map(async (id) => {
+      try { return ((await getDoc(doc(db, "users", id))).data() as any)?.isPrivate ? id : ""; } catch { return ""; }
+    })).then((r) => setPrivOwners(r.filter(Boolean)));
+  }, [allPosts]);
+  const feed = useMemo(() => {
+    const ok = (allPosts || []).filter((p: any) => !p.archived && postThumbnail(p) && (!privOwners.includes(p.userId) || p.userId === user?.uid || following.includes(p.userId)));
+    // light shuffle so the feed does not look the same each time, newest still preferred
+    return ok.slice(0, 60).map((p: any, i: number) => ({ p, k: i + Math.random() * 12 })).sort((a, b) => a.k - b.k).map((x) => x.p);
+  }, [allPosts, privOwners, following, user?.uid]);
+  const openReel = (id: string) => { try { sessionStorage.setItem("reel-start", id); } catch { /* ignore */ } setLocation("/reels"); };
 
   useEffect(() => {
     getPosts().then((p) => setAllPosts(p as any[])).catch(() => setAllPosts([]));
@@ -85,14 +101,30 @@ export default function Search() {
           <button onClick={() => window.history.back()} className="text-2xl" aria-label="Back">←</button>
           <div className="flex-1 flex items-center gap-2 rounded-full bg-muted px-4 py-2.5">
             <span>🔍</span>
-            <input autoFocus value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search people, captions or #hashtags" className="flex-1 bg-transparent outline-none" />
+            <input value={q} onChange={(e) => setQ(e.target.value)} placeholder="Search people, captions or #hashtags" className="flex-1 bg-transparent outline-none" />
             {q && <button onClick={() => setQ("")} aria-label="Clear">✕</button>}
           </div>
         </div>
 
-        <div className="flex border-b border-border">{tabBtn("people", "People")}{tabBtn("reels", "Reels")}</div>
+        {q.trim() && <div className="flex border-b border-border">{tabBtn("people", "People")}{tabBtn("reels", "Reels")}</div>}
 
-        {!q.trim() && <p className="p-6 text-foreground/60">Type a name to find someone, or a word or #hashtag to find reels.</p>}
+        {!q.trim() && (
+          <>
+            {allPosts === null && <p className="p-6 text-foreground/60">Loading…</p>}
+            {allPosts && feed.length === 0 && <p className="p-6 text-foreground/60">Nothing to explore yet. Search for a person or #hashtag above.</p>}
+            <div className="grid grid-cols-3 gap-0.5" style={{ containerType: "inline-size", gridAutoRows: "calc(33.333cqw - 1px)", gridAutoFlow: "dense" }}>
+              {feed.map((p: any, i: number) => {
+                const big = i % 10 === 2;
+                return (
+                  <button key={p.id} onClick={() => openReel(p.id)} className={`relative bg-muted overflow-hidden ${big ? "col-span-2 row-span-2" : ""}`}>
+                    <img src={postThumbnail(p)} alt="" loading="lazy" className="w-full h-full object-cover" />
+                    <span className="absolute top-1 right-1 text-white text-xs drop-shadow">▶</span>
+                  </button>
+                );
+              })}
+            </div>
+          </>
+        )}
         {busy && <p className="px-6 py-3 text-foreground/50 text-sm">Searching…</p>}
 
         {tab === "people" && q.trim() && !busy && people.length === 0 && (

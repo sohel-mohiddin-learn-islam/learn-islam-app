@@ -156,6 +156,12 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
                     if (v.duration) setProgress(v.currentTime / v.duration);
                   }}
                   onEnded={next}
+                  onLoadedData={(e) => {
+                    const v = e.currentTarget;
+                    if (hasAudio) return;
+                    v.muted = false;
+                    v.play().catch(() => { v.muted = true; v.play().catch(() => {}); });
+                  }}
                 />
               ) : (
                 <img key={story.id} src={story.mediaUrl} alt="" className={designed ? `absolute inset-0 w-full h-full ${fit}` : "max-w-full max-h-full object-contain"} />

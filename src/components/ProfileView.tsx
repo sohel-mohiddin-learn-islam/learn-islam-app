@@ -1,3 +1,4 @@
+import { ISLAMIC_AVATARS } from "@/data/avatars";
 import { shareContent } from "@/lib/share";
 import UnreadDot from "@/components/UnreadDot";
 import { useEffect, useMemo, useState } from "react";
@@ -527,8 +528,7 @@ export default function ProfileView({ uid }: { uid: string }) {
             </div>
             <p className="text-xs uppercase text-foreground/60 mb-1">Or pick an avatar</p>
             <div className="flex gap-2 overflow-x-auto mb-4">
-              {["Aisha", "Bilal", "Zaid", "Maryam", "Yusuf", "Hana", "Omar", "Layla"].map((seed) => {
-                const url = `https://api.dicebear.com/9.x/adventurer/png?seed=${seed}&size=128`;
+              {ISLAMIC_AVATARS.map(({ name: seed, url }) => {
                 return (
                   <button
                     key={seed}
