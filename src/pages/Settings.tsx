@@ -487,7 +487,7 @@ export default function Settings() {
               <Row icon="👥" label="Follow requests" onClick={() => setLocation("/follow-requests")} />
               <Row icon="🔔" label="Notifications" onClick={() => setLocation("/notifications")} />
               <Row icon="⏰" label="Reminders (Jumu'ah, Ramadan)" onClick={() => setView("reminders")} />
-              <Row icon="✅" label="Get green tick (₹0)" onClick={() => setLocation("/verify")} />
+              <Row icon="✅" label="Get green tick (₹1)" onClick={() => setLocation("/verify")} />
               <Row icon="📑" label="Saved" value={prefs.saved.length ? String(prefs.saved.length) : ""} onClick={() => setLocation("/saved")} />
               <Row icon="🗂" label="Archive" onClick={() => setView("archive")} />
               <Row icon="📈" label="Your activity" onClick={() => setView("activity")} />
