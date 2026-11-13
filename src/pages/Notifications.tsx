@@ -1,3 +1,4 @@
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -116,7 +117,7 @@ export default function Notifications() {
                         {p?.photoURL ? <img src={p.photoURL} alt="" className="w-full h-full object-cover" /> : "👤"}
                       </span>
                       <span className="flex-1 min-w-0 text-sm">
-                        <b>{p?.displayName || "Someone"}</b> {sentence(n)} <span className="text-foreground/50">{ago(n.createdAt)}</span>
+                        <b>{p?.displayName || "Someone"}</b><VerifiedBadge size={13} /> {sentence(n)} <span className="text-foreground/50">{ago(n.createdAt)}</span>
                       </span>
                       {n.type === "follow" && following[n.fromId] === false && (
                         <button

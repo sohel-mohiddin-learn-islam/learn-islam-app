@@ -1,3 +1,4 @@
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { doc, getDoc, setDoc } from "firebase/firestore";
@@ -177,7 +178,7 @@ export default function Messages() {
       <div className="max-w-lg mx-auto pb-10">
         <div className="flex items-center gap-4 px-4 py-4 sticky top-0 bg-background z-10">
           <button onClick={() => window.history.back()} className="text-2xl" aria-label="Back">←</button>
-          <h1 className="text-lg font-semibold flex-1 truncate">{user.displayName || "Messages"}</h1>
+          <h1 className="text-lg font-semibold flex-1 truncate">{user.displayName || "Messages"}<VerifiedBadge /></h1>
           <button onClick={() => setLocation("/group/new")} aria-label="New group" className="text-xl">👥</button>
           <button onClick={() => setLocation("/dashboard")} aria-label="Dashboard" className="text-xl">📈</button>
         </div>
@@ -254,7 +255,7 @@ export default function Messages() {
                 {pr?.photoURL ? <img src={pr.photoURL} alt="" className="w-full h-full object-cover" /> : "👤"}
               </span>
               <span className="flex-1 min-w-0">
-                <span className={`block truncate ${unread ? "font-bold" : "font-semibold"}`}>{pr?.displayName || "…"}</span>
+                <span className={`block truncate ${unread ? "font-bold" : "font-semibold"}`}>{pr?.displayName || "…"}<VerifiedBadge size={14} /></span>
                 <span className={`block text-sm truncate ${unread ? "text-foreground font-semibold" : "text-foreground/60"}`}>
                   {c.lastSender === user.uid ? (seen ? "Seen" : "Sent") : preview}
                   {c.lastSender === user.uid && <> · {preview}</>}

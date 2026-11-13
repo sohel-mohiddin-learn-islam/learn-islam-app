@@ -1,3 +1,4 @@
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { ISLAMIC_AVATARS } from "@/data/avatars";
 import { shareContent } from "@/lib/share";
 import UnreadDot from "@/components/UnreadDot";
@@ -84,7 +85,7 @@ function PeopleList({ ids, empty, onRemove }: { ids: string[]; empty: string; on
           className="w-full cursor-pointer flex items-center gap-3 p-2 rounded-lg hover:bg-muted text-left"
         >
           <Avatar src={p.photoURL} size={44} />
-          <span className="font-sans text-foreground flex-1">{p.displayName}</span>
+          <span className="font-sans text-foreground flex-1">{p.displayName}<VerifiedBadge size={14} /></span>
           {onRemove && (
             <span
               role="button"
@@ -409,7 +410,7 @@ export default function ProfileView({ uid }: { uid: string }) {
         </div>
 
         <div className="mt-3">
-          <p className="font-semibold">{profile.displayName}</p>
+          <p className="font-semibold">{profile.displayName}<VerifiedBadge /></p>
           {profile.bio && <p className="text-sm whitespace-pre-line mt-1">{profile.bio}</p>}
           {profile.link && (
             <a

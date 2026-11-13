@@ -1,3 +1,4 @@
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { useBackClose } from "@/lib/backButton";
 import { useEffect, useState } from "react";
 import {
@@ -96,7 +97,7 @@ export default function CommentsSheet({
           {visible.map((c) => (
             <div key={c.id} className="py-2 flex gap-2">
               <div className="flex-1">
-                <span className="font-semibold mr-2">{c.userName}</span>
+                <span className="font-semibold mr-2">{c.userName}<VerifiedBadge size={13} /></span>
                 <span>{c.text}</span>
               </div>
               {user && (c.userId === user.uid || postOwnerId === user.uid) && (

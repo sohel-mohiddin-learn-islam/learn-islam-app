@@ -1,3 +1,4 @@
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -128,7 +129,7 @@ export default function Chat() {
           <span className="w-9 h-9 rounded-full bg-muted overflow-hidden flex items-center justify-center">
             {profile?.photoURL ? <img src={profile.photoURL} alt="" className="w-full h-full object-cover" /> : "👤"}
           </span>
-          <span className="font-semibold">{title}</span>
+          <span className="font-semibold">{title}<VerifiedBadge size={14} /></span>
         </button>
         <span className="ml-auto flex items-center gap-4 text-xl">
           <button onClick={() => startCall(other, "audio")} aria-label="Voice call">📞</button>

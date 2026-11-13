@@ -1,3 +1,4 @@
+import VerifiedBadge from "@/components/VerifiedBadge";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -270,7 +271,7 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
                 className="font-semibold cursor-pointer"
                 onClick={() => reel.userId && setLocation(`/user/${reel.userId}`)}
               >
-                @{reel.userName}
+                @{reel.userName}<VerifiedBadge size={15} />
               </p>
               {user && reel.userId && !isOwn && !followingIds.includes(reel.userId) && (
                 <button
