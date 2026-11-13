@@ -5,6 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import NotificationWatcher from "@/components/NotificationWatcher";
 import CallManager from "@/components/CallManager";
 import UnreadDot from "@/components/UnreadDot";
+import InstallHint from "@/components/InstallHint";
 import { Search as SearchIcon, Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun, Sparkles } from "lucide-react";
 
 const bottomNav = [
@@ -54,6 +55,7 @@ export function Layout({ children }: LayoutProps) {
 
   return (
     <div className="flex flex-col h-screen bg-background overflow-hidden">
+      <InstallHint />
       {/* Top Bar */}
       <header className="flex items-center justify-between px-4 py-3 bg-card border-b border-border shrink-0">
         <div className="flex items-center gap-2">

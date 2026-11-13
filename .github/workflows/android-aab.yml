@@ -1,0 +1,54 @@
+name: Build Play Store bundle (AAB)
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  aab:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - uses: actions/setup-java@v4
+        with:
+          distribution: temurin
+          java-version: 21
+      - run: npm install --no-audit --no-fund
+      - name: Build web app for the phone (served from / inside the app)
+        env:
+          VITE_MEDIA_BASE: https://sohel-mohiddin-learn-islam.github.io/learn-islam-app/
+          VITE_AI_TUTOR_ENDPOINT: ${{ vars.AI_ENDPOINT }}
+        run: |
+          npx vite build --config vite.config.ts --base=/
+          # keep the APK small: the big intro/reel videos stream from the website
+          rm -f dist/*.mp4
+      - run: npx cap sync android
+      - name: Prepare Gradle for Capacitor 8 (CI only)
+        working-directory: android
+        run: |
+          sed -i '/org.gradle.java.home/d' gradle.properties
+          sed -i 's#gradle-8.0.2-all.zip#gradle-8.14.3-all.zip#' gradle/wrapper/gradle-wrapper.properties
+          sed -i "s#com.android.tools.build:gradle:8.0.0#com.android.tools.build:gradle:8.13.0#; s#google-services:4.3.15#google-services:4.4.4#" build.gradle
+          sed -i "s#minSdkVersion = 22#minSdkVersion = 24#; s#compileSdkVersion = 33#compileSdkVersion = 36#; s#targetSdkVersion = 33#targetSdkVersion = 36#; s#androidxActivityVersion = '1.7.0'#androidxActivityVersion = '1.11.0'#; s#androidxAppCompatVersion = '1.6.1'#androidxAppCompatVersion = '1.7.1'#; s#androidxCoordinatorLayoutVersion = '1.2.0'#androidxCoordinatorLayoutVersion = '1.3.0'#; s#androidxCoreVersion = '1.10.0'#androidxCoreVersion = '1.17.0'#; s#androidxFragmentVersion = '1.5.6'#androidxFragmentVersion = '1.8.9'#; s#coreSplashScreenVersion = '1.0.0'#coreSplashScreenVersion = '1.2.0'#; s#androidxWebkitVersion = '1.6.1'#androidxWebkitVersion = '1.14.0'#" variables.gradle
+      - name: Give every build a higher version number so it installs as an update
+        run: sed -i "s/versionCode 1$/versionCode ${{ github.run_number }}/" android/app/build.gradle
+      - name: Build release bundle and sign it (upload key)
+        working-directory: android
+        run: |
+          chmod +x gradlew
+          ./gradlew bundleRelease --no-daemon
+          AAB="$(find app/build/outputs/bundle/release -name '*.aab' | head -1)"
+          cp "$AAB" ../learn-islam.aab
+          jarsigner -keystore ci-debug.keystore -storepass android -keypass android -sigalg SHA256withRSA -digestalg SHA-256 ../learn-islam.aab androiddebugkey
+      - name: Publish AAB to the apk-latest release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          gh release view apk-latest >/dev/null 2>&1 || gh release create apk-latest --title "Latest APK" --notes "Auto-built"
+          gh release upload apk-latest learn-islam.aab --clobber
