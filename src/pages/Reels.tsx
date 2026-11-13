@@ -271,7 +271,7 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
                 className="font-semibold cursor-pointer"
                 onClick={() => reel.userId && setLocation(`/user/${reel.userId}`)}
               >
-                @{reel.userName}<VerifiedBadge size={15} />
+                @{reel.userName}<VerifiedBadge uid={reel.userId} size={15} />
               </p>
               {user && reel.userId && !isOwn && !followingIds.includes(reel.userId) && (
                 <button

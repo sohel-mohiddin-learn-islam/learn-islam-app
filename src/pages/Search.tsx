@@ -137,7 +137,7 @@ export default function Search() {
               {p.photo ? <img src={p.photo} alt="" className="w-full h-full object-cover" /> : "👤"}
             </span>
             <span className="min-w-0">
-              <span className="block font-semibold truncate">{p.name}<VerifiedBadge size={14} /></span>
+              <span className="block font-semibold truncate">{p.name}<VerifiedBadge uid={p.uid} size={14} /></span>
               {p.bio && <span className="block text-sm text-foreground/60 truncate">{p.bio}</span>}
             </span>
           </button>

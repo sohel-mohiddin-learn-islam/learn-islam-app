@@ -123,7 +123,7 @@ export default function StoryViewer({ ownerName, stories: initial, onClose, onCh
         </div>
         <div className="flex items-center justify-between mt-3 text-white">
           <span className="font-semibold drop-shadow">
-            {ownerName}<VerifiedBadge size={14} /> {story.closeOnly && <span className="text-xs bg-green-600 rounded px-1.5 py-0.5 ml-1">Close friends</span>}
+            {ownerName}<VerifiedBadge uid={story?.ownerId} size={14} /> {story.closeOnly && <span className="text-xs bg-green-600 rounded px-1.5 py-0.5 ml-1">Close friends</span>}
           </span>
           <div className="flex items-center gap-4">
             {onDeleteAll && <button onClick={() => { if (confirm("Delete this highlight?")) { onDeleteAll(); onClose(); } }} aria-label="Delete highlight" className="text-xl">🗑</button>}

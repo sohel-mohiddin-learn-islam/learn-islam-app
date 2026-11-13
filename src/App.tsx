@@ -1,4 +1,5 @@
 import Saved from "@/pages/Saved";
+import Verify from "@/pages/Verify";
 import { lazy, Suspense, useEffect, useState } from 'react';
 import { Switch, Route, Router as WouterRouter } from "wouter";
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
@@ -128,6 +129,7 @@ function Router() {
           <Route path="/notifications" component={Notifications}/>
           <Route path="/search" component={Search}/>
           <Route path="/saved" component={Saved}/>
+          <Route path="/verify" component={Verify}/>
           <Route path="/follow-requests" component={FollowRequests}/>
           <Route path="/ads" component={Ads}/>
           <Route path="/dashboard" component={Dashboard}/>
