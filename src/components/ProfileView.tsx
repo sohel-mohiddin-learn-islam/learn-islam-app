@@ -1,5 +1,4 @@
 import ProfilePic from "@/components/ProfilePic";
-import AvatarMaker from "@/components/AvatarMaker";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { ISLAMIC_AVATARS } from "@/data/avatars";
 import { shareContent } from "@/lib/share";
@@ -129,7 +128,7 @@ export default function ProfileView({ uid }: { uid: string }) {
   const [eAge, setEAge] = useState("");
 
   const [editing, setEditing] = useState(false);
-  const [makeAvatar, setMakeAvatar] = useState(false);
+  const [eAvatar, setEAvatar] = useState<string>("");
   const [eName, setEName] = useState("");
   const [eBio, setEBio] = useState("");
   const [eLink, setELink] = useState("");
@@ -253,6 +252,7 @@ export default function ProfileView({ uid }: { uid: string }) {
     setEPhoto(null);
     setEPhotoPreview(null);
     setEPhotoUrl(null);
+    setEAvatar(profile.avatarPic || (profile.photoURL && profile.photoURL.includes("/avatars/") ? profile.photoURL : ""));
     setError("");
     if (user) {
       getDoc(doc(db, "users", user.uid)).then((s) => {
@@ -281,11 +281,11 @@ export default function ProfileView({ uid }: { uid: string }) {
       else if (ePhotoUrl) photoURL = ePhotoUrl;
       const displayName = eName.trim() || profile.displayName;
       await saveProfile(user.uid, { displayName, bio: eBio.trim(), link: eLink.trim(), photoURL });
-      await setDoc(doc(db, "users", user.uid), { gender: eGender, ageRange: eAge }, { merge: true });
+      await setDoc(doc(db, "users", user.uid), { gender: eGender, ageRange: eAge, avatarPic: eAvatar || null }, { merge: true });
       if (auth.currentUser) {
         await updateProfile(auth.currentUser, { displayName, photoURL: photoURL || undefined }).catch(() => {});
       }
-      setProfile({ ...profile, displayName, bio: eBio.trim(), link: eLink.trim(), photoURL });
+      setProfile({ ...profile, displayName, bio: eBio.trim(), link: eLink.trim(), photoURL, avatarPic: eAvatar || undefined });
       setEditing(false);
     } catch (e: any) {
       console.error(e);
@@ -400,7 +400,7 @@ export default function ProfileView({ uid }: { uid: string }) {
         <div className="flex items-center gap-5">
           <ProfilePic
             photoURL={profile.photoURL}
-            avatar={profile.avatarArt}
+            avatarPic={profile.avatarPic}
             size={84}
             onTap={() => stories.length && setViewStories(true)}
             ring={stories.length ? (hasUnseen(uid, Math.max(...stories.map((s) => s.createdAt))) ? "bg-emerald-500" : "bg-border") : ""}
@@ -520,9 +520,6 @@ export default function ProfileView({ uid }: { uid: string }) {
         />
       )}
 
-      {makeAvatar && user && (
-        <AvatarMaker uid={user.uid} initial={profile.avatarArt} onClose={() => setMakeAvatar(false)} onSaved={(c) => setProfile((p) => (p ? { ...p, avatarArt: c || undefined } : p))} />
-      )}
       {editing && (
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-end sm:items-center justify-center">
           <div className="w-full max-w-lg bg-background rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto font-sans">
@@ -534,21 +531,15 @@ export default function ProfileView({ uid }: { uid: string }) {
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(e.target.files?.[0])} />
               </label>
             </div>
-            <button onClick={() => setMakeAvatar(true)} className="w-full mb-4 rounded-xl border border-primary text-primary font-semibold py-2.5">
-              {profile.avatarArt ? "Edit your avatar" : "Create your avatar"}
-            </button>
-            <p className="text-xs uppercase text-foreground/60 mb-1">Or pick a picture</p>
+            <p className="text-xs uppercase text-foreground/60 mb-1">Avatar</p>
+            <p className="text-[11px] text-foreground/50 mb-2">Pick one and your profile picture switches between your photo and this avatar. Tap it again to remove.</p>
             <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto mb-1 pr-1">
               {ISLAMIC_AVATARS.map(({ name: seed, url }) => {
                 return (
                   <button
                     key={seed}
-                    onClick={() => {
-                      setEPhoto(null);
-                      setEPhotoPreview(null);
-                      setEPhotoUrl(url);
-                    }}
-                    className={`rounded-full ${ePhotoUrl === url ? "ring-2 ring-primary" : ""}`}
+                    onClick={() => setEAvatar((cur) => (cur === url ? "" : url))}
+                    className={`rounded-full ${eAvatar === url ? "ring-2 ring-primary" : ""}`}
                   >
                     <img src={url} alt={seed} loading="lazy" className="w-full aspect-square rounded-full bg-muted object-cover" />
                   </button>
