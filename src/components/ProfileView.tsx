@@ -528,7 +528,7 @@ export default function ProfileView({ uid }: { uid: string }) {
               </label>
             </div>
             <p className="text-xs uppercase text-foreground/60 mb-1">Or pick an avatar</p>
-            <div className="flex gap-2 overflow-x-auto mb-4">
+            <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto mb-1 pr-1">
               {ISLAMIC_AVATARS.map(({ name: seed, url }) => {
                 return (
                   <button
@@ -538,13 +538,14 @@ export default function ProfileView({ uid }: { uid: string }) {
                       setEPhotoPreview(null);
                       setEPhotoUrl(url);
                     }}
-                    className={`shrink-0 rounded-full ${ePhotoUrl === url ? "ring-2 ring-primary" : ""}`}
+                    className={`rounded-full ${ePhotoUrl === url ? "ring-2 ring-primary" : ""}`}
                   >
-                    <img src={url} alt={seed} className="w-12 h-12 rounded-full bg-muted" />
+                    <img src={url} alt={seed} loading="lazy" className="w-full aspect-square rounded-full bg-muted object-cover" />
                   </button>
                 );
               })}
             </div>
+            <p className="text-[10px] text-foreground/50 mb-4">Avatar art: Vecteezy / Freepik.</p>
             <label className="text-xs uppercase text-foreground/60">Name</label>
             <input value={eName} onChange={(e) => setEName(e.target.value)} className="w-full bg-muted border border-border rounded-lg py-2 px-3 mb-3" />
             <label className="text-xs uppercase text-foreground/60">Bio</label>
