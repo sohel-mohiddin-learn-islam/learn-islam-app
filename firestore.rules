@@ -66,6 +66,13 @@ service cloud.firestore {
       allow read: if signedIn();
       allow write: if signedIn() && request.auth.uid == uid;
 
+      // Likes on a note: anyone signed in can like or unlike as themselves; the note owner can clear them
+      match /noteLikes/{likerId} {
+        allow read: if signedIn();
+        allow create, update: if signedIn() && request.auth.uid == likerId;
+        allow delete: if signedIn() && (request.auth.uid == likerId || request.auth.uid == uid);
+      }
+
       // Saved posts and collections: private to the owner
       match /saved/{postId} {
         allow read, write: if signedIn() && request.auth.uid == uid;

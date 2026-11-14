@@ -1,7 +1,8 @@
+import NoteSheet from "@/components/NoteSheet";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { collection, deleteDoc, doc, getDoc, getDocs, setDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { previewOf, timeAgo, watchInbox, type ChatSummary } from "@/lib/chat";
@@ -34,6 +35,7 @@ export default function Messages() {
   const [q, setQ] = useState("");
   const [groups, setGroups] = useState<Group[]>([]);
   const [editNote, setEditNote] = useState(false);
+  const [viewNote, setViewNote] = useState<string | null>(null);
   const [noteText, setNoteText] = useState("");
 
   const loadNotes = async (ids: string[]) => {
@@ -126,6 +128,7 @@ export default function Messages() {
       else delete c[user.uid];
       return c;
     });
+    getDocs(collection(db, "users", user.uid, "noteLikes")).then((s) => s.docs.forEach((d) => deleteDoc(d.ref).catch(() => {}))).catch(() => {});
     stopNaat();
     setEditNote(false);
   };
@@ -192,7 +195,7 @@ export default function Messages() {
 
         {/* Notes row: your note and notes of people you follow (24 hours) */}
         <div className="flex gap-4 overflow-x-auto px-4 pt-8 pb-2">
-          <button onClick={() => { setNoteText(notes[user.uid]?.text || ""); setPickedNaat(notes[user.uid]?.naat ? ({ id: "cur", title: notes[user.uid].naat!.title, artist: "", url: notes[user.uid].naat!.url, license: "" } as Naat) : null); setShowNaats(false); setEditNote(true); }} className="relative flex flex-col items-center shrink-0 w-20">
+          <button onClick={() => { if (notes[user.uid]) { setViewNote(user.uid); return; } setNoteText(notes[user.uid]?.text || ""); setPickedNaat(notes[user.uid]?.naat ? ({ id: "cur", title: notes[user.uid].naat!.title, artist: "", url: notes[user.uid].naat!.url, license: "" } as Naat) : null); setShowNaats(false); setEditNote(true); }} className="relative flex flex-col items-center shrink-0 w-20">
             {notes[user.uid] ? noteBubble(notes[user.uid].text, notes[user.uid].naat) : noteBubble("Your note")}
             <span className="w-16 h-16 rounded-full bg-muted overflow-hidden flex items-center justify-center">
               {user.photoURL ? <img src={user.photoURL} alt="" className="w-full h-full object-cover" /> : "👤"}
@@ -200,7 +203,7 @@ export default function Messages() {
             <span className="text-xs mt-1 text-foreground/60">Your note</span>
           </button>
           {noteIds.map((id) => (
-            <button key={id} onClick={() => setLocation(`/chat/${id}`)} className="relative flex flex-col items-center shrink-0 w-20">
+            <button key={id} onClick={() => setViewNote(id)} className="relative flex flex-col items-center shrink-0 w-20">
               {noteBubble(notes[id].text, notes[id].naat)}
               <span className="w-16 h-16 rounded-full bg-muted overflow-hidden flex items-center justify-center">
                 {profiles[id]?.photoURL ? <img src={profiles[id].photoURL!} alt="" className="w-full h-full object-cover" /> : "👤"}
@@ -268,6 +271,24 @@ export default function Messages() {
         })}
       </div>
 
+      {viewNote && notes[viewNote] && (
+        <NoteSheet
+          me={user.uid}
+          ownerId={viewNote}
+          note={notes[viewNote]}
+          profile={viewNote === user.uid ? { uid: user.uid, displayName: user.displayName || "You", photoURL: user.photoURL, bio: "", link: "" } : profiles[viewNote]}
+          isOwn={viewNote === user.uid}
+          onClose={() => setViewNote(null)}
+          onOpenChat={(id) => { setViewNote(null); setLocation(`/chat/${id}`); }}
+          onNewNote={() => {
+            const n = notes[user.uid];
+            setNoteText(n?.text || "");
+            setPickedNaat(n?.naat ? ({ id: "cur", title: n.naat.title, artist: "", url: n.naat.url, license: "" } as Naat) : null);
+            setShowNaats(false); setViewNote(null); setEditNote(true);
+          }}
+          onDelete={() => { setViewNote(null); saveNote(""); }}
+        />
+      )}
       {editNote && (
         <div className="fixed inset-0 z-50 bg-black/50 flex items-end" onClick={() => { stopNaat(); setEditNote(false); }}>
           <div className="w-full bg-background rounded-t-3xl p-5 max-h-[85%] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
