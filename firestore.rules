@@ -6,7 +6,7 @@ service cloud.firestore {
 
     // Ads: paid through Razorpay, approved by the admin before they run
     function isAdmin() {
-      return signedIn() && request.auth.token.email == 'vvvv04431@gmail.com' && request.auth.token.email_verified == true;
+      return signedIn() && request.auth.token.email == 'sohelsk9032899952@gmail.com' && request.auth.token.email_verified == true;
     }
     match /ads/{adId} {
       allow read: if resource.data.status == 'approved' || (signedIn() && resource.data.ownerId == request.auth.uid) || isAdmin();

@@ -3,7 +3,7 @@ import { auth, db } from "./firebase";
 
 // Razorpay Key ID is a public key and is safe to ship in the app. The Key Secret is never used here.
 export const RAZORPAY_KEY_ID = "rzp_live_TMRe5v9zAXb2yJ";
-export const ADMIN_EMAIL = "vvvv04431@gmail.com";
+export const ADMIN_EMAIL = "sohelsk9032899952@gmail.com";
 export const PRICE_PER_DAY = 50; // rupees
 
 export type Ad = {
