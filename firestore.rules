@@ -64,7 +64,11 @@ service cloud.firestore {
     // Profiles (+ private data that only the owner / allowed people can read)
     match /users/{uid} {
       allow read: if signedIn();
-      allow write: if signedIn() && request.auth.uid == uid;
+      // the green tick can only be switched on by the payment server, never by the app itself
+      allow create: if signedIn() && request.auth.uid == uid && !request.resource.data.keys().hasAny(['verified', 'verifiedAt']);
+      allow update: if signedIn() && request.auth.uid == uid &&
+        !request.resource.data.diff(resource.data).affectedKeys().hasAny(['verified', 'verifiedAt']);
+      allow delete: if signedIn() && request.auth.uid == uid;
 
       // Likes on a note: anyone signed in can like or unlike as themselves; the note owner can clear them
       match /noteLikes/{likerId} {
@@ -172,8 +176,17 @@ service cloud.firestore {
 
     // Messages
     match /chats/{chatId} {
-      allow read, update: if signedIn() && request.auth.uid in resource.data.participants;
-      allow create: if signedIn() && request.auth.uid in request.resource.data.participants;
+      allow read: if signedIn() && request.auth.uid in resource.data.participants;
+      // the two people can never be changed after the chat exists (nobody can add themselves to someone else's chat)
+      allow update: if signedIn() && request.auth.uid in resource.data.participants &&
+        request.resource.data.participants.size() == 2 &&
+        request.resource.data.participants.hasAll(resource.data.participants);
+      // a chat must be exactly the pair named in its id, so nobody can create a chat for two other people
+      allow create: if signedIn() && request.auth.uid in request.resource.data.participants &&
+        request.resource.data.participants.size() == 2 &&
+        request.resource.data.participants[0] != request.resource.data.participants[1] &&
+        (chatId == request.resource.data.participants[0] + '_' + request.resource.data.participants[1] ||
+         chatId == request.resource.data.participants[1] + '_' + request.resource.data.participants[0]);
 
       match /messages/{messageId} {
         allow delete: if signedIn() && resource.data.from == request.auth.uid;

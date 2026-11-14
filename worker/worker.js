@@ -1,12 +1,35 @@
 // Cloudflare Worker: free AI tutor backend (Workers AI) + FCM push sender.
 // Secrets/vars: FIREBASE_PROJECT_ID (var), FCM_SERVICE_ACCOUNT (secret, JSON), binding AI.
 const PROJECT = (env) => env.FIREBASE_PROJECT_ID || "learn-islam-891c3";
-const CORS = {
-  "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Content-Type, Authorization",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+// Only our own website and the Android app (WebView origin) may call this server from a browser.
+const ALLOWED_ORIGINS = [
+  "https://sohel-mohiddin-learn-islam.github.io",
+  "https://localhost",
+  "http://localhost",
+  "capacitor://localhost",
+];
+let CORS = {};
+const setCors = (req) => {
+  const o = req.headers.get("Origin") || "";
+  CORS = {
+    ...(ALLOWED_ORIGINS.includes(o) ? { "Access-Control-Allow-Origin": o, Vary: "Origin" } : {}),
+    "Access-Control-Allow-Headers": "Content-Type, Authorization",
+    "Access-Control-Allow-Methods": "POST, OPTIONS",
+    "X-Content-Type-Options": "nosniff",
+  };
 };
-const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...CORS, "Content-Type": "application/json" } });
+const json = (o, s = 200) => new Response(JSON.stringify(o), { status: s, headers: { ...CORS, "Content-Type": "application/json", "Cache-Control": "no-store" } });
+
+// Simple per-user rate limit (per server instance). Stops one account from hammering the AI or payment endpoints.
+const hits = new Map();
+function limited(key, max, windowMs) {
+  const now = Date.now();
+  const arr = (hits.get(key) || []).filter((t) => now - t < windowMs);
+  if (arr.length >= max) { hits.set(key, arr); return true; }
+  arr.push(now); hits.set(key, arr);
+  if (hits.size > 5000) hits.clear();
+  return false;
+}
 
 const b64u = (s) => Uint8Array.from(atob(s.replace(/-/g, "+").replace(/_/g, "/")), (c) => c.charCodeAt(0));
 const dec = (s) => JSON.parse(new TextDecoder().decode(b64u(s)));
@@ -41,6 +64,7 @@ async function ask(req, env) {
   const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
   let uid;
   try { uid = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "Please sign in." }, 401); }
+  if (limited(`ask:${uid}`, 20, 60_000)) return json({ error: "Too many questions. Please wait a minute." }, 429);
   const body = await req.json();
   const history = Array.isArray(body.history) ? body.history.slice(-10) : [];
   const msgs = [
@@ -55,7 +79,9 @@ async function ask(req, env) {
 // ---- Roman Hindi translation of hadith text ----
 async function translate(req, env) {
   const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
-  try { await verifyIdToken(auth, env); } catch { return json({ error: "Please sign in." }, 401); }
+  let tuid;
+  try { tuid = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "Please sign in." }, 401); }
+  if (limited(`tr:${tuid}`, 120, 60_000)) return json({ error: "Too many requests." }, 429);
   const { text, lang } = await req.json();
   const clean = String(text || "").slice(0, 3000);
   if (!clean) return json({ error: "No text." }, 400);
@@ -85,6 +111,7 @@ async function payCreate(req, env) {
   let uid;
   try { uid = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "Please sign in." }, 401); }
   if (!env.RAZORPAY_KEY_SECRET) return json({ error: "Payments are not set up on the server yet." }, 500);
+  if (limited(`pay:${uid}`, 6, 60_000)) return json({ error: "Too many payment attempts. Please wait a minute." }, 429);
   const { amount, description, email, name } = await req.json();
   const rupees = Math.round(Number(amount));
   if (!(rupees >= 1 && rupees <= 50000)) return json({ error: "Bad amount." }, 400);
@@ -121,6 +148,29 @@ async function payStatus(req, env) {
   return json({ status: j.status, paid, paymentId: paid ? pay?.payment_id || id : null, amount: (j.amount_paid || 0) / 100 });
 }
 
+// ---- Green tick: switched on here, only after the Rs 1 payment is confirmed ----
+async function verifyGrant(req, env) {
+  const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
+  let uid;
+  try { uid = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "Please sign in." }, 401); }
+  if (limited(`vg:${uid}`, 10, 60_000)) return json({ error: "Too many requests." }, 429);
+  const { id } = await req.json();
+  if (!/^plink_[A-Za-z0-9]+$/.test(String(id))) return json({ error: "Bad id." }, 400);
+  const j = await (await rz(env, `/payment_links/${id}`)).json();
+  if (j?.notes?.uid !== uid) return json({ error: "Not your payment." }, 403);
+  if (j.status !== "paid" || !(j.amount_paid >= 100) || !/green tick/i.test(String(j.description || ""))) return json({ error: "Payment not completed." }, 402);
+  const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT);
+  const at = await accessToken(sa);
+  const url = `https://firestore.googleapis.com/v1/projects/${PROJECT(env)}/databases/default/documents/users/${uid}?updateMask.fieldPaths=verified&updateMask.fieldPaths=verifiedAt`;
+  const r = await fetch(url, {
+    method: "PATCH",
+    headers: { Authorization: `Bearer ${at}`, "Content-Type": "application/json" },
+    body: JSON.stringify({ fields: { verified: { booleanValue: true }, verifiedAt: { integerValue: String(Date.now()) } } }),
+  });
+  if (!r.ok) return json({ error: "Could not save the tick. Try again." }, 502);
+  return json({ ok: true });
+}
+
 // ---- TURN credentials for calls (optional: Cloudflare Calls TURN, free tier) ----
 async function turn(req, env) {
   const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
@@ -138,7 +188,7 @@ async function turn(req, env) {
 async function accessToken(sa) {
   const now = Math.floor(Date.now() / 1000);
   const enc = (o) => btoa(JSON.stringify(o)).replace(/=/g, "").replace(/\+/g, "-").replace(/\//g, "_");
-  const unsigned = `${enc({ alg: "RS256", typ: "JWT" })}.${enc({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/firebase.messaging", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 })}`;
+  const unsigned = `${enc({ alg: "RS256", typ: "JWT" })}.${enc({ iss: sa.client_email, scope: "https://www.googleapis.com/auth/firebase.messaging https://www.googleapis.com/auth/datastore", aud: "https://oauth2.googleapis.com/token", iat: now, exp: now + 3600 })}`;
   const pem = sa.private_key.replace(/-----[^-]+-----|\s/g, "");
   const key = await crypto.subtle.importKey("pkcs8", Uint8Array.from(atob(pem), (c) => c.charCodeAt(0)), { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" }, false, ["sign"]);
   const sig = new Uint8Array(await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned)));
@@ -151,8 +201,9 @@ async function push(req, env) {
   const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
   let me;
   try { me = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "auth" }, 401); }
+  if (limited(`push:${me}`, 60, 60_000)) return json({ sent: 0 });
   const { toUid, title, body } = await req.json();
-  if (!toUid || toUid === me) return json({ sent: 0 });
+  if (!toUid || toUid === me || !/^[A-Za-z0-9_-]{6,128}$/.test(String(toUid))) return json({ sent: 0 });
   const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT);
   const at = await accessToken(sa);
   const base = `https://firestore.googleapis.com/v1/projects/${PROJECT(env)}/databases/default/documents/users/${toUid}/tokens`;
@@ -174,6 +225,7 @@ async function push(req, env) {
 
 export default {
   async fetch(req, env) {
+    setCors(req);
     if (req.method === "OPTIONS") return new Response(null, { headers: CORS });
     const path = new URL(req.url).pathname;
     try {
@@ -181,9 +233,10 @@ export default {
       if (path === "/translate") return await translate(req, env);
       if (path === "/pay/create") return await payCreate(req, env);
       if (path === "/pay/status") return await payStatus(req, env);
+      if (path === "/verify/grant") return await verifyGrant(req, env);
       if (path === "/turn") return await turn(req, env);
       if (path === "/push") return await push(req, env);
-    } catch (e) { return json({ error: String(e.message || e) }, 500); }
+    } catch (e) { return json({ error: "Server error. Please try again." }, 500); }
     return json({ ok: true });
   },
 };

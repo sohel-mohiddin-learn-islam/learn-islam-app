@@ -1,6 +1,6 @@
 import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
-import { doc, getDoc, setDoc } from "firebase/firestore";
+import { doc, getDoc } from "firebase/firestore";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { checkPayment, hasPaymentServer, startBrowserPayment } from "@/lib/ads";
@@ -24,8 +24,12 @@ export default function Verify() {
 
   if (!user) { setLocation("/login"); return null; }
 
-  const grant = async () => {
-    await setDoc(doc(db, "users", user.uid), { verified: true, verifiedAt: Date.now() }, { merge: true });
+  const grant = async (linkId: string) => {
+    // the server confirms the payment and switches the tick on (the app itself is not allowed to)
+    const token = await user.getIdToken();
+    const base = ((import.meta.env.VITE_AI_TUTOR_ENDPOINT as string | undefined) || "").replace(/\/$/, "");
+    const r = await fetch(`${base}/verify/grant`, { method: "POST", headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` }, body: JSON.stringify({ id: linkId }) });
+    if (!r.ok) throw new Error((await r.json().catch(() => ({}))).error || "Could not confirm the payment yet.");
     markVerified(user.uid, true);
     try { localStorage.removeItem(KEY); } catch { /* ignore */ }
     setHas(true);
@@ -36,7 +40,7 @@ export default function Verify() {
     const until = Date.now() + 15 * 60 * 1000;
     while (Date.now() < until && !stop.current) {
       const r = await checkPayment(linkId).catch(() => null);
-      if (r?.paid) { await grant(); return true; }
+      if (r?.paid) { await grant(linkId); return true; }
       if (r && (r.status === "expired" || r.status === "cancelled")) { try { localStorage.removeItem(KEY); } catch { /* ignore */ } throw new Error("The payment was cancelled or expired."); }
       await new Promise((res) => setTimeout(res, 3000));
     }

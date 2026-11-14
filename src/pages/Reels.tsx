@@ -15,6 +15,7 @@ import { Plus } from "lucide-react";
 import { getActiveAds, type Ad } from "@/lib/ads";
 import { deviceInfo } from "@/lib/analytics";
 
+import { safeUrl } from "@/lib/safeUrl";
 import CollectionSheet from "@/components/CollectionSheet";
 import { savePostCloud, unsavePostCloud } from "@/lib/collections";
 import { deletePost, getPosts, optimizedVideoUrl, postThumbnail } from "@/lib/posts";
@@ -412,7 +413,7 @@ function AdItem({ ad }: { ad: Ad }) {
   const act = () => {
     if (ad.goal === "profile") go(`/user/${ad.ownerId}`);
     else if (ad.goal === "message") go(`/chat/${ad.ownerId}`);
-    else if (ad.link) window.open(ad.link, "_blank");
+    else if (safeUrl(ad.link)) window.open(safeUrl(ad.link), "_blank", "noopener,noreferrer");
   };
   return (
     <div className="relative w-full h-full snap-start shrink-0 bg-black flex items-center justify-center">

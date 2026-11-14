@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadImage, uploadVideo } from "@/lib/posts";
+import { safeUrl } from "@/lib/safeUrl";
 import { addNaat, deleteNaat, getNaats, type Naat } from "@/lib/storyTools";
 import { ADMIN_EMAIL, PRICE_PER_DAY, approveAd, checkPayment, createAd, getAllAds, getMyAds, getPending, hasPaymentServer, payForAd, rejectAd, removeAd, setPending, startBrowserPayment, type Ad } from "@/lib/ads";
 
@@ -202,7 +203,7 @@ export default function Ads() {
               <div key={a.id} className="py-3 border-b border-border">
                 <p className="font-medium">{a.title} <span className="text-foreground/60">· {a.ownerName}</span></p>
                 <p className="text-sm text-foreground/70 break-all">Payment: {a.paymentId} · ₹{a.amount} · {a.days} days</p>
-                <a href={a.mediaUrl} target="_blank" rel="noreferrer" className="text-sm underline">View media</a>
+                <a href={safeUrl(a.mediaUrl) || undefined} target="_blank" rel="noopener noreferrer" className="text-sm underline">View media</a>
                 <div className="flex gap-2 mt-2 items-center">
                   <Status ad={a} />
                   {a.status !== "approved" && <button onClick={() => act(() => approveAd(a))} className="ml-auto rounded-lg bg-green-600 text-white px-3 py-1.5">Approve</button>}
