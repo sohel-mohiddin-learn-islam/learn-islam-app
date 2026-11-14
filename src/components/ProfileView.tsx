@@ -1,3 +1,5 @@
+import ProfilePic from "@/components/ProfilePic";
+import AvatarMaker from "@/components/AvatarMaker";
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { ISLAMIC_AVATARS } from "@/data/avatars";
 import { shareContent } from "@/lib/share";
@@ -127,6 +129,7 @@ export default function ProfileView({ uid }: { uid: string }) {
   const [eAge, setEAge] = useState("");
 
   const [editing, setEditing] = useState(false);
+  const [makeAvatar, setMakeAvatar] = useState(false);
   const [eName, setEName] = useState("");
   const [eBio, setEBio] = useState("");
   const [eLink, setELink] = useState("");
@@ -395,13 +398,14 @@ export default function ProfileView({ uid }: { uid: string }) {
           </div>
         )}
         <div className="flex items-center gap-5">
-          <button
-            onClick={() => stories.length && setViewStories(true)}
-            className={`rounded-full p-0.5 ${stories.length ? (hasUnseen(uid, Math.max(...stories.map((s) => s.createdAt))) ? "bg-emerald-500" : "bg-border") : ""}`}
-            aria-label={stories.length ? "View story" : "Profile photo"}
-          >
-            <Avatar src={profile.photoURL} size={84} />
-          </button>
+          <ProfilePic
+            photoURL={profile.photoURL}
+            avatar={profile.avatarArt}
+            size={84}
+            onTap={() => stories.length && setViewStories(true)}
+            ring={stories.length ? (hasUnseen(uid, Math.max(...stories.map((s) => s.createdAt))) ? "bg-emerald-500" : "bg-border") : ""}
+            label={stories.length ? "View story" : "Profile photo"}
+          />
           <div className="flex-1 flex justify-around">
             {stat(posts.length, "posts", "grid")}
             {stat(followers.length, "followers", "followers")}
@@ -516,6 +520,9 @@ export default function ProfileView({ uid }: { uid: string }) {
         />
       )}
 
+      {makeAvatar && user && (
+        <AvatarMaker uid={user.uid} initial={profile.avatarArt} onClose={() => setMakeAvatar(false)} onSaved={(c) => setProfile((p) => (p ? { ...p, avatarArt: c || undefined } : p))} />
+      )}
       {editing && (
         <div className="fixed inset-0 z-[100] bg-black/60 flex items-end sm:items-center justify-center">
           <div className="w-full max-w-lg bg-background rounded-t-2xl sm:rounded-2xl p-5 max-h-[90vh] overflow-y-auto font-sans">
@@ -527,7 +534,10 @@ export default function ProfileView({ uid }: { uid: string }) {
                 <input type="file" accept="image/*" className="hidden" onChange={(e) => pickPhoto(e.target.files?.[0])} />
               </label>
             </div>
-            <p className="text-xs uppercase text-foreground/60 mb-1">Or pick an avatar</p>
+            <button onClick={() => setMakeAvatar(true)} className="w-full mb-4 rounded-xl border border-primary text-primary font-semibold py-2.5">
+              {profile.avatarArt ? "Edit your avatar" : "Create your avatar"}
+            </button>
+            <p className="text-xs uppercase text-foreground/60 mb-1">Or pick a picture</p>
             <div className="grid grid-cols-5 gap-2 max-h-48 overflow-y-auto mb-1 pr-1">
               {ISLAMIC_AVATARS.map(({ name: seed, url }) => {
                 return (

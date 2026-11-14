@@ -23,6 +23,7 @@ export type UserProfile = {
   photoURL: string | null;
   bio: string;
   link: string;
+  avatarArt?: any;
 };
 
 export async function getProfile(uid: string): Promise<UserProfile> {
@@ -34,6 +35,7 @@ export async function getProfile(uid: string): Promise<UserProfile> {
     photoURL: d.photoURL || null,
     bio: d.bio || "",
     link: d.link || "",
+    avatarArt: d.avatarArt || undefined,
   };
 }
 
