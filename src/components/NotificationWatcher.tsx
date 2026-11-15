@@ -9,6 +9,7 @@ import { db } from "@/lib/firebase";
 import { getProfile } from "@/lib/social";
 
 const CHANNEL = "li-social";
+const st = (m: string) => { try { localStorage.setItem("li_push_status", m); } catch {} };
 
 const bodyFor = (type: string, text?: string) =>
   type === "like" ? "liked your reel"
@@ -34,12 +35,16 @@ export default function NotificationWatcher() {
       try {
         let perm = await PushNotifications.checkPermissions();
         if (perm.receive !== "granted") perm = await PushNotifications.requestPermissions();
-        if (perm.receive !== "granted") return;
+        if (perm.receive !== "granted") { st("notification permission DENIED - allow it in Android Settings > Apps > Learn Islam > Notifications"); return; }
         handle = await PushNotifications.addListener("registration", (t) => {
-          setDoc(doc(db, "users", user.uid, "tokens", t.value), { token: t.value, updatedAt: Date.now() }).catch(() => {});
+          setDoc(doc(db, "users", user.uid, "tokens", t.value), { token: t.value, updatedAt: Date.now() })
+            .then(() => st("registered OK"))
+            .catch((e) => st("token save failed: " + (e?.code || e?.message)));
         });
+        await PushNotifications.addListener("registrationError", (e: any) => st("FCM registration error: " + (e?.error || JSON.stringify(e))));
+        st("requesting token...");
         await PushNotifications.register();
-      } catch {}
+      } catch (e: any) { st("push setup error: " + (e?.message || e)); }
     })();
     return () => handle?.remove();
   }, [user]);

@@ -202,13 +202,16 @@ async function push(req, env) {
   let me;
   try { me = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "auth" }, 401); }
   if (limited(`push:${me}`, 60, 60_000)) return json({ sent: 0 });
-  const { toUid, title, body } = await req.json();
-  if (!toUid || toUid === me || !/^[A-Za-z0-9_-]{6,128}$/.test(String(toUid))) return json({ sent: 0 });
-  const sa = JSON.parse(env.FCM_SERVICE_ACCOUNT);
+  const { toUid, title, body, test } = await req.json();
+  if (!toUid || (toUid === me && !test) || !/^[A-Za-z0-9_-]{6,128}$/.test(String(toUid))) return json({ sent: 0 });
+  if (!env.FCM_SERVICE_ACCOUNT) return json({ sent: 0, error: "FCM_SERVICE_ACCOUNT secret is missing in Cloudflare" });
+  let sa; try { sa = JSON.parse(env.FCM_SERVICE_ACCOUNT); } catch { return json({ sent: 0, error: "FCM_SERVICE_ACCOUNT is not valid JSON" }); }
   const at = await accessToken(sa);
+  if (!at) return json({ sent: 0, error: "Could not sign in with the service account (check the secret)" });
   const base = `https://firestore.googleapis.com/v1/projects/${PROJECT(env)}/databases/default/documents/users/${toUid}/tokens`;
   const list = await (await fetch(base, { headers: { Authorization: `Bearer ${at}` } })).json();
-  let sent = 0;
+  let sent = 0; const errs = [];
+  if (list.error) return json({ sent: 0, error: "Firestore: " + (list.error.message || "denied") });
   for (const d of list.documents || []) {
     const token = d.fields?.token?.stringValue;
     if (!token) continue;
@@ -218,9 +221,10 @@ async function push(req, env) {
       body: JSON.stringify({ message: { token, notification: { title: String(title || "Learn Islam").slice(0, 80), body: String(body || "").slice(0, 200) }, android: { priority: "HIGH", notification: { channel_id: "li-social", icon: "ic_stat_icon" } } } }),
     });
     if (r.ok) sent++;
-    else if (r.status === 404) await fetch(d.name.startsWith("http") ? d.name : `https://firestore.googleapis.com/v1/${d.name}`, { method: "DELETE", headers: { Authorization: `Bearer ${at}` } });
+    else { try { errs.push((await r.clone().json()).error?.message || r.status); } catch { errs.push(r.status); } }
+    if (!r.ok && r.status === 404) await fetch(d.name.startsWith("http") ? d.name : `https://firestore.googleapis.com/v1/${d.name}`, { method: "DELETE", headers: { Authorization: `Bearer ${at}` } });
   }
-  return json({ sent });
+  return json({ sent, tokens: (list.documents || []).length, errors: errs.slice(0, 2) });
 }
 
 export default {

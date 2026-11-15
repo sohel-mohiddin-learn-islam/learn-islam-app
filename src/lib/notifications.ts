@@ -37,6 +37,26 @@ async function sendPush(toUid: string, type: string, text?: string) {
   } catch {}
 }
 
+/** Diagnostic: asks the push server to send a test alert to this user's own phones. Returns a readable result. */
+export async function testPush(): Promise<string> {
+  if (!WORKER) return "Push server address is missing in this build.";
+  if (!auth.currentUser) return "Not signed in.";
+  try {
+    const token = await auth.currentUser.getIdToken();
+    const r = await fetch(`${WORKER}/push`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
+      body: JSON.stringify({ toUid: auth.currentUser.uid, title: "Learn Islam", body: "Test notification ✅", test: true }),
+    });
+    const j: any = await r.json().catch(() => ({}));
+    let reg = "";
+    try { reg = localStorage.getItem("li_push_status") || ""; } catch {}
+    return `Server ${r.status}. Phones registered: ${j.tokens ?? 0}. Sent: ${j.sent ?? 0}.${j.error ? "\nError: " + j.error : ""}${j.errors?.length ? "\nFCM: " + j.errors.join(" | ") : ""}\nThis phone: ${reg || "no status yet"}`;
+  } catch (e: any) {
+    return "Could not reach the push server: " + (e?.message || e);
+  }
+}
+
 export type NotifType = "follow" | "like" | "comment" | "request" | "mention" | "message";
 
 export type Notif = {
