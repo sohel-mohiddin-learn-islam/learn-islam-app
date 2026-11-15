@@ -145,6 +145,11 @@ function Router() {
 
 function App() {
   const [showIntro, setShowIntro] = useState(true);
+  useEffect(() => {
+    const skip = () => setShowIntro(false);
+    window.addEventListener("li-skip-intro", skip);
+    return () => window.removeEventListener("li-skip-intro", skip);
+  }, []);
 
   return (
     <QueryClientProvider client={queryClient}>

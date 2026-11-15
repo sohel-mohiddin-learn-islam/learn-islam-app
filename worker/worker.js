@@ -202,7 +202,7 @@ async function push(req, env) {
   let me;
   try { me = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "auth" }, 401); }
   if (limited(`push:${me}`, 60, 60_000)) return json({ sent: 0 });
-  const { toUid, title, body, test } = await req.json();
+  const { toUid, title, body, test, route } = await req.json();
   if (!toUid || (toUid === me && !test) || !/^[A-Za-z0-9_-]{6,128}$/.test(String(toUid))) return json({ sent: 0 });
   if (!env.FCM_SERVICE_ACCOUNT) return json({ sent: 0, error: "FCM_SERVICE_ACCOUNT secret is missing in Cloudflare" });
   let sa; try { sa = JSON.parse(env.FCM_SERVICE_ACCOUNT); } catch { return json({ sent: 0, error: "FCM_SERVICE_ACCOUNT is not valid JSON" }); }
@@ -218,7 +218,7 @@ async function push(req, env) {
     const r = await fetch(`https://fcm.googleapis.com/v1/projects/${PROJECT(env)}/messages:send`, {
       method: "POST",
       headers: { Authorization: `Bearer ${at}`, "Content-Type": "application/json" },
-      body: JSON.stringify({ message: { token, notification: { title: String(title || "Learn Islam").slice(0, 80), body: String(body || "").slice(0, 200) }, android: { priority: "HIGH", notification: { channel_id: "li-social", icon: "ic_stat_icon" } } } }),
+      body: JSON.stringify({ message: { token, notification: { title: String(title || "Learn Islam").slice(0, 80), body: String(body || "").slice(0, 200) }, android: { priority: "HIGH", notification: { channel_id: "li-social", icon: "ic_stat_icon" } }, data: { route: /^\/[A-Za-z0-9\/_-]{0,150}$/.test(String(route || "")) ? String(route) : "/notifications" } } }),
     });
     if (r.ok) sent++;
     else { try { errs.push((await r.clone().json()).error?.message || r.status); } catch { errs.push(r.status); } }

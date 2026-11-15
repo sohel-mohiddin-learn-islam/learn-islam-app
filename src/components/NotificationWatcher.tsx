@@ -4,6 +4,7 @@ import { LocalNotifications } from "@capacitor/local-notifications";
 import { PushNotifications } from "@capacitor/push-notifications";
 import { doc, getDoc, setDoc } from "firebase/firestore";
 import { collection, limit, onSnapshot, orderBy, query } from "firebase/firestore";
+import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { db } from "@/lib/firebase";
 import { getProfile } from "@/lib/social";
@@ -26,6 +27,22 @@ const bodyFor = (type: string, text?: string) =>
  */
 export default function NotificationWatcher() {
   const { user } = useAuth();
+  const [, navigate] = useLocation();
+
+  // Tapping an alert (push or local) opens the exact screen straight away, skipping the intro video
+  useEffect(() => {
+    if (!Capacitor.isNativePlatform()) return;
+    const go = (route?: string) => {
+      if (!route || !/^\/[A-Za-z0-9/_-]*$/.test(route)) return;
+      window.dispatchEvent(new Event("li-skip-intro"));
+      navigate(route);
+    };
+    const hs: Promise<{ remove: () => void }>[] = [
+      PushNotifications.addListener("pushNotificationActionPerformed", (a: any) => go(a?.notification?.data?.route)),
+      LocalNotifications.addListener("localNotificationActionPerformed", (a: any) => go(a?.notification?.extra?.route)),
+    ];
+    return () => { hs.forEach((h) => h.then((x) => x.remove()).catch(() => {})); };
+  }, []);
 
   // Register this phone for push alerts (delivered even when the app is closed)
   useEffect(() => {
@@ -89,6 +106,7 @@ export default function NotificationWatcher() {
                 schedule: { at: new Date(Date.now() + 400) },
                 smallIcon: "ic_stat_icon",
                 channelId: CHANNEL,
+                extra: { route: n.type === "message" ? (String(d.id).includes("_group_") ? `/group/${String(d.id).split("_group_")[1]}` : String(d.id).includes("_gcall_") ? "/messages" : `/chat/${n.fromId}`) : n.type === "follow" || n.type === "request" ? `/user/${n.fromId}` : "/notifications" },
               }],
             }).catch(() => {});
           });

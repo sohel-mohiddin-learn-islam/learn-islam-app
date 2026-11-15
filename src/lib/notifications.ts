@@ -24,7 +24,7 @@ const PUSH_TEXT: Record<string, string> = {
 };
 
 /** Ask the free push server to wake the other phone (works even when the app is closed). */
-async function sendPush(toUid: string, type: string, text?: string) {
+async function sendPush(toUid: string, type: string, text?: string, route?: string) {
   if (!WORKER || !auth.currentUser) return;
   try {
     const token = await auth.currentUser.getIdToken();
@@ -33,7 +33,7 @@ async function sendPush(toUid: string, type: string, text?: string) {
     const r = await fetch(`${WORKER}/push`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ toUid, title: type === "message" ? name : "Learn Islam", body: type === "message" ? body : `${name} ${body}` }),
+      body: JSON.stringify({ toUid, route, title: type === "message" ? name : "Learn Islam", body: type === "message" ? body : `${name} ${body}` }),
     });
     const j: any = await r.json().catch(() => ({}));
     try { localStorage.setItem("li_push_last", `${type}: server ${r.status}, receiver phones ${j.tokens ?? "?"}, sent ${j.sent ?? 0}${j.error ? ", " + j.error : ""}${j.errors?.length ? ", FCM " + j.errors.join("|") : ""}`); } catch {}
@@ -91,7 +91,15 @@ export async function notify(
     createdAt: Date.now(),
     read: false,
   }).catch((e) => console.warn("Could not send notification:", e));
-  void sendPush(toUid, type, extra.text);
+  const key = extra.key || "";
+  const route =
+    type === "message"
+      ? key.startsWith("group_") ? `/group/${key.slice(6)}`
+      : key.startsWith("gcall_") ? "/messages"
+      : `/chat/${fromId}`
+    : type === "follow" || type === "request" ? `/user/${fromId}`
+    : "/notifications";
+  void sendPush(toUid, type, extra.text, route);
 }
 
 export function watchNotifications(uid: string, cb: (n: Notif[]) => void, onError?: (e: any) => void): Unsubscribe {
