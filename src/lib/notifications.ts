@@ -29,12 +29,15 @@ async function sendPush(toUid: string, type: string, text?: string) {
   try {
     const token = await auth.currentUser.getIdToken();
     const name = auth.currentUser.displayName || "Someone";
-    await fetch(`${WORKER}/push`, {
+    const body = type === "message" && text ? text : `${PUSH_TEXT[type] || "sent a notification"}${type === "comment" && text ? `: ${text}` : ""}`;
+    const r = await fetch(`${WORKER}/push`, {
       method: "POST",
       headers: { "Content-Type": "application/json", Authorization: `Bearer ${token}` },
-      body: JSON.stringify({ toUid, title: "Learn Islam", body: `${name} ${PUSH_TEXT[type] || "sent a notification"}${type === "comment" && text ? `: ${text}` : ""}` }),
+      body: JSON.stringify({ toUid, title: type === "message" ? name : "Learn Islam", body: type === "message" ? body : `${name} ${body}` }),
     });
-  } catch {}
+    const j: any = await r.json().catch(() => ({}));
+    try { localStorage.setItem("li_push_last", `${type}: server ${r.status}, receiver phones ${j.tokens ?? "?"}, sent ${j.sent ?? 0}${j.error ? ", " + j.error : ""}${j.errors?.length ? ", FCM " + j.errors.join("|") : ""}`); } catch {}
+  } catch (e: any) { try { localStorage.setItem("li_push_last", `${type}: failed ${e?.message || e}`); } catch {} }
 }
 
 /** Diagnostic: asks the push server to send a test alert to this user's own phones. Returns a readable result. */
@@ -51,7 +54,7 @@ export async function testPush(): Promise<string> {
     const j: any = await r.json().catch(() => ({}));
     let reg = "";
     try { reg = localStorage.getItem("li_push_status") || ""; } catch {}
-    return `Server ${r.status}. Phones registered: ${j.tokens ?? 0}. Sent: ${j.sent ?? 0}.${j.error ? "\nError: " + j.error : ""}${j.errors?.length ? "\nFCM: " + j.errors.join(" | ") : ""}\nThis phone: ${reg || "no status yet"}`;
+    return `Server ${r.status}. Phones registered: ${j.tokens ?? 0}. Sent: ${j.sent ?? 0}.${j.error ? "\nError: " + j.error : ""}${j.errors?.length ? "\nFCM: " + j.errors.join(" | ") : ""}\nThis phone: ${reg || "no status yet"}\nLast push I sent: ${(() => { try { return localStorage.getItem("li_push_last") || "none yet"; } catch { return "?"; } })()}`;
   } catch (e: any) {
     return "Could not reach the push server: " + (e?.message || e);
   }
