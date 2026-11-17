@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from "react";
+import React, { useEffect, useRef, useState } from "react";
 
 const isPack = (u?: string | null) => !!u && u.includes("/avatars/");
 
@@ -25,6 +25,21 @@ export default function ProfilePic({
     return () => clearInterval(t);
   }, [both, big]);
 
+  // swipe left / right on the picture to flip between the photo and the chosen avatar
+  const sx = useRef<number | null>(null);
+  const swiped = useRef(false);
+  const swipeStart = (e: React.PointerEvent) => { sx.current = e.clientX; swiped.current = false; };
+  const swipeMove = (e: React.PointerEvent) => {
+    if (sx.current === null || !both) return;
+    if (Math.abs(e.clientX - sx.current) > 28) {
+      swiped.current = true;
+      held.current = false;
+      if (timer.current) clearTimeout(timer.current);
+      setShowAvatar((v) => !v);
+      sx.current = null;
+    }
+  };
+
   const start = () => {
     held.current = false;
     timer.current = setTimeout(() => { held.current = true; setBig(true); }, 350);
@@ -44,11 +59,11 @@ export default function ProfilePic({
   return (
     <>
       <button
-        onPointerDown={start} onPointerUp={end} onPointerLeave={end} onPointerCancel={end}
+        onPointerDown={(e) => { swipeStart(e); start(); }} onPointerMove={swipeMove} onPointerUp={() => { sx.current = null; end(); }} onPointerLeave={() => { sx.current = null; end(); }} onPointerCancel={() => { sx.current = null; end(); }}
         onContextMenu={(e) => e.preventDefault()}
-        onClick={() => { if (held.current) { held.current = false; return; } onTap?.(); }}
+        onClick={() => { if (swiped.current) { swiped.current = false; return; } if (held.current) { held.current = false; return; } onTap?.(); }}
         className={`rounded-full p-0.5 select-none touch-manipulation ${ring}`}
-        style={{ WebkitTouchCallout: "none" }}
+        style={{ WebkitTouchCallout: "none", touchAction: "pan-y" }}
         aria-label={label || "Profile photo"}
       >
         {img(size)}

@@ -30,6 +30,10 @@ type Reel = {
   userId?: string;
 };
 
+// shared sound setting for all reels
+let soundMuted = (() => { try { return sessionStorage.getItem("li_reels_muted") !== "0"; } catch { return true; } })();
+const soundSubs = new Set<(m: boolean) => void>();
+
 function getLiked(id: string) {
   return localStorage.getItem(`reel-like-${id}`) === "1";
 }
@@ -54,12 +58,24 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
   const videoRef = useRef<HTMLVideoElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  const [muted, setMuted] = useState(true);
+  const [muted, setMuted] = useState(soundMuted);
+  // one sound setting for every reel: unmute once and all reels play with sound
+  useEffect(() => {
+    const fn = (m: boolean) => setMuted(m);
+    soundSubs.add(fn);
+    return () => { soundSubs.delete(fn); };
+  }, []);
   const [liked, setLiked] = useState(() => getLiked(reel.id));
   const [failed, setFailed] = useState(false);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
   const [useOriginal, setUseOriginal] = useState(false);
+  useEffect(() => {
+    const v = videoRef.current;
+    if (!v) return;
+    v.muted = muted;
+    if (!muted && v.paused === false) v.play().catch(() => { v.muted = true; });
+  }, [muted, shouldLoad, retryKey]);
 
   const autoRetryCountRef = useRef(0);
 
@@ -124,8 +140,9 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
   const toggleMute = () => {
     if (!videoRef.current) return;
 
-    videoRef.current.muted = !videoRef.current.muted;
-    setMuted(videoRef.current.muted);
+    soundMuted = !muted;
+    try { sessionStorage.setItem("li_reels_muted", soundMuted ? "1" : "0"); } catch {}
+    soundSubs.forEach((fn) => fn(soundMuted));
   };
 
   // single tap = mute / unmute, double tap = like (with a heart)
