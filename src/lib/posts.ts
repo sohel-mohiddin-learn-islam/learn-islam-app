@@ -18,7 +18,7 @@ import { auth, db } from "./firebase";
 const CLOUDINARY_CLOUD_NAME = "mpyzgv8c";
 const CLOUDINARY_UPLOAD_PRESET = "learn_islam_reels";
 
-const CHUNK_SIZE = 6 * 1024 * 1024; // 6 MB pieces: keeps memory low on phones
+const CHUNK_SIZE = 2 * 1024 * 1024; // small pieces: a weak connection only has to resend 2 MB, not the whole video
 
 function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
@@ -66,8 +66,8 @@ function sendChunk(
         reject(new Error(`Cloudinary upload failed (${xhr.status}).`));
       }
     };
-    xhr.timeout = 5 * 60 * 1000;
-    xhr.onerror = () => reject(new Error("Network error while uploading."));
+    xhr.timeout = 2 * 60 * 1000;
+    xhr.onerror = () => reject(new Error("Network error while uploading. Check your internet and try again."));
     xhr.ontimeout = () => reject(new Error("Upload timed out."));
     xhr.send(form);
   });
@@ -97,8 +97,10 @@ async function chunkedUpload(
         break;
       } catch (err) {
         attempt += 1;
-        if (attempt >= 3) throw err;
-        await new Promise((r) => setTimeout(r, 1200 * attempt));
+        if (attempt >= 8) throw err;
+        // wait for the connection to come back (up to ~20 s), then resend just this piece
+        for (let w = 0; w < 20 && typeof navigator !== "undefined" && navigator.onLine === false; w++) await new Promise((r) => setTimeout(r, 1000));
+        await new Promise((r) => setTimeout(r, Math.min(1500 * attempt, 8000)));
       }
     }
   }
