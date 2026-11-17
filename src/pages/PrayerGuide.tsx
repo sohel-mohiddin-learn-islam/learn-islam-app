@@ -312,9 +312,9 @@ export default function PrayerGuide() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 md:p-10 animate-in fade-in duration-700">
-      <PageHero tone="emerald" arabic="الصَّلَاة" title={{lang === 'en' ? 'Prayer Guide' : lang === 'roman-hindi' ? 'Namaz Guide' : 'Namaz Margadarshini'}} subtitle={{lang === 'en' ? 'Step by step guide to purification and prayer' :
+      <PageHero tone="emerald" arabic="الصَّلَاة" title={lang === 'en' ? 'Prayer Guide' : lang === 'roman-hindi' ? 'Namaz Guide' : 'Namaz Margadarshini'} subtitle={lang === 'en' ? 'Step by step guide to purification and prayer' :
            lang === 'roman-hindi' ? 'Wudu aur Namaz ki qadam-ba-qadam rahnumai' :
-           'Wudu mariyu Namaz kosam adugu adugu margadarshakam'}} />
+           'Wudu mariyu Namaz kosam adugu adugu margadarshakam'} />
 
       <Tabs defaultValue="wudu" className="w-full">
         <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-10">
