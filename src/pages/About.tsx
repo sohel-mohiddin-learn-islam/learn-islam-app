@@ -1,11 +1,9 @@
+import PageHero from "@/components/PageHero";
 export default function About() {
   return (
     <div className="min-h-full bg-background">
       <div className="max-w-3xl mx-auto p-6">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold font-serif text-primary mb-2">About Learn Islam</h1>
-          <div className="text-2xl mt-2 text-primary/80" dir="rtl">تعلم الإسلام</div>
-        </div>
+        <PageHero tone="emerald" title="About Learn Islam" arabic="تعلم الإسلام" subtitle="Authentic Islamic knowledge for everyone, in your language." />
 
         <div className="bg-card border border-border rounded-xl p-8 mb-6">
           <h2 className="text-2xl font-bold font-serif text-primary mb-4">Our Mission</h2>

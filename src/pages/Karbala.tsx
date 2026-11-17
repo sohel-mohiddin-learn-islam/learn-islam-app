@@ -1,4 +1,5 @@
 import { useState } from "react";
+import PageHero from "@/components/PageHero";
 
 export default function Karbala() {
   const [lang, setLang] = useState<'en' | 'hi' | 'te'>('en');
@@ -49,10 +50,7 @@ Karbala nerpistaundi: okkaRRuggaa nilabadinaa nijaaniki nilabaDanDi. Zulm mundu 
   return (
     <div className="min-h-full bg-background">
       <div className="max-w-3xl mx-auto p-6">
-        <div className="text-center mb-8">
-          <h1 className="text-4xl font-bold font-serif text-primary mb-2">{titles[lang]}</h1>
-          <div className="text-2xl mt-2 text-primary/80" dir="rtl">كربلاء</div>
-        </div>
+        <PageHero tone="rose" title={titles[lang]} arabic="كربلاء" />
 
         <div className="flex justify-center gap-2 mb-6">
           {(['en','hi','te'] as const).map(l => (

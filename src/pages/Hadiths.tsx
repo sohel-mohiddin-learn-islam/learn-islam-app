@@ -1,14 +1,11 @@
 import HadithBooks from '@/components/HadithBooks';
+import PageHero from "@/components/PageHero";
 import { IslamicDivider } from '@/components/IslamicDivider';
 
 export default function Hadiths() {
   return (
     <div className="max-w-4xl mx-auto p-6 md:p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="text-center mb-6">
-        <h1 className="text-4xl md:text-5xl font-bold font-serif text-primary mb-2">Hadith Books</h1>
-        <p className="text-2xl font-serif text-primary/70" dir="rtl">كتب الحديث</p>
-      </div>
-      <IslamicDivider />
+      <PageHero tone="amber" title="Hadith Books" arabic="كتب الحديث" subtitle="The sayings and actions of the Prophet ﷺ, by collection." />
       <div className="mt-6">
         <HadithBooks />
       </div>

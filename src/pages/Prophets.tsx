@@ -1,3 +1,4 @@
+import PageHero from "@/components/PageHero";
 // v3.0 multilingual
 import React, { useState } from 'react';
 import { prophets } from '../data/prophets';
@@ -67,10 +68,7 @@ const handleAudio = () => { speak(getStory(), lang === 'hi' ? 'roman-hindi' : la
       {/* Main Content */}
       <div className="flex-1 overflow-auto">
         <div className="max-w-3xl mx-auto p-6">
-          <div className="mb-6 text-center">
-            <h1 className="text-4xl font-bold font-serif text-primary mb-2">{selectedProphet.nameEn} (AS)</h1>
-            <h2 className="text-2xl font-serif text-primary/80" dir="rtl">{selectedProphet.nameAr}</h2>
-          </div>
+          <PageHero tone="emerald" title={`${selectedProphet.nameEn} (AS)`} arabic={selectedProphet.nameAr} subtitle="Stories of the Prophets, peace be upon them." />
 
           {/* Language Switcher */}
           <div className="flex justify-center gap-2 mb-6">
@@ -92,7 +90,7 @@ const handleAudio = () => { speak(getStory(), lang === 'hi' ? 'roman-hindi' : la
             </div>
           )}
 
-          <div className="bg-card rounded-xl p-8 border border-border shadow-sm mb-8 relative">
+          <div className="bg-card rounded-2xl p-8 border border-border shadow-md mb-8 relative border-t-4 border-t-amber-400/70">
             <div className="absolute top-6 right-6">
               <AudioButton onClick={handleAudio} onStop={stop} isSpeaking={isSpeaking} volume={volume} onVolumeChange={setVolume}/>
             </div>

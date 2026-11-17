@@ -1,3 +1,4 @@
+import PageHero from "@/components/PageHero";
 import React from 'react';
 import { useLanguage } from '@/contexts/LanguageContext';
 import { useSpeech } from '@/hooks/useSpeech';
@@ -62,15 +63,9 @@ export default function QuranValues() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 md:p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="text-center mb-12 relative">
-        <div className="absolute right-0 top-0">
-          <AudioButton onClick={handleAudio} onStop={stop} isSpeaking={isSpeaking} volume={volume} onVolumeChange={setVolume} />
-        </div>
-        <h1 className="text-4xl md:text-6xl font-bold font-serif text-primary mb-4">Values of the Quran</h1>
-        <p className="text-2xl font-serif text-primary/70" dir="rtl">فضائل القرآن</p>
-      </div>
-
-      <IslamicDivider />
+      <PageHero tone="emerald" title="Values of the Quran" arabic="فضائل القرآن" subtitle="The virtues and guidance of the final revelation.">
+        <AudioButton onClick={handleAudio} onStop={stop} isSpeaking={isSpeaking} volume={volume} onVolumeChange={setVolume} />
+      </PageHero>
 
       <div className="space-y-12 mt-12">
         {sections.map((section, idx) => (

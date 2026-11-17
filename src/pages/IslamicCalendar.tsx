@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PageHero from "@/components/PageHero";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Calendar, Star } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -26,13 +27,7 @@ export default function IslamicCalendar() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 md:p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl md:text-5xl font-bold font-serif text-primary mb-3">Islamic Calendar</h1>
-        <p className="text-2xl font-serif text-primary/70 mb-2" dir="rtl">التَّقْوِيمُ الْهِجْرِيّ</p>
-        <p className="text-muted-foreground font-sans max-w-2xl mx-auto">
-          The 12 months of the Hijri (lunar) calendar — with key Islamic dates and events.
-        </p>
-      </div>
+      <PageHero tone="teal" title="Islamic Calendar" arabic="التَّقْوِيمُ الْهِجْرِيّ" subtitle="The 12 months of the Hijri (lunar) calendar — with key Islamic dates and events." />
 
       <IslamicDivider />
 

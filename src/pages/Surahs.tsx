@@ -1,4 +1,5 @@
 import { useState, useEffect, useCallback } from 'react';
+import PageHero from "@/components/PageHero";
 import { motion, AnimatePresence } from 'framer-motion';
 import { BookOpen, Search } from 'lucide-react';
 import { useSpeech } from '@/hooks/useSpeech';
@@ -121,13 +122,7 @@ export default function Surahs() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 md:p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl md:text-5xl font-bold font-serif text-primary mb-3">The Holy Qur'an</h1>
-        <p className="text-2xl font-serif text-primary/70 mb-2" dir="rtl">القرآن الكريم</p>
-        <p className="text-muted-foreground font-sans max-w-2xl mx-auto">
-          All 114 surahs, with Arabic text, transliteration, and translation.
-        </p>
-      </div>
+      <PageHero tone="emerald" title="The Holy Qur'an" arabic="القرآن الكريم" subtitle="All 114 surahs, with Arabic text, transliteration, and translation." />
 
       <IslamicDivider />
 

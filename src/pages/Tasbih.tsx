@@ -1,3 +1,4 @@
+import PageHero from "@/components/PageHero";
 import { useState, useEffect } from "react";
 
 export default function Tasbih() {
@@ -23,8 +24,7 @@ export default function Tasbih() {
 
   return (
     <div className="min-h-full bg-background flex flex-col items-center px-4 py-8">
-      <h1 className="text-3xl font-bold font-serif text-primary mb-2">Tasbih</h1>
-      <p className="text-muted-foreground font-serif mb-8">سبحان الله</p>
+      <PageHero tone="teal" title="Tasbih" arabic="سبحان الله" subtitle="Count your dhikr with a tap." className="w-full max-w-lg" />
 
       {/* Target selector */}
       <div className="flex gap-3 mb-8">

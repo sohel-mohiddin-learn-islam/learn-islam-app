@@ -1,3 +1,4 @@
+import PageHero from "@/components/PageHero";
 import { useState, useEffect } from "react";
 import { Compass } from "lucide-react";
 
@@ -50,8 +51,7 @@ export default function Qibla() {
 
   return (
     <div className="min-h-full bg-background flex flex-col items-center px-4 py-8">
-      <h1 className="text-3xl font-bold font-serif text-primary mb-2">Qibla</h1>
-      <p className="text-muted-foreground font-serif mb-8" dir="rtl">اتجاه القبلة</p>
+      <PageHero tone="indigo" title="Qibla" arabic="اتجاه القبلة" subtitle="Face the Kaaba from wherever you are." className="w-full max-w-lg" />
 
       {/* Compass */}
       <div className="relative w-72 h-72 mb-8">

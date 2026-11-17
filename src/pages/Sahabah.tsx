@@ -1,4 +1,5 @@
 import { useState } from 'react';
+import PageHero from "@/components/PageHero";
 import { motion, AnimatePresence } from 'framer-motion';
 import { Users } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -46,13 +47,7 @@ export default function Sahabah() {
 
   return (
     <div className="max-w-5xl mx-auto p-6 md:p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl md:text-5xl font-bold font-serif text-primary mb-3">Companions of the Prophet</h1>
-        <p className="text-2xl font-serif text-primary/70 mb-2" dir="rtl">الصَّحَابَةُ الْكِرَام</p>
-        <p className="text-muted-foreground font-sans max-w-2xl mx-auto">
-          The Prophet (SAW) said: "My companions are like stars — whichever of them you follow, you will be rightly guided."
-        </p>
-      </div>
+      <PageHero tone="indigo" title="Companions of the Prophet" arabic="الصَّحَابَةُ الْكِرَام" subtitle={'The Prophet (SAW) said: "My companions are like stars — whichever of them you follow, you will be rightly guided."'} />
 
       <IslamicDivider />
 

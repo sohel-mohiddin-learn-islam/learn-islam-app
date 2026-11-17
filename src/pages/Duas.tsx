@@ -1,4 +1,5 @@
 import { useState, useMemo } from 'react';
+import PageHero from "@/components/PageHero";
 import { motion, AnimatePresence } from 'framer-motion';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 import { useLanguage } from '@/contexts/LanguageContext';
@@ -56,15 +57,8 @@ export default function Duas() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 md:p-12 animate-in fade-in slide-in-from-bottom-4 duration-700">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl md:text-6xl font-bold font-serif text-primary mb-3">Du'a Library</h1>
-        <p className="text-2xl font-serif text-primary/70 mb-2" dir="rtl">مكتبة الأدعية</p>
-        <p className="text-muted-foreground font-sans max-w-2xl mx-auto">
-          Authentic supplications from the Quran and Sunnah for every moment of your day.
-        </p>
-      </div>
+      <PageHero tone="teal" title="Du'a Library" arabic="مكتبة الأدعية" subtitle="Authentic supplications from the Quran and Sunnah for every moment of your day." />
 
-      <IslamicDivider />
 
       {/* Occasion filter */}
       <div className="mt-8 mb-8">

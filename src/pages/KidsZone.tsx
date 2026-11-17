@@ -1,3 +1,4 @@
+import PageHero from "@/components/PageHero";
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent } from "@/components/ui/card";
@@ -275,18 +276,14 @@ export default function KidsZone() {
         </div>
       )}
 
-      <div className="text-center mb-10">
-        <h1 className="text-5xl md:text-7xl font-extrabold text-primary mb-4 drop-shadow-sm flex justify-center items-center gap-4">
-          <Star className="text-yellow-400 w-12 h-12 fill-current" />
-          {lang === 'en' ? 'Kids Zone' : lang === 'roman-hindi' ? 'Bachon ka Kona' : 'Pillala Vibhaagam'}
-          <Moon className="text-yellow-400 w-12 h-12 fill-current" />
-        </h1>
-        <p className="text-xl font-medium text-muted-foreground">
-          {lang === 'en' ? 'Fun learning for little champions! 🌟' :
-           lang === 'roman-hindi' ? 'Chote champions ke liye maza aur seekh! 🌟' :
-           'Chinna champions kosam samtosha viluvalu! 🌟'}
-        </p>
-      </div>
+      <PageHero
+        tone="violet"
+        icon={Star}
+        title={lang === 'en' ? 'Kids Zone' : lang === 'roman-hindi' ? 'Bachon ka Kona' : 'Pillala Vibhaagam'}
+        subtitle={lang === 'en' ? 'Fun learning for little champions! 🌟' :
+          lang === 'roman-hindi' ? 'Chote champions ke liye maza aur seekh! 🌟' :
+          'Chinna champions kosam samtosha viluvalu! 🌟'}
+      />
 
       <Tabs defaultValue="pillars" className="w-full">
         <TabsList className="flex flex-wrap justify-center gap-2 bg-transparent h-auto mb-2">

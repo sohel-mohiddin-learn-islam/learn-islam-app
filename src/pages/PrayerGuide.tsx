@@ -1,3 +1,4 @@
+import PageHero from "@/components/PageHero";
 import { useState } from 'react';
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { GoldenText } from '@/components/GoldenText';
@@ -311,16 +312,9 @@ export default function PrayerGuide() {
 
   return (
     <div className="max-w-4xl mx-auto p-6 md:p-10 animate-in fade-in duration-700">
-      <div className="text-center mb-10">
-        <h1 className="text-4xl md:text-5xl font-bold font-serif text-primary mb-3">
-          {lang === 'en' ? 'Prayer Guide' : lang === 'roman-hindi' ? 'Namaz Guide' : 'Namaz Margadarshini'}
-        </h1>
-        <p className="text-xl text-muted-foreground font-sans">
-          {lang === 'en' ? 'Step by step guide to purification and prayer' :
+      <PageHero tone="emerald" arabic="الصَّلَاة" title={{lang === 'en' ? 'Prayer Guide' : lang === 'roman-hindi' ? 'Namaz Guide' : 'Namaz Margadarshini'}} subtitle={{lang === 'en' ? 'Step by step guide to purification and prayer' :
            lang === 'roman-hindi' ? 'Wudu aur Namaz ki qadam-ba-qadam rahnumai' :
-           'Wudu mariyu Namaz kosam adugu adugu margadarshakam'}
-        </p>
-      </div>
+           'Wudu mariyu Namaz kosam adugu adugu margadarshakam'}} />
 
       <Tabs defaultValue="wudu" className="w-full">
         <TabsList className="grid w-full max-w-md mx-auto grid-cols-2 mb-10">
