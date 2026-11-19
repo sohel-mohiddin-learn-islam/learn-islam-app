@@ -1,5 +1,6 @@
 import { Component, useEffect, useRef, useState, type ReactNode } from "react";
-import { Send, Swords } from "lucide-react";
+import { Send, Swords, Mic, Square, Volume2, VolumeX } from "lucide-react";
+import { cancelRecording, speakHuman, startRecording, stopRecording, stopSpeaking, transcribe } from "@/lib/voice";
 import { auth } from "@/lib/firebase";
 import { useLanguage } from "@/contexts/LanguageContext";
 
@@ -127,7 +128,47 @@ function Tutor() {
     try { end.current?.scrollIntoView({ block: "nearest" }); } catch { /* ignore */ }
   }, [messages, loading]);
 
-  async function send(value = question) {
+  // ---- voice: talk to the tutor and hear natural spoken answers ----
+  const [voiceOn, setVoiceOn] = useState(() => { try { return localStorage.getItem("li_tutor_voice") !== "0"; } catch { return true; } });
+  const [listening, setListening] = useState(false);
+  const [transcribing, setTranscribing] = useState(false);
+  const [speaking, setSpeaking] = useState(false);
+  const [voiceErr, setVoiceErr] = useState("");
+  useEffect(() => () => { cancelRecording(); stopSpeaking(); }, []);
+  const toggleVoice = () => {
+    const v = !voiceOn;
+    setVoiceOn(v);
+    try { localStorage.setItem("li_tutor_voice", v ? "1" : "0"); } catch { /* ignore */ }
+    if (!v) { stopSpeaking(); setSpeaking(false); }
+  };
+  async function micTap() {
+    setVoiceErr("");
+    if (listening) {
+      setListening(false);
+      setTranscribing(true);
+      try {
+        const blob = await stopRecording();
+        if (!blob || blob.size < 1500) { setVoiceErr("I did not hear anything. Tap the mic and speak."); return; }
+        const text = await transcribe(blob, language);
+        if (!text) { setVoiceErr("I could not understand that. Please try again."); return; }
+        await send(text, true);
+      } catch (e: any) {
+        setVoiceErr(String(e?.message || "Voice failed. Try again."));
+      } finally {
+        setTranscribing(false);
+      }
+      return;
+    }
+    try {
+      stopSpeaking(); setSpeaking(false);
+      await startRecording();
+      setListening(true);
+    } catch (e: any) {
+      setVoiceErr(e?.name === "NotAllowedError" ? "Please allow the microphone for Learn Islam in your phone settings." : String(e?.message || "Could not start the microphone."));
+    }
+  }
+
+  async function send(value = question, spoken = false) {
     const text = value.trim();
     if (!text || loading) return;
     setQuestion("");
@@ -148,6 +189,7 @@ function Tutor() {
       const j = await r.json();
       const a = typeof j?.answer === "string" ? j.answer : j?.answer ? JSON.stringify(j.answer) : "";
       reply(a || (typeof j?.error === "string" ? j.error : "") || "No answer received.");
+      if (a && voiceOn) { setSpeaking(true); void speakHuman(a, setSpeaking); }
     } catch {
       reply("Could not reach the tutor. Check your internet and try again.");
     } finally {
@@ -159,6 +201,9 @@ function Tutor() {
     <div className="max-w-3xl mx-auto flex flex-col h-[calc(100vh-8rem)] p-4">
       <div className="flex items-center justify-between mb-3">
         <h1 className="text-2xl font-serif text-primary">AI Tutor</h1>
+        <button onClick={toggleVoice} aria-label="Voice replies" className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border mr-2 ${voiceOn ? "bg-primary/10 border-primary text-primary" : "bg-card border-border"}`}>
+          {voiceOn ? <Volume2 className="w-4 h-4" /> : <VolumeX className="w-4 h-4" />} Voice {voiceOn ? "ON" : "OFF"}
+        </button>
         <button
           onClick={() => setDebate(!debate)}
           className={`flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm border ${debate ? "bg-primary text-primary-foreground border-primary" : "bg-card border-border"}`}
@@ -190,6 +235,14 @@ function Tutor() {
       <p className="text-[11px] text-muted-foreground text-center mt-2">
         AI can make mistakes. Qur'an verses shown in green boxes are checked against a Qur'an database; always verify hadith in the original books and ask a scholar for rulings.
       </p>
+      {(listening || transcribing || speaking || voiceErr) && (
+        <div className={`mt-2 flex items-center justify-center gap-2 text-sm ${voiceErr ? "text-red-500" : "text-primary"}`}>
+          {listening && <><span className="inline-block w-2.5 h-2.5 rounded-full bg-red-500 animate-pulse" /> Listening… tap the square when you finish</>}
+          {transcribing && <><span className="inline-block w-3.5 h-3.5 rounded-full border-2 border-primary border-t-transparent animate-spin" /> Understanding your voice…</>}
+          {speaking && !listening && !transcribing && <button onClick={() => { stopSpeaking(); setSpeaking(false); }} className="flex items-center gap-2 underline"><Volume2 className="w-4 h-4 animate-pulse" /> Speaking… tap to stop</button>}
+          {voiceErr && <span>{voiceErr}</span>}
+        </div>
+      )}
       <form onSubmit={(e) => { e.preventDefault(); send(); }} className="flex gap-2 mt-2">
         <input
           value={question}
@@ -197,6 +250,10 @@ function Tutor() {
           placeholder={debate ? "Make your argument…" : "Ask any question…"}
           className="flex-1 rounded-xl border border-border bg-card px-4 py-3 focus:outline-none focus:ring-2 focus:ring-primary/40"
         />
+        <button type="button" onClick={micTap} disabled={loading || transcribing} aria-label={listening ? "Stop recording" : "Talk to the tutor"}
+          className={`px-4 rounded-xl border disabled:opacity-50 ${listening ? "bg-red-500 text-white border-red-500 animate-pulse" : "bg-card border-border text-primary"}`}>
+          {listening ? <Square className="w-5 h-5" /> : <Mic className="w-5 h-5" />}
+        </button>
         <button type="submit" disabled={loading} className="px-4 rounded-xl bg-primary text-primary-foreground disabled:opacity-50"><Send className="w-5 h-5" /></button>
       </form>
     </div>

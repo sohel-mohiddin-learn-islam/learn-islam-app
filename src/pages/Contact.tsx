@@ -8,20 +8,20 @@ export default function Contact() {
           <h2 className="text-2xl font-bold font-serif text-primary mb-4">Get in Touch</h2>
           <p className="text-lg text-foreground/80 mb-4">We love hearing from our users! For any questions, suggestions or feedback about Learn Islam app, reach out to us.</p>
           <div className="space-y-4">
-            <div className="flex items-center gap-3 p-4 bg-muted rounded-xl">
+            <a href="https://www.instagram.com/learn_islam_official_?hvrq=YTFubjQ5bGNmMW1p" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-muted rounded-xl">
               <span className="text-2xl">📸</span>
               <div>
                 <p className="font-bold text-foreground">Instagram</p>
-                <p className="text-primary">@Simple_sohel</p>
+                <p className="text-primary break-all">instagram.com/learn_islam_official_</p>
               </div>
-            </div>
-            <div className="flex items-center gap-3 p-4 bg-muted rounded-xl">
+            </a>
+            <a href="https://noorgunturdigitals.lovable.app/" target="_blank" rel="noopener noreferrer" className="flex items-center gap-3 p-4 bg-muted rounded-xl">
               <span className="text-2xl">🌐</span>
               <div>
                 <p className="font-bold text-foreground">Website</p>
-                <p className="text-primary">nabi-stories--sadf38038.replit.app</p>
+                <p className="text-primary break-all">noorgunturdigitals.lovable.app</p>
               </div>
-            </div>
+            </a>
           </div>
         </div>
         <div className="bg-card border border-border rounded-2xl p-8">

@@ -56,7 +56,7 @@ export default function About() {
         <div className="bg-secondary/10 border border-secondary/20 rounded-xl p-6">
           <h2 className="text-2xl font-bold font-serif text-secondary mb-4">Contact Us</h2>
           <p className="text-lg leading-relaxed font-sans text-foreground/80">
-            For any questions, suggestions or feedback, please reach out to us on Instagram: <strong>@Simple_sohel</strong>
+            For any questions, suggestions or feedback, please reach out to us on Instagram: <a href="https://www.instagram.com/learn_islam_official_?hvrq=YTFubjQ5bGNmMW1p" target="_blank" rel="noopener noreferrer" className="font-bold text-primary underline"><strong>learn_islam_official_</strong></a>
           </p>
         </div>
       </div>

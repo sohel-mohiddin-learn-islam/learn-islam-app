@@ -51,6 +51,7 @@ const Dashboard = lazy(() => import("@/pages/Dashboard"));
 const Reels = lazy(() => import("@/pages/Reels"));
 const CreatePost = lazy(() => import("@/pages/CreatePost"));
 const AITutor = lazy(() => import("@/pages/AITutor"));
+const Games = lazy(() => import("@/pages/Games"));
 const queryClient = new QueryClient();
 
 const LoadingSpinner = () => (
@@ -136,6 +137,7 @@ function Router() {
           <Route path="/reels" component={Reels}/>
           <Route path="/create-post" component={CreatePost}/>
           <Route path="/ai-tutor" component={AITutor}/>
+          <Route path="/games" component={Games}/>
           <Route component={NotFound}/>
         </Switch>
       </Suspense>

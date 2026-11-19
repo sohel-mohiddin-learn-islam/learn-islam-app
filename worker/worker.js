@@ -227,6 +227,41 @@ async function push(req, env) {
   return json({ sent, tokens: (list.documents || []).length, errors: errs.slice(0, 2) });
 }
 
+// ---- Voice: speech-to-text (Whisper) and a natural neural text-to-speech voice ----
+// Optional var TTS_MODEL="aura" uses the more human Deepgram Aura voice (uses far more of the Workers AI quota); default is MeloTTS.
+async function stt(req, env) {
+  const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
+  let uid;
+  try { uid = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "Please sign in." }, 401); }
+  if (limited(`stt:${uid}`, 30, 60_000)) return json({ error: "Too many voice requests. Please wait a minute." }, 429);
+  const { audio, language } = await req.json();
+  if (!audio || String(audio).length > 4_000_000) return json({ error: "Recording is empty or too long." }, 413);
+  const input = { audio: String(audio), task: "transcribe" };
+  if (["en", "hi", "te"].includes(language)) input.language = language;
+  const out = await env.AI.run("@cf/openai/whisper-large-v3-turbo", input);
+  return json({ text: String(out.text || "").trim() });
+}
+
+async function tts(req, env) {
+  const auth = (req.headers.get("Authorization") || "").replace("Bearer ", "");
+  let uid;
+  try { uid = (await verifyIdToken(auth, env)).user_id; } catch { return json({ error: "Please sign in." }, 401); }
+  if (limited(`tts:${uid}`, 60, 60_000)) return json({ error: "Too many voice requests. Please wait a minute." }, 429);
+  const { text } = await req.json();
+  const clean = String(text || "").slice(0, 500);
+  if (!clean) return json({ error: "No text." }, 400);
+  const audioHeaders = { ...CORS, "Content-Type": "audio/mpeg", "Cache-Control": "no-store" };
+  if (env.TTS_MODEL === "aura") {
+    try {
+      const raw = await env.AI.run("@cf/deepgram/aura-1", { text: clean, speaker: env.TTS_SPEAKER || "orion" }, { returnRawResponse: true });
+      if (raw && raw.body) return new Response(raw.body, { headers: audioHeaders });
+    } catch {}
+  }
+  const m = await env.AI.run("@cf/myshell-ai/melotts", { prompt: clean, lang: "en" });
+  const bin = Uint8Array.from(atob(m.audio), (c) => c.charCodeAt(0));
+  return new Response(bin, { headers: audioHeaders });
+}
+
 export default {
   async fetch(req, env) {
     setCors(req);
@@ -240,6 +275,8 @@ export default {
       if (path === "/verify/grant") return await verifyGrant(req, env);
       if (path === "/turn") return await turn(req, env);
       if (path === "/push") return await push(req, env);
+      if (path === "/stt") return await stt(req, env);
+      if (path === "/tts") return await tts(req, env);
     } catch (e) { return json({ error: "Server error. Please try again." }, 500); }
     return json({ ok: true });
   },

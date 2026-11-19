@@ -14,7 +14,7 @@ export default function Terms() {
             { title: "Intellectual Property", content: "The Learn Islam app and its original content, features and functionality are owned by Learn Islam and are protected by international copyright, trademark and other intellectual property laws." },
             { title: "Disclaimer", content: "Learn Islam is provided on an as-is basis. We make no warranties expressed or implied regarding the accuracy, completeness or reliability of any Islamic content provided." },
             { title: "Changes to Terms", content: "We reserve the right to modify these terms at any time. We will notify users of any significant changes. Your continued use of the app after changes constitutes acceptance." },
-            { title: "Contact", content: "If you have any questions about these Terms of Service, please contact us on Instagram at @Simple_sohel." }
+            { title: "Contact", content: "If you have any questions about these Terms of Service, please contact us on Instagram (instagram.com/learn_islam_official_)." }
           ].map((section, i) => (
             <div key={i} className="bg-card border border-border rounded-2xl p-6">
               <h2 className="text-xl font-bold font-serif text-primary mb-3">{section.title}</h2>

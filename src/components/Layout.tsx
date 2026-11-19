@@ -6,7 +6,7 @@ import NotificationWatcher from "@/components/NotificationWatcher";
 import CallManager from "@/components/CallManager";
 import UnreadDot from "@/components/UnreadDot";
 import InstallHint from "@/components/InstallHint";
-import { Search as SearchIcon, Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun, Sparkles } from "lucide-react";
+import { Search as SearchIcon, Home, BookOpen, Hand, Compass, Hash, Menu, X, BookText, Scroll, Star, Users, Calendar, Heart, MessageCircle, Flame, Info, Moon, Sun, Sparkles, Gamepad2 } from "lucide-react";
 
 const bottomNav = [
   { href: "/", icon: Home, label: "Home" },
@@ -30,6 +30,7 @@ const allNav = [
   { href: "/kids", icon: Heart, label: "Kids Zone" },
   { href: "/quran-values", icon: BookOpen, label: "Quran Values" },
   { href: "/ai-tutor", icon: Sparkles, label: "AI Islamic Tutor" },
+  { href: "/games", icon: Gamepad2, label: "Games" },
   { href: "/about", icon: Info, label: "About" },
   { href: "/reels", icon: Flame, label: "Reels" },
 { href:"/contact", icon: MessageCircle, label:"Contact" },
