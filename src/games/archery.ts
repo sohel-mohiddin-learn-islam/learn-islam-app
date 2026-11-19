@@ -56,7 +56,7 @@ export class Archery extends Game {
     bow.add(str); this.str = str;
     this.bowG = bow; scene.add(bow);
     this.nocked = new THREE.Group();
-    addMesh(this.nocked, new THREE.CylinderGeometry(0.008, 0.008, 0.8, 6), 0xe8d9b0, 0, 0, 0).rotation.x = Math.PI / 2;
+    addMesh(this.nocked, new THREE.CylinderGeometry(0.016, 0.016, 0.8, 6), 0xf3e2b0, 0, 0, 0).rotation.x = Math.PI / 2;
     addMesh(this.nocked, new THREE.ConeGeometry(0.02, 0.06, 8), 0x888888, 0, 0, 0.43).rotation.x = Math.PI / 2;
     scene.add(this.nocked);
     this.newWind();
@@ -73,13 +73,17 @@ export class Archery extends Game {
     const ready = !this.flying && this.wait <= 0 && this.arrows > 0;
     if (ready && d.active) {
       this.draw = Math.min(1, this.draw + dt * 1.3);
-      this.yaw = clamp(-(d.x - d.x0) * 0.00035, -0.1, 0.1);
-      this.pitch = clamp(-(d.y - d.y0) * 0.00025, -0.06, 0.08);
+      this.yaw = clamp(-(d.x - d.x0) * 0.0004, -0.12, 0.12);
+      this.pitch = clamp(-(d.y - d.y0) * 0.0003, -0.08, 0.08);
     } else if (!d.active) this.draw = Math.max(0, this.draw - dt * 3);
     const rel = input.takeRelease();
     if (rel && ready && this.draw > 0.25) this.shoot();
     else if (rel) this.draw = 0;
     this.wait -= dt;
+    // hold = breathing sway, grows as the draw gets heavier (steadier when you aim calmly)
+    const sway = this.draw * 0.5 + (d.active ? 0.1 : 0);
+    this.swayX = 0.006 * sway * (Math.sin(this.t * 1.7) + 0.6 * Math.sin(this.t * 3.1 + 1));
+    this.swayY = 0.005 * sway * (Math.sin(this.t * 2.3 + 2) + 0.6 * Math.sin(this.t * 4.1));
     // arrow flight
     if (this.flying) {
       const f = this.flying;
@@ -90,21 +94,23 @@ export class Archery extends Game {
       else if (f.m.position.y < 0.05) { this.miss(f); }
     }
     this.pose();
-    // camera behind the archer, looking along the aim
-    camera.fov = 42 - this.draw * 4; camera.updateProjectionMatrix();
-    camera.position.set(-1.6, 1.8, -3.2);
-    const ty = 1.6 + Math.tan(this.pitch) * 20;
-    camera.lookAt(-1.6 + Math.tan(this.yaw) * 20, ty, 16.8);
-    this.sun.position.set(14, 30, 6); this.sun.target.position.set(0, 0, 10); this.sun.target.updateMatrixWorld();
-    // nocked arrow follows the bow hand
-    this.nocked.visible = !this.flying && this.arrows > 0 && !this.done;
+    // nock position (follows the bow hand), then the aim angles measured from it so the crosshair == where the arrow flies
     const hl = new THREE.Vector3(); this.archer.bones["hand_l"].getWorldPosition(hl);
+    const ox = hl.x, oy = hl.y, oz = hl.z - this.draw * 0.3;
+    this.aimYaw = Math.atan2(this.target.position.x - ox, DIST - oz) + this.yaw + this.swayX;
+    this.aimPitch = Math.atan2(this.target.position.y - oy, DIST - oz) + this.pitch + this.swayY;
+    camera.fov = 42 - this.draw * 6; camera.updateProjectionMatrix();
+    camera.position.set(-1.6, 1.8, -3.2);
+    camera.lookAt(ox + Math.tan(this.aimYaw) * (DIST - oz), oy + Math.tan(this.aimPitch) * (DIST - oz), DIST);
+    this.sun.position.set(14, 30, 6); this.sun.target.position.set(0, 0, 10); this.sun.target.updateMatrixWorld();
+    this.nocked.visible = !this.flying && this.arrows > 0 && !this.done;
     this.bowG.position.set(hl.x, hl.y, hl.z);
-    this.bowG.rotation.set(0, this.yaw, 0);
+    this.bowG.rotation.set(0, this.aimYaw, 0);
     this.str.position.set(0, 0, -this.draw * 0.35);
-    this.nocked.position.set(hl.x, hl.y, hl.z - 0.42 - this.draw * 0.3 + 0.42);
-    this.nocked.rotation.set(-this.pitch, this.yaw, 0);
+    this.nocked.position.set(ox, oy, oz);
+    this.nocked.rotation.set(-(this.aimPitch + 0.06), this.aimYaw, 0);
   }
+  aimYaw = 0; aimPitch = 0; swayX = 0; swayY = 0;
   pose() {
     const c = this.archer; idle(c, this.t);
     c.rot("upperarm_l", 0, 0, 1.3); c.rot("lowerarm_l", 0, 0, 0);
@@ -116,11 +122,12 @@ export class Archery extends Game {
   shoot() {
     const sp = 30 + 32 * this.draw;
     const g = new THREE.Group();
-    addMesh(g, new THREE.CylinderGeometry(0.012, 0.012, 0.85, 6), 0xe8d9b0, 0, 0, 0).rotation.x = Math.PI / 2;
+    addMesh(g, new THREE.CylinderGeometry(0.016, 0.016, 0.85, 6), 0xf3e2b0, 0, 0, 0).rotation.x = Math.PI / 2;
     addMesh(g, new THREE.ConeGeometry(0.03, 0.08, 8), 0x555555, 0, 0, 0.46).rotation.x = Math.PI / 2;
     addMesh(g, new THREE.BoxGeometry(0.1, 0.01, 0.12), 0xd9342b, 0, 0, -0.38);
-    g.position.copy(this.nocked.position).add(new THREE.Vector3(0, 0, 0.1));
-    const v = new THREE.Vector3(Math.sin(this.yaw) * Math.cos(this.pitch + 0.056), Math.sin(this.pitch + 0.056), Math.cos(this.yaw) * Math.cos(this.pitch + 0.056)).multiplyScalar(sp);
+    g.position.copy(this.nocked.position);
+    const ap = this.aimPitch + 0.06;
+    const v = new THREE.Vector3(Math.sin(this.aimYaw) * Math.cos(ap), Math.sin(ap), Math.cos(this.aimYaw) * Math.cos(ap)).multiplyScalar(sp);
     this.ctx.scene.add(g);
     this.flying = { m: g, v };
     this.arrows--; this.ctx.hud.set("Arrows", this.arrows);

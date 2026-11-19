@@ -28,6 +28,8 @@ export class BallGame extends Game {
   goalH: number;
   ballR: number;
   stick?: THREE.Group;
+  shaft?: THREE.Mesh;
+  head?: THREE.Mesh;
   cool = 0;
   static controls(hockey: boolean): Controls {
     return { mode: "move", buttons: [{ id: "shoot", label: hockey ? "HIT" : "SHOOT" }], hint: "Stick to run • " + (hockey ? "HIT" : "SHOOT") + " near the ball • beat the defenders and keeper" };
@@ -75,11 +77,10 @@ export class BallGame extends Game {
     }
     if (this.hockey) {
       const st = new THREE.Group();
-      addMesh(st, new THREE.CylinderGeometry(0.018, 0.018, 1.0, 8), 0xd9b36a, 0, -0.45, 0);
-      const head = addMesh(st, new THREE.BoxGeometry(0.05, 0.05, 0.26), 0x222222, 0, -0.97, 0.1);
-      head.rotation.x = 0.1;
+      this.shaft = addMesh(st, new THREE.CylinderGeometry(0.02, 0.02, 1, 8), 0xd9b36a, 0, -0.5, 0);
+      this.head = addMesh(st, new THREE.BoxGeometry(0.05, 0.07, 0.3), 0x222222, 0, -1, 0.08);
+      scene.add(st);
       this.stick = st;
-      this.player.attach("hand_r", st);
     }
     this.resetPlay();
   }
@@ -208,6 +209,7 @@ export class BallGame extends Game {
       this.player.rot("lowerarm_r", 0.4, 0, 0);
     }
     this.keeperPose(dt, incoming);
+    if (this.hockey) this.placeStick();
     // camera
     const cx = p.x * 0.7, cz = p.z - 8.5;
     camera.position.x += (cx - camera.position.x) * Math.min(1, dt * 4);
@@ -217,6 +219,31 @@ export class BallGame extends Game {
     this.sun.position.set(p.x + 18, 30, p.z + 12);
     this.sun.target.position.set(p.x, 0, p.z);
     this.sun.target.updateMatrixWorld();
+  }
+  placeStick() {
+    const st = this.stick!, p = this.player.root.position;
+    this.player.root.updateMatrixWorld(true);
+    const hr = new THREE.Vector3(), hl = new THREE.Vector3();
+    this.player.bones["hand_r"].getWorldPosition(hr); this.player.bones["hand_l"].getWorldPosition(hl);
+    const grip = hr.add(hl).multiplyScalar(0.5);
+    const fx = Math.sin(this.heading), fz = Math.cos(this.heading);
+    const b = this.ball.position;
+    const tip = new THREE.Vector3();
+    const t = this.kick > 0 ? 1 - this.kick / 0.35 : -1;
+    if (t >= 0) {
+      const sweep = (t - 0.5) * 2; // -1 .. 1 : back → through the ball
+      tip.set(b.x + fx * sweep * 1.0, 0.03 + 0.55 * Math.max(0, 1 - Math.abs(sweep) * 1.6), b.z + fz * sweep * 1.0);
+    } else {
+      tip.set(p.x + fx * 0.8, 0.03, p.z + fz * 0.8);
+      const d = Math.hypot(b.x - p.x, b.z - p.z);
+      if (d < 1.6) { tip.x = b.x - fx * 0.12; tip.z = b.z - fz * 0.12; }
+    }
+    const dir = tip.clone().sub(grip);
+    const len = Math.max(0.5, dir.length());
+    st.position.copy(grip);
+    st.quaternion.setFromUnitVectors(new THREE.Vector3(0, -1, 0), dir.normalize());
+    this.shaft!.scale.y = len; this.shaft!.position.y = -len / 2;
+    this.head!.position.y = -len;
   }
   saved = false;
   kt = 0;

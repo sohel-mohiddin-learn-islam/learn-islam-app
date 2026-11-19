@@ -23,7 +23,7 @@ export class Cricket extends Game {
   tt = 0;
   bounced = false;
   sun!: THREE.DirectionalLight;
-  static controls(): Controls { return { mode: "tap", buttons: [{ id: "swing", label: "SWING" }], hint: "Tap SWING as the ball reaches the bat — early or late changes the shot" }; }
+  static controls(): Controls { return { mode: "move", buttons: [{ id: "swing", label: "SWING" }], hint: "Stick: move the batter & choose the shot side (up = lofted) • tap SWING as the ball arrives — swing as often as you like" }; }
   async init() {
     const { scene, base, gender, kit } = this.ctx;
     sky(scene, 0x86bff0, 190);
@@ -81,6 +81,11 @@ export class Cricket extends Game {
     const { input, hud } = this.ctx;
     input.poll();
     this.tt += dt;
+    if (this.state !== "result") {
+      const bp = this.bat.root.position;
+      bp.x = clamp(bp.x - input.x * 2.4 * dt, -1.0, 1.9);
+      bp.z = clamp(bp.z + input.y * 2.4 * dt, -0.5, 1.8);
+    }
     hud.set("Runs", this.runs); hud.set("Wickets", this.wickets + "/3");
     if (this.state === "wait") {
       this.t -= dt;
@@ -118,21 +123,23 @@ export class Cricket extends Game {
     b.rot("thigh_l", -0.6, 0, 0); b.rot("thigh_r", 0.3, 0, 0);
   }
   readSwing(dt: number) {
-    if (input_pressed(this.ctx) && !this.swung) { this.swung = true; this.swing = 0.0001; this.contactDone = false; }
+    if (input_pressed(this.ctx) && this.swing === 0) { this.swing = 0.0001; this.contactDone = false; this.shotX = -this.ctx.input.x; this.shotY = this.ctx.input.y; }
     if (this.swing > 0) this.swing += dt;
     if (this.swing > 0.14 && !this.contactDone) { this.contactDone = true; this.contact(); }
     if (this.swing > 0.6) this.swing = 0;
   }
   contactDone = false;
+  shotX = 0; shotY = 0;
   contact() {
     if (this.state !== "flight") return;
     const b = this.ball.position;
-    const dz = b.z - 0.7;
-    if (Math.abs(dz) < 1.25 && b.y < 1.9 && Math.abs(b.x - 0.4) < 1.0) {
+    const bp = this.bat.root.position;
+    const dz = b.z - (bp.z + 0.1);
+    if (Math.abs(dz) < 1.25 && b.y < 1.9 && Math.abs(b.x - (bp.x - 0.15)) < 1.0) {
       const q = 1 - Math.abs(dz) / 1.25;
-      const ang = clamp(-dz * 0.75, -1.2, 1.2) + (b.x - 0.4) * 0.25; // late → off side, early → leg side
+      const ang = clamp(-dz * 0.6 + this.shotX * 0.7, -1.4, 1.4); // late → off side, early → leg side
       const sp = 12 + 22 * q;
-      this.bv.set(Math.sin(ang) * sp * 0.9, q > 0.65 ? rand(5, 11) : rand(1, 5), Math.cos(ang) * sp + 4);
+      this.bv.set(Math.sin(ang) * sp * 0.9, (q > 0.5 ? 3 + 7 * Math.max(0, this.shotY + 0.3) : 1) + rand(0, 2), Math.cos(ang) * sp + 4);
       this.state = "hit"; this.tt = 0; this.bounced = false; this.landed = 0; this.maxd = 0;
       this.ctx.hud.toast(q > 0.8 ? "Perfect timing!" : q > 0.5 ? "Good shot" : "Edged!", 800);
     }
