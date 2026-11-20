@@ -89,7 +89,7 @@ export async function moveChat(me: string, other: string, toGeneral: boolean) {
   }
 }
 
-export type Message = { id: string; from: string; text: string; createdAt: number; expiresAt?: number };
+export type Message = { id: string; from: string; text: string; createdAt: number; expiresAt?: number; reactions?: Record<string, string> };
 
 export const chatIdFor = (a: string, b: string) => [a, b].sort().join("_");
 

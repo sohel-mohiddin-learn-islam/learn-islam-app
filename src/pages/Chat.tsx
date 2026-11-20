@@ -1,4 +1,5 @@
 import VerifiedBadge from "@/components/VerifiedBadge";
+import { Reactable } from "@/components/Reactions";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -148,6 +149,7 @@ export default function Chat() {
           return (
             <div key={m.id}>
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
+                <Reactable path={["chats", [user.uid, other].sort().join("_"), "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions}>
                 {reel && !hidden ? (
                   <ReelPreview
                     id={reel.id}
@@ -160,12 +162,13 @@ export default function Chat() {
                   />
                 ) : (
                   <div
-                    className={`max-w-[78%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? (bubble ? "text-white" : "bg-primary text-primary-foreground") : "bg-muted"}`}
+                    className={`px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? (bubble ? "text-white" : "bg-primary text-primary-foreground") : "bg-muted"}`}
                     style={mine && bubble ? { backgroundColor: bubble } : undefined}
                   >
                     {hidden ? <i className="opacity-70">Message hidden</i> : m.text}
                   </div>
                 )}
+                </Reactable>
               </div>
               {lastMine && (
                 <p className="text-right text-xs text-foreground/50 pr-1 mt-0.5">{otherRead >= m.createdAt ? "Seen" : "Sent"}</p>

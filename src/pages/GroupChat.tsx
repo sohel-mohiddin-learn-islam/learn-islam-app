@@ -1,3 +1,4 @@
+import { Reactable } from "@/components/Reactions";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -85,13 +86,15 @@ export default function GroupChat() {
           return (
             <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
               {!mine && <span className="text-xs text-foreground/50 ml-1">{names[m.from]?.displayName || "…"}</span>}
+              <Reactable path={["groups", gid, "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions}>
               <div
-                className={`max-w-[78%] px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? (bubble ? "text-white" : "bg-primary text-primary-foreground") : "bg-muted"}`}
+                className={`px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? (bubble ? "text-white" : "bg-primary text-primary-foreground") : "bg-muted"}`}
                 style={mine && bubble ? { backgroundColor: bubble } : undefined}
                 onClick={reel ? () => { try { sessionStorage.setItem("reel-start", reel.id); } catch { /* ignore */ } setLocation("/reels"); } : undefined}
               >
                 {hidden ? <i className="opacity-70">Message hidden</i> : reel ? `🎬 Reel${reel.by ? " by " + reel.by : ""} — tap to watch` : m.text}
               </div>
+              </Reactable>
             </div>
           );
         })}

@@ -195,6 +195,10 @@ service cloud.firestore {
         allow create: if signedIn() &&
           request.resource.data.from == request.auth.uid &&
           request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants;
+        // either person may add or remove their own emoji reaction (and nothing else on the message)
+        allow update: if signedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/chats/$(chatId)).data.participants &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
       }
     }
 
@@ -232,6 +236,9 @@ service cloud.firestore {
         allow create: if signedIn() && request.resource.data.from == request.auth.uid &&
           request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members;
         allow delete: if signedIn() && resource.data.from == request.auth.uid;
+        allow update: if signedIn() &&
+          request.auth.uid in get(/databases/$(database)/documents/groups/$(groupId)).data.members &&
+          request.resource.data.diff(resource.data).affectedKeys().hasOnly(['reactions']);
       }
     }
 

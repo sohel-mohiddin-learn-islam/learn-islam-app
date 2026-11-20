@@ -1,4 +1,5 @@
 import VerifiedBadge from "@/components/VerifiedBadge";
+import { ReactionPicker, ReactionGlyph, useLongPress } from "@/components/Reactions";
 import { Fragment, useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -66,6 +67,9 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
     return () => { soundSubs.delete(fn); };
   }, []);
   const [liked, setLiked] = useState(() => getLiked(reel.id));
+  const [myReaction, setMyReaction] = useState<string>(() => { try { return localStorage.getItem(`reel-react-${reel.id}`) || ""; } catch { return ""; } });
+  const [pickOpen, setPickOpen] = useState(false);
+  const likeHold = useLongPress(() => setPickOpen(true));
   const [failed, setFailed] = useState(false);
   const [shouldLoad, setShouldLoad] = useState(false);
   const [retryKey, setRetryKey] = useState(0);
@@ -204,6 +208,16 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
     }
   };
 
+  const chooseReaction = (id: string | null) => {
+    setMyReaction(id || "");
+    try { if (id) localStorage.setItem(`reel-react-${reel.id}`, id); else localStorage.removeItem(`reel-react-${reel.id}`); } catch { /* ignore */ }
+    if (id && !liked) { toggleLike(); }
+    if (!id && liked) { toggleLike(); return; }
+    if (user && !reel.id.startsWith("local-") && id) {
+      setDoc(doc(db, "posts", reel.id, "likes", user.uid), { userId: user.uid, createdAt: Date.now(), emoji: id }).catch(() => {});
+    }
+  };
+
   const handleError = () => {
     // the phone-friendly copy may not exist yet: fall back to the original file
     if (reel.original && !useOriginal) {
@@ -325,10 +339,17 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
       )}
 
       <div className="absolute right-4 bottom-24 flex flex-col items-center gap-4 text-white">
-        <button onClick={toggleLike} className="flex flex-col items-center" aria-label="Like">
-          <span className="text-3xl drop-shadow-lg">{liked ? "❤️" : "🤍"}</span>
+        <div className="relative flex flex-col items-center">
+          {pickOpen && (
+            <div className="absolute right-12 bottom-0 w-max">
+              <ReactionPicker dark mine={myReaction} onClose={() => setPickOpen(false)} onPick={chooseReaction} />
+            </div>
+          )}
+        <button onClick={() => { if (!pickOpen) toggleLike(); }} {...likeHold} onDoubleClick={undefined} className="flex flex-col items-center select-none" aria-label="Like (hold to react)">
+          <span className="text-3xl drop-shadow-lg">{liked ? (myReaction ? <ReactionGlyph id={myReaction} size={34} /> : "❤️") : "🤍"}</span>
           {isCommunity && <span className="text-xs drop-shadow">{compact(counts.likes)}</span>}
         </button>
+        </div>
 
         {isCommunity && (
           <button onClick={() => setShowComments(true)} className="flex flex-col items-center" aria-label="Comments">
