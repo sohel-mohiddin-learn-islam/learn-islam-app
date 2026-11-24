@@ -63,7 +63,12 @@ function sendChunk(
         }
       } else {
         console.error("Cloudinary chunk failed:", xhr.status, xhr.responseText);
-        reject(new Error(`Cloudinary upload failed (${xhr.status}).`));
+        let why = "";
+        try { why = JSON.parse(xhr.responseText)?.error?.message || ""; } catch { /* ignore */ }
+        const e: Error & { fatal?: boolean } = new Error(`Cloudinary upload failed (${xhr.status})${why ? ": " + why : "."}`);
+        // a 4xx answer (other than "too many requests"/timeout) will never succeed on retry
+        e.fatal = xhr.status >= 400 && xhr.status < 500 && xhr.status !== 408 && xhr.status !== 429;
+        reject(e);
       }
     };
     xhr.timeout = 2 * 60 * 1000;
@@ -97,7 +102,7 @@ async function chunkedUpload(
         break;
       } catch (err) {
         attempt += 1;
-        if (attempt >= 8) throw err;
+        if (attempt >= 8 || (err as { fatal?: boolean })?.fatal) throw err;
         // wait for the connection to come back (up to ~20 s), then resend just this piece
         for (let w = 0; w < 20 && typeof navigator !== "undefined" && navigator.onLine === false; w++) await new Promise((r) => setTimeout(r, 1000));
         await new Promise((r) => setTimeout(r, Math.min(1500 * attempt, 8000)));
