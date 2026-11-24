@@ -18,7 +18,7 @@ import { auth, db } from "./firebase";
 const CLOUDINARY_CLOUD_NAME = "mpyzgv8c";
 const CLOUDINARY_UPLOAD_PRESET = "learn_islam_reels";
 
-const CHUNK_SIZE = 2 * 1024 * 1024; // small pieces: a weak connection only has to resend 2 MB, not the whole video
+const CHUNK_SIZE = 6 * 1024 * 1024; // Cloudinary now requires every piece except the last to be larger than 5 MB; files under 6 MB go up in one piece
 
 function withTimeout<T>(p: Promise<T>, ms: number, message: string): Promise<T> {
   return new Promise((resolve, reject) => {
