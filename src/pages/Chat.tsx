@@ -3,7 +3,7 @@ import { Reactable } from "@/components/Reactions";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { FONTS, THEMES, markRead, parseReelMessage, sendMessage, visibleMessages, watchChat, watchMessages, watchSettings, type ChatSettings, type Message } from "@/lib/chat";
+import { FONTS, THEMES, deleteChatMessage, useHiddenMessages, markRead, parseReelMessage, sendMessage, visibleMessages, watchChat, watchMessages, watchSettings, type ChatSettings, type Message } from "@/lib/chat";
 import { startCall } from "@/components/CallManager";
 import { deleteDoc, doc as fdoc } from "firebase/firestore";
 import { getProfile, type UserProfile } from "@/lib/social";
@@ -57,7 +57,8 @@ export default function Chat() {
   const [otherRead, setOtherRead] = useState(0);
   const [st, setSt] = useState<ChatSettings>({ theme: "default", font: "default", disappear: 0, muted: {}, general: {}, nicks: {}, clearedAt: {} });
   const [tick, setTick] = useState(0);
-  const shown = user ? visibleMessages(messages, user.uid, st) : messages;
+  const [hiddenIds, hideMsg] = useHiddenMessages(`chat_${[user?.uid || "", other].sort().join("_")}`);
+  const shown = (user ? visibleMessages(messages, user.uid, st) : messages).filter((m) => !hiddenIds.has(m.id));
   const bubble = THEMES[st.theme]?.bubble || "";
   const fontCss = FONTS[st.font]?.css || "";
   const title = (user && st.nicks[user.uid]) || profile?.displayName || "…";
@@ -149,7 +150,7 @@ export default function Chat() {
           return (
             <div key={m.id}>
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <Reactable path={["chats", [user.uid, other].sort().join("_"), "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions}>
+                <Reactable path={["chats", [user.uid, other].sort().join("_"), "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions} onDeleteMe={() => hideMsg(m.id)} onDeleteAll={mine ? () => { deleteChatMessage(user.uid, other, m.id).catch(() => {}); } : undefined}>
                 {reel && !hidden ? (
                   <ReelPreview
                     id={reel.id}

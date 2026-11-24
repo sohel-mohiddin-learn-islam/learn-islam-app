@@ -70,16 +70,36 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { reactToMessage } from "@/lib/reactions";
 
-/** Wraps a chat bubble: long-press / double-tap to react; chips show under it. */
-export function Reactable({ path, uid, mine, reactions, children }: { path: string[]; uid: string; mine: boolean; reactions?: Record<string, string>; children: ReactNode }) {
+/** Wraps a chat bubble: long-press / double-tap for reactions and delete options; chips show under it. */
+export function Reactable({ path, uid, mine, reactions, children, onDeleteMe, onDeleteAll }: { path: string[]; uid: string; mine: boolean; reactions?: Record<string, string>; children: ReactNode; onDeleteMe?: () => void; onDeleteAll?: () => void }) {
   const [open, setOpen] = useState(false);
-  const lp = useLongPress(() => setOpen(true));
+  const [confirm, setConfirm] = useState(false);
+  const lp = useLongPress(() => { setConfirm(false); setOpen(true); });
   const pick = (id: string | null) => { reactToMessage(path, uid, id).catch(() => {}); };
+  const close = () => { setOpen(false); setConfirm(false); };
   return (
     <div className={`max-w-[78%] flex flex-col ${mine ? "items-end" : "items-start"}`} style={{ WebkitTouchCallout: "none" }}>
-      {open && <div className="mb-1"><ReactionPicker mine={reactions?.[uid]} onPick={pick} onClose={() => setOpen(false)} /></div>}
+      {open && (
+        <div className="mb-1 flex flex-col gap-1.5 items-center">
+          {!confirm && <ReactionPicker mine={reactions?.[uid]} onPick={pick} onClose={close} />}
+          {(onDeleteMe || onDeleteAll) && (
+            <div className="relative z-[61] rounded-2xl bg-card border border-border shadow-xl overflow-hidden text-sm min-w-[190px]">
+              {!confirm ? (
+                <button className="w-full text-left px-4 py-2.5 text-red-500 font-medium active:bg-muted" onClick={() => setConfirm(true)}>🗑️ Delete message…</button>
+              ) : (
+                <>
+                  <p className="px-4 pt-2.5 pb-1 text-xs text-foreground/60">Delete this message?</p>
+                  {onDeleteMe && <button className="w-full text-left px-4 py-2.5 active:bg-muted" onClick={() => { onDeleteMe(); close(); }}>Delete for me</button>}
+                  {onDeleteAll && <button className="w-full text-left px-4 py-2.5 text-red-500 font-medium active:bg-muted border-t border-border" onClick={() => { onDeleteAll(); close(); }}>Delete for everyone</button>}
+                  <button className="w-full text-left px-4 py-2.5 border-t border-border active:bg-muted" onClick={close}>Cancel</button>
+                </>
+              )}
+            </div>
+          )}
+        </div>
+      )}
       <div {...lp} className="select-none">{children}</div>
-      <ReactionChips reactions={reactions} uid={uid} onTap={() => setOpen(true)} align={mine ? "right" : "left"} />
+      <ReactionChips reactions={reactions} uid={uid} onTap={() => { setConfirm(false); setOpen(true); }} align={mine ? "right" : "left"} />
     </div>
   );
 }

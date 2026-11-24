@@ -1,6 +1,7 @@
 import {
   addDoc,
   collection,
+  deleteDoc,
   doc,
   getDoc,
   onSnapshot,
@@ -212,3 +213,22 @@ export function timeAgo(ms: number): string {
   if (s < 7 * 86400) return `${Math.floor(s / 86400)}d`;
   return `${Math.floor(s / (7 * 86400))}w`;
 }
+
+/** "Delete for me": ids hidden on this device only (the other person still sees the message). */
+import { useCallback, useEffect, useState } from "react";
+const hiddenKey = (k: string) => `li_hidden_${k}`;
+function readHidden(k: string): string[] { try { return JSON.parse(localStorage.getItem(hiddenKey(k)) || "[]"); } catch { return []; } }
+export function useHiddenMessages(k: string): [Set<string>, (id: string) => void] {
+  const [ids, setIds] = useState<string[]>(() => readHidden(k));
+  useEffect(() => { setIds(readHidden(k)); }, [k]);
+  const hide = useCallback((id: string) => {
+    const next = Array.from(new Set([...readHidden(k), id])).slice(-2000);
+    try { localStorage.setItem(hiddenKey(k), JSON.stringify(next)); } catch { /* ignore */ }
+    setIds(next);
+  }, [k]);
+  return [new Set(ids), hide];
+}
+
+/** "Delete for everyone": only the sender can do this (Firestore rules enforce it). */
+export const deleteChatMessage = (me: string, other: string, id: string) =>
+  deleteDoc(doc(db, "chats", [me, other].sort().join("_"), "messages", id));

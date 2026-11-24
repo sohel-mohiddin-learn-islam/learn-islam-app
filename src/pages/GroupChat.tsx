@@ -2,7 +2,7 @@ import { Reactable } from "@/components/Reactions";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { FONTS, THEMES, parseReelMessage, type Message } from "@/lib/chat";
+import { FONTS, THEMES, parseReelMessage, useHiddenMessages, type Message } from "@/lib/chat";
 import { markGroupRead, sendGroupMessage, visibleGroupMessages, watchGroup, watchGroupMessages, deleteGroupMessage, type Group } from "@/lib/groups";
 import { getProfile, type UserProfile } from "@/lib/social";
 import { startGroupCall, joinCall } from "@/components/CallManager";
@@ -36,7 +36,8 @@ export default function GroupChat() {
     g?.members.forEach((m) => { if (!names[m]) getProfile(m).then((p) => setNames((o) => ({ ...o, [m]: p }))).catch(() => {}); });
   }, [g?.members.join(",")]);
 
-  const shown = g && user ? visibleGroupMessages(messages, user.uid, g) : [];
+  const [hiddenIds, hideMsg] = useHiddenMessages(`group_${gid}`);
+  const shown = (g && user ? visibleGroupMessages(messages, user.uid, g) : []).filter((m) => !hiddenIds.has(m.id));
   useEffect(() => { if (user && shown.length) markGroupRead(user.uid, gid); end.current?.scrollIntoView({ behavior: "smooth" }); }, [shown.length]);
   useEffect(() => {
     if (!user) return;
@@ -86,7 +87,7 @@ export default function GroupChat() {
           return (
             <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
               {!mine && <span className="text-xs text-foreground/50 ml-1">{names[m.from]?.displayName || "…"}</span>}
-              <Reactable path={["groups", gid, "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions}>
+              <Reactable path={["groups", gid, "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions} onDeleteMe={() => hideMsg(m.id)} onDeleteAll={mine ? () => { deleteGroupMessage(gid, m.id); } : undefined}>
               <div
                 className={`px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? (bubble ? "text-white" : "bg-primary text-primary-foreground") : "bg-muted"}`}
                 style={mine && bubble ? { backgroundColor: bubble } : undefined}
