@@ -5,7 +5,7 @@ import { useAuth } from "@/contexts/AuthContext";
 import { clearAll, markAllRead, watchNotifications, type Notif } from "@/lib/notifications";
 import { follow, getProfile, isFollowing, type UserProfile } from "@/lib/social";
 import { containsHiddenWord } from "@/lib/prefs";
-import { notify, testPush } from "@/lib/notifications";
+import { notify } from "@/lib/notifications";
 
 function ago(ms: number) {
   const s = Math.max(1, Math.floor((Date.now() - ms) / 1000));
@@ -79,7 +79,6 @@ export default function Notifications() {
         <div className="flex items-center gap-4 px-4 py-4 sticky top-0 bg-background z-10">
           <button onClick={() => window.history.back()} className="text-2xl" aria-label="Back">←</button>
           <h1 className="text-lg font-semibold flex-1">Notifications</h1>
-          <button onClick={async () => alert(await testPush())} className="text-sm text-primary">Test</button>
           {items && items.length > 0 && (
             <button
               onClick={() => confirm("Clear all notifications?") && clearAll(user.uid)}
