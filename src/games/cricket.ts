@@ -181,7 +181,7 @@ export class Cricket extends Game {
     this.bowler.root.position.set(0.5, 0, 33);
   }
   finish() {
-    this.ctx.hud.end(this.runs >= 20 ? "What an innings!" : "Innings over", `You scored ${this.runs} runs${this.wickets ? ` and lost ${this.wickets} wicket${this.wickets > 1 ? "s" : ""}` : ""}.`);
+    this.ctx.hud.end(this.runs >= 20 ? "What an innings!" : "Innings over", `You scored ${this.runs} runs${this.wickets ? ` and lost ${this.wickets} wicket${this.wickets > 1 ? "s" : ""}` : ""}.`, this.runs);
   }
   stance(dt: number) {
     const c = this.bat; c.reset(); armsDown(c);

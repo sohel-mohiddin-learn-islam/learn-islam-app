@@ -88,7 +88,7 @@ export class Swim extends Game {
     if (me.fin && !this.over) {
       this.over = true;
       const pos = 1 + this.sw.filter((o) => o !== me && o.fin && o.fin < me.fin).length;
-      setTimeout(() => hud.end(pos === 1 ? "You won! 🥇" : pos === 2 ? "Silver! 🥈" : pos === 3 ? "Bronze! 🥉" : "Race finished", `Your time: ${me.fin.toFixed(1)} s for 50 m.`), 900);
+      setTimeout(() => hud.end(pos === 1 ? "You won! 🥇" : pos === 2 ? "Silver! 🥈" : pos === 3 ? "Bronze! 🥉" : "Race finished", `Your time: ${me.fin.toFixed(1)} s for 50 m.`, Math.max(1, Math.round(1500 / Math.max(10, me.fin)))), 900);
     }
     const cz = me.z + 3;
     camera.position.set(6.8, 2.4, cz - 4.5);

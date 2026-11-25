@@ -1,10 +1,12 @@
 import VerifiedBadge from "@/components/VerifiedBadge";
 import { Reactable, ReplyQuote } from "@/components/Reactions";
 import ForwardSheet from "@/components/ForwardSheet";
+import RichText from "@/components/RichText";
+import { uploadImage } from "@/lib/posts";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
-import { FONTS, THEMES, deleteChatMessage, useHiddenMessages, markRead, parseReelMessage, sendMessage, visibleMessages, watchChat, watchMessages, watchSettings, type ChatSettings, type Message } from "@/lib/chat";
+import { FONTS, THEMES, deleteChatMessage, useHiddenMessages, markRead, parseReelMessage, sendMessage, setTyping, visibleMessages, watchChat, watchMessages, watchSettings, type ChatSettings, type Message } from "@/lib/chat";
 import { startCall } from "@/components/CallManager";
 import { deleteDoc, doc as fdoc } from "firebase/firestore";
 import { getProfile, type UserProfile } from "@/lib/social";
@@ -58,6 +60,9 @@ export default function Chat() {
   const endRef = useRef<HTMLDivElement>(null);
   const [listenKey, setListenKey] = useState(0);
   const [otherRead, setOtherRead] = useState(0);
+  const [otherTyping, setOtherTyping] = useState(0);
+  const lastTypingSent = useRef(0);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [st, setSt] = useState<ChatSettings>({ theme: "default", font: "default", disappear: 0, muted: {}, general: {}, nicks: {}, clearedAt: {} });
   const [tick, setTick] = useState(0);
   const [hiddenIds, hideMsg] = useHiddenMessages(`chat_${[user?.uid || "", other].sort().join("_")}`);
@@ -82,7 +87,7 @@ export default function Chat() {
 
   useEffect(() => {
     if (!user || !other) return;
-    return watchChat(user.uid, other, (c) => setOtherRead(c.lastRead[other] || 0));
+    return watchChat(user.uid, other, (c) => { setOtherRead(c.lastRead[other] || 0); setOtherTyping(c.typing[other] || 0); });
   }, [user?.uid, other, listenKey]);
 
   useEffect(() => {
@@ -92,7 +97,7 @@ export default function Chat() {
 
   // expired disappearing messages vanish live; my own expired ones are also deleted for good
   useEffect(() => {
-    const id = setInterval(() => setTick((t) => t + 1), 15000);
+    const id = setInterval(() => setTick((t) => t + 1), 2500);
     return () => clearInterval(id);
   }, []);
   useEffect(() => {
@@ -135,7 +140,7 @@ export default function Chat() {
           <span className="w-9 h-9 rounded-full bg-muted overflow-hidden flex items-center justify-center">
             {profile?.photoURL ? <img src={profile.photoURL} alt="" className="w-full h-full object-cover" /> : "👤"}
           </span>
-          <span className="font-semibold">{title}<VerifiedBadge uid={other} size={14} /></span>
+          <span className="text-left"><span className="font-semibold block leading-tight">{title}<VerifiedBadge uid={other} size={14} /></span>{Date.now() - otherTyping < 6000 && otherTyping > 0 && <span className="block text-xs text-primary">typing…</span>}</span>
         </button>
         <span className="ml-auto flex items-center gap-4 text-xl">
           <button onClick={() => startCall(other, "audio")} aria-label="Voice call">📞</button>
@@ -171,7 +176,8 @@ export default function Chat() {
                     style={mine && bubble ? { backgroundColor: bubble } : undefined}
                   >
                     {m.replyTo && !hidden && <ReplyQuote name={m.replyTo.from === user.uid ? "You" : title} text={m.replyTo.text} />}
-                    {hidden ? <i className="opacity-70">Message hidden</i> : m.text}
+                    {hidden ? <i className="opacity-70">Message hidden</i> : <RichText text={m.text} />}
+                    {mine && <span className={`float-right ml-2 mt-1 text-[10px] ${otherRead >= m.createdAt ? "text-sky-300" : "opacity-60"}`}>{otherRead >= m.createdAt ? "✓✓" : "✓"}</span>}
                   </div>
                 )}
                 </Reactable>
@@ -193,10 +199,24 @@ export default function Chat() {
         </div>
       )}
       {fwd && <ForwardSheet text={fwd} onClose={() => setFwd(null)} />}
-      <div className="flex gap-2 p-3 border-t border-border">
+      <div className="flex gap-2 p-3 border-t border-border items-center">
+        <label className={`text-2xl cursor-pointer ${photoBusy ? "opacity-40" : ""}`} aria-label="Send a photo">
+          📷
+          <input type="file" accept="image/*" className="hidden" disabled={photoBusy} onChange={async (e) => {
+            const f = e.target.files?.[0]; e.target.value = "";
+            if (!f || !user) return;
+            setPhotoBusy(true); setError("");
+            try { const url = await uploadImage(f); await sendMessage(user.uid, other, url, replyTo); setReplyTo(null); if (!messages.length) setListenKey((k) => k + 1); }
+            catch (err: any) { setError(err?.message || "Could not send the photo."); }
+            setPhotoBusy(false);
+          }} />
+        </label>
         <input
           value={text}
-          onChange={(e) => setText(e.target.value)}
+          onChange={(e) => {
+            setText(e.target.value);
+            if (user && e.target.value && Date.now() - lastTypingSent.current > 2500) { lastTypingSent.current = Date.now(); setTyping(user.uid, other); }
+          }}
           onKeyDown={(e) => e.key === "Enter" && send()}
           placeholder={st.disappear ? "Message… (disappearing)" : "Message…"}
           className="flex-1 bg-muted rounded-full px-4 py-2 outline-none"

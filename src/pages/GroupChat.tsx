@@ -1,5 +1,7 @@
 import { Reactable, ReplyQuote } from "@/components/Reactions";
 import ForwardSheet from "@/components/ForwardSheet";
+import RichText from "@/components/RichText";
+import { uploadImage } from "@/lib/posts";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -21,6 +23,7 @@ export default function GroupChat() {
   const [text, setText] = useState("");
   const [replyTo, setReplyTo] = useState<{ id: string; from: string; text: string } | null>(null);
   const [fwd, setFwd] = useState<string | null>(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
   const [error, setError] = useState("");
   const [live, setLive] = useState<GCall | null>(null);
   const [, setTick] = useState(0);
@@ -40,6 +43,7 @@ export default function GroupChat() {
   }, [g?.members.join(",")]);
 
   const [hiddenIds, hideMsg] = useHiddenMessages(`group_${gid}`);
+  const lastOwnId = (messages.filter((x) => x.from === user?.uid).slice(-1)[0] || { id: "" }).id;
   const shown = (g && user ? visibleGroupMessages(messages, user.uid, g) : []).filter((m) => !hiddenIds.has(m.id));
   useEffect(() => { if (user && shown.length) markGroupRead(user.uid, gid); end.current?.scrollIntoView({ behavior: "smooth" }); }, [shown.length]);
   useEffect(() => {
@@ -97,9 +101,13 @@ export default function GroupChat() {
                 onClick={reel ? () => { try { sessionStorage.setItem("reel-start", reel.id); } catch { /* ignore */ } setLocation("/reels"); } : undefined}
               >
                 {m.replyTo && !hidden && <ReplyQuote name={m.replyTo.from === user.uid ? "You" : (names[m.replyTo.from]?.displayName || "…")} text={m.replyTo.text} />}
-                {hidden ? <i className="opacity-70">Message hidden</i> : reel ? `🎬 Reel${reel.by ? " by " + reel.by : ""} — tap to watch` : m.text}
+                {hidden ? <i className="opacity-70">Message hidden</i> : reel ? `🎬 Reel${reel.by ? " by " + reel.by : ""} — tap to watch` : <RichText text={m.text} />}
               </div>
               </Reactable>
+              {mine && m.id === lastOwnId && (() => {
+                const seen = g.members.filter((x) => x !== user.uid && (g.lastRead?.[x] || 0) >= m.createdAt).length;
+                return <span className="text-[11px] text-foreground/50 pr-1">{seen ? `Seen by ${seen}` : "Sent"}</span>;
+              })()}
             </div>
           );
         })}
@@ -113,7 +121,18 @@ export default function GroupChat() {
         </div>
       )}
       {fwd && <ForwardSheet text={fwd} onClose={() => setFwd(null)} />}
-      <div className="flex gap-2 p-3 border-t border-border">
+      <div className="flex gap-2 p-3 border-t border-border items-center">
+        <label className={`text-2xl cursor-pointer ${photoBusy ? "opacity-40" : ""}`} aria-label="Send a photo">
+          📷
+          <input type="file" accept="image/*" className="hidden" disabled={photoBusy} onChange={async (e) => {
+            const f = e.target.files?.[0]; e.target.value = "";
+            if (!f || !user || !g) return;
+            setPhotoBusy(true); setError("");
+            try { const url = await uploadImage(f); await sendGroupMessage(user.uid, g, url, replyTo); setReplyTo(null); }
+            catch (err: any) { setError(err?.message || "Could not send the photo."); }
+            setPhotoBusy(false);
+          }} />
+        </label>
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder={g.disappear ? "Message… (disappearing)" : "Message…"} className="flex-1 bg-muted rounded-full px-4 py-2 outline-none" />
         <button onClick={send} disabled={!text.trim()} className="text-primary font-semibold px-2 disabled:opacity-40">Send</button>
       </div>

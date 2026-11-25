@@ -9,10 +9,12 @@ export type Prefs = {
   notInterested: string[]; // reel ids
   jumuah: boolean; // Friday reminder
   ramadan: boolean; // Suhoor / Iftar mode
+  ayah: boolean; // daily Qur'an verse notification
+  ayahHour: number; // hour of day (0-23) for it
 };
 
 const KEY = "li-prefs";
-const DEFAULTS: Prefs = { textScale: 1, dataSaver: false, dailyLimit: 0, saved: [], hiddenWords: [], notInterested: [], jumuah: true, ramadan: false };
+const DEFAULTS: Prefs = { textScale: 1, dataSaver: false, dailyLimit: 0, saved: [], hiddenWords: [], notInterested: [], jumuah: true, ramadan: false, ayah: false, ayahHour: 7 };
 
 export function getPrefs(): Prefs {
   try {

@@ -1,6 +1,9 @@
 import { useEffect, useRef, useState } from "react";
 import { Gamepad2, X, Loader2, RotateCcw } from "lucide-react";
 import PageHero from "@/components/PageHero";
+import { useAuth } from "@/contexts/AuthContext";
+import { getProfile } from "@/lib/social";
+import { BADGES, GAME_IDS, GAME_LABEL, GAME_UNIT, getLeaderboard, getStats, submitScore, type Entry, type Stats } from "@/lib/gameScores";
 
 type GameId = "football" | "archery" | "horse" | "hockey" | "cricket" | "swimming";
 type Gender = "male" | "female";
@@ -23,7 +26,8 @@ function Player({ id, gender, kit, onExit }: { id: GameId; gender: Gender; kit: 
   const canvas = useRef<HTMLCanvasElement>(null);
   const [hud, setHud] = useState<Record<string, string | number>>({});
   const [toast, setToast] = useState("");
-  const [end, setEnd] = useState<{ title: string; detail: string } | null>(null);
+  const { user } = useAuth();
+  const [end, setEnd] = useState<{ title: string; detail: string; extra?: string } | null>(null);
   const [state, setState] = useState<"loading" | "ready" | "error">("loading");
   const [err, setErr] = useState("");
   const [round, setRound] = useState(0);
@@ -44,7 +48,18 @@ function Player({ id, gender, kit, onExit }: { id: GameId; gender: Gender; kit: 
         const hudApi = {
           set: (k: string, v: string | number) => setHud((h) => (h[k] === v ? h : { ...h, [k]: v })),
           toast: (m: string, ms = 1200) => { setToast(m); window.setTimeout(() => setToast((t) => (t === m ? "" : t)), ms); },
-          end: (title: string, detail: string) => setEnd({ title, detail }),
+          end: (title: string, detail: string, score?: number) => {
+            setEnd({ title, detail });
+            if (!user || score === undefined) return;
+            (async () => {
+              try {
+                const p = await getProfile(user.uid).catch(() => null);
+                const r = await submitScore(user.uid, p?.displayName || user.displayName || "Player", p?.photoURL || null, id, score);
+                const lines = [r.wasBest ? "🎉 New personal best!" : `Your best: ${r.best}`, ...r.earned.map((b) => `${b.icon} Badge unlocked: ${b.name}`)];
+                setEnd({ title, detail, extra: lines.join("\n") });
+              } catch { /* offline or rules not published yet: the game still works */ }
+            })();
+          },
         };
         const game = idx.createGame(id, { renderer: stage.renderer, scene: stage.scene, camera: stage.camera, hud: hudApi, input, base: import.meta.env.BASE_URL, gender, kit: chars.KITS[kit] || chars.KITS.green });
         const fit = () => {
@@ -114,7 +129,9 @@ function Player({ id, gender, kit, onExit }: { id: GameId; gender: Gender; kit: 
         <div className="absolute inset-0 bg-black/70 flex items-center justify-center z-[8] p-4">
           <div className="bg-card text-card-foreground rounded-3xl p-6 w-full max-w-xs text-center shadow-2xl">
             <h2 className="text-2xl font-bold mb-1">{end.title}</h2>
-            <p className="text-sm text-muted-foreground mb-5">{end.detail}</p>
+            <p className="text-sm text-muted-foreground mb-2">{end.detail}</p>
+            {end.extra && <p className="text-sm font-semibold mb-4 whitespace-pre-line">{end.extra}</p>}
+            {!end.extra && <div className="mb-3" />}
             <div className="flex gap-2">
               <button onClick={onExit} className="flex-1 py-2.5 rounded-full bg-muted font-semibold">Menu</button>
               <button onClick={() => setRound((r) => r + 1)} className="flex-1 py-2.5 rounded-full bg-primary text-primary-foreground font-semibold flex items-center justify-center gap-1.5"><RotateCcw className="w-4 h-4" />Again</button>
@@ -132,10 +149,17 @@ export default function Games() {
   const [kit, setKit] = useState<string>(() => { try { return localStorage.getItem("li_game_kit") || "green"; } catch { return "green"; } });
   useEffect(() => { try { localStorage.setItem("li_game_gender", gender); localStorage.setItem("li_game_kit", kit); } catch { /* ignore */ } }, [gender, kit]);
 
+  const [tab, setTab] = useState<"play" | "board">("play");
   return (
     <div className="flex flex-col items-center gap-5 pb-10 px-4">
       <PageHero tone="emerald" title="Games" arabic="ألعاب" subtitle="3D sports with real human players. Fair play, good manners and fun." icon={Gamepad2} className="w-full max-w-3xl" />
-      <div className="w-full max-w-3xl rounded-2xl border border-border bg-card p-4 flex flex-col gap-3">
+      <div className="w-full max-w-3xl flex gap-2">
+        {([["play", "🎮 Play"], ["board", "🏆 Leaderboard & badges"]] as const).map(([k, l]) => (
+          <button key={k} onClick={() => setTab(k)} className={`flex-1 py-2 rounded-full text-sm font-semibold border ${tab === k ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>{l}</button>
+        ))}
+      </div>
+      {tab === "board" && <Board />}
+      <div className={`w-full max-w-3xl rounded-2xl border border-border bg-card p-4 flex-col gap-3 ${tab === "play" ? "flex" : "hidden"}`}>
         <div className="flex items-center gap-2">
           <span className="text-sm font-semibold w-16">Player</span>
           {(["male", "female"] as Gender[]).map((g) => (
@@ -149,7 +173,7 @@ export default function Games() {
           ))}
         </div>
       </div>
-      <div className="w-full max-w-3xl grid grid-cols-1 sm:grid-cols-2 gap-3">
+      <div className={`w-full max-w-3xl grid-cols-1 sm:grid-cols-2 gap-3 ${tab === "play" ? "grid" : "hidden"}`}>
         {GAMES.map((g) => (
           <button key={g.id} onClick={() => setPlaying(g.id)} className={`text-left rounded-2xl p-4 text-white bg-gradient-to-br ${g.grad} shadow-lg active:scale-[0.98] transition-transform relative overflow-hidden`}>
             <div className="absolute -right-3 -top-4 text-8xl opacity-25 select-none">{g.emoji}</div>
@@ -162,6 +186,55 @@ export default function Games() {
       </div>
       <p className="text-xs text-muted-foreground text-center max-w-md">Tip: turn your phone sideways for the best view. Players wear modest sports kits.</p>
       {playing && <Player id={playing} gender={gender} kit={kit} onExit={() => setPlaying(null)} />}
+    </div>
+  );
+}
+
+function Board() {
+  const { user } = useAuth();
+  const [game, setGame] = useState<"total" | (typeof GAME_IDS)[number]>("total");
+  const [rows, setRows] = useState<Entry[] | null>(null);
+  const [mine, setMine] = useState<Stats | null>(null);
+  const [err, setErr] = useState("");
+  useEffect(() => { if (user) getStats(user.uid).then(setMine).catch(() => {}); }, [user?.uid]);
+  useEffect(() => {
+    setRows(null); setErr("");
+    getLeaderboard(game).then(setRows).catch(() => { setRows([]); setErr("The leaderboard isn't available yet."); });
+  }, [game]);
+  const val = (e: Entry) => (game === "total" ? e.total : e.best[game] || 0);
+  return (
+    <div className="w-full max-w-3xl flex flex-col gap-4">
+      <div className="flex gap-1.5 overflow-x-auto pb-1">
+        {(["total", ...GAME_IDS] as const).map((g) => (
+          <button key={g} onClick={() => setGame(g)} className={`shrink-0 px-3 py-1.5 rounded-full text-xs font-semibold border ${game === g ? "bg-primary text-primary-foreground border-primary" : "border-border"}`}>{g === "total" ? "⭐ Overall" : GAME_LABEL[g]}</button>
+        ))}
+      </div>
+      <div className="rounded-2xl border border-border bg-card overflow-hidden">
+        {rows === null && <p className="p-6 text-center text-sm text-muted-foreground">Loading…</p>}
+        {rows && !rows.length && <p className="p-6 text-center text-sm text-muted-foreground">{err || "No scores yet. Be the first!"}</p>}
+        {rows?.map((e, i) => (
+          <div key={e.uid} className={`flex items-center gap-3 px-4 py-2.5 border-b border-border last:border-0 ${e.uid === user?.uid ? "bg-primary/10" : ""}`}>
+            <span className="w-7 text-center font-bold">{i < 3 ? ["🥇", "🥈", "🥉"][i] : i + 1}</span>
+            <span className="w-9 h-9 rounded-full bg-muted overflow-hidden flex items-center justify-center shrink-0">{e.photo ? <img src={e.photo} alt="" className="w-full h-full object-cover" /> : "👤"}</span>
+            <span className="flex-1 truncate font-medium">{e.name}</span>
+            <span className="font-bold">{val(e)}<span className="text-xs font-normal text-muted-foreground"> {game === "total" ? "pts" : GAME_UNIT[game]}</span></span>
+          </div>
+        ))}
+      </div>
+      <div>
+        <h3 className="font-bold mb-2">Your badges</h3>
+        <div className="grid grid-cols-2 gap-2">
+          {BADGES.map((b) => {
+            const on = !!mine && b.test(mine);
+            return (
+              <div key={b.id} className={`rounded-xl border p-3 flex items-center gap-3 ${on ? "border-primary bg-primary/10" : "border-border opacity-50"}`}>
+                <span className={`text-3xl ${on ? "" : "grayscale"}`}>{b.icon}</span>
+                <span className="min-w-0"><span className="block text-sm font-semibold">{b.name}</span><span className="block text-[11px] text-muted-foreground">{b.desc}</span></span>
+              </div>
+            );
+          })}
+        </div>
+      </div>
     </div>
   );
 }

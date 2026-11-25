@@ -177,13 +177,17 @@ export async function markRead(me: string, other: string) {
   await setDoc(doc(db, "chats", chatIdFor(me, other)), { lastRead: { [me]: Date.now() } }, { merge: true }).catch(() => {});
 }
 
-export function watchChat(me: string, other: string, cb: (c: { lastRead: Record<string, number> }) => void): Unsubscribe {
+export function watchChat(me: string, other: string, cb: (c: { lastRead: Record<string, number>; typing: Record<string, number> }) => void): Unsubscribe {
   return onSnapshot(
     doc(db, "chats", chatIdFor(me, other)),
-    (d) => cb({ lastRead: ((d.data() as any)?.lastRead as Record<string, number>) || {} }),
+    (d) => cb({ lastRead: ((d.data() as any)?.lastRead as Record<string, number>) || {}, typing: ((d.data() as any)?.typing as Record<string, number>) || {} }),
     () => {}
   );
 }
+
+/** Tells the other person you are typing (call while the box changes; throttled by the caller). */
+export const setTyping = (me: string, other: string) =>
+  updateDoc(doc(db, "chats", chatIdFor(me, other)), { [`typing.${me}`]: Date.now() }).catch(() => {});
 
 export const REEL_RE = /\/reels\?reel=([A-Za-z0-9]+)/;
 export function parseReelMessage(text: string): { id: string; by: string; caption: string } | null {

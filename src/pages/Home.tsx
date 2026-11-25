@@ -7,7 +7,7 @@ import NotificationBell from "@/components/NotificationBell";
 import { LocalNotifications } from '@capacitor/local-notifications';
 import { HadithCard, VerseCard } from "@/components/DailyCards";
 import { usePrefs } from "@/lib/prefs";
-import { setJumuahReminder, setRamadanReminders } from "@/lib/reminders";
+import { setJumuahReminder, setRamadanReminders, setAyahReminders } from "@/lib/reminders";
 
 const features = [
   { href: "/prophets", icon: BookOpen, label: "Prophet Stories", color: "bg-emerald-800" },
@@ -82,8 +82,9 @@ function calcPrayerTimes(lat: number, lng: number, date: Date, offsets: number[]
   };
 }
 
-async function scheduleNativeNotifications(rawTimes: Date[], prayerNames: string[]) {
-  await LocalNotifications.cancel({ notifications: [1, 2, 3, 4, 5].map(id => ({ id })) });
+async function scheduleNativeNotifications(days: Date[][], prayerNames: string[]) {
+  // ids: day * 10 + prayer number (1..5); cancel the whole window first so changed offsets/locations replace old alerts
+  await LocalNotifications.cancel({ notifications: Array.from({ length: 70 }, (_, k) => ({ id: Math.floor(k / 5) * 10 + (k % 5) + 1 })) });
 
   await LocalNotifications.createChannel({
     id: 'prayer-azan-v3',
@@ -93,20 +94,20 @@ async function scheduleNativeNotifications(rawTimes: Date[], prayerNames: string
     visibility: 1,
   });
 
-  const notifications = rawTimes
-    .map((time, i) => {
+  const notifications = days.flatMap((rawTimes, d) =>
+    rawTimes.map((time, i) => {
       const reminderTime = new Date(time.getTime() - 5 * 60000);
       if (reminderTime.getTime() <= Date.now()) return null;
       return {
-        id: i + 1,
+        id: d * 10 + i + 1,
         title: 'Prayer Reminder',
         body: `${prayerNames[i]} prayer in 5 minutes!`,
-        schedule: { at: reminderTime },
+        schedule: { at: reminderTime, allowWhileIdle: true },
         smallIcon: 'ic_stat_icon',
         channelId: 'prayer-azan-v3',
       };
     })
-    .filter((n): n is NonNullable<typeof n> => n !== null);
+  ).filter((n): n is NonNullable<typeof n> => n !== null);
 
   if (notifications.length > 0) {
     await LocalNotifications.schedule({ notifications });
@@ -212,12 +213,23 @@ export default function HomePage() {
   }, [offsets, coords]);
 
   useEffect(() => {
-    if (notifPermission === 'granted' && rawPrayerTimes.length > 0) {
-      scheduleNativeNotifications(rawPrayerTimes, prayers).catch(err => {
+    if (notifPermission === 'granted' && rawPrayerTimes.length > 0 && coords) {
+      // today plus the next 6 days, so reminders keep coming even if the app isn't opened for a week
+      const days = Array.from({ length: 7 }, (_, d) => {
+        const date = new Date();
+        date.setDate(date.getDate() + d);
+        return d === 0 ? rawPrayerTimes : calcPrayerTimes(coords.lat, coords.lng, date, offsets).raw;
+      });
+      scheduleNativeNotifications(days, prayers).catch(err => {
         console.error('Notification scheduling failed:', err);
       });
     }
   }, [notifPermission, rawPrayerTimes]);
+
+  useEffect(() => {
+    if (notifPermission !== "granted") return;
+    setAyahReminders(prefs.ayah, prefs.ayahHour);
+  }, [notifPermission, prefs.ayah, prefs.ayahHour]);
 
   const requestNotifications = async () => {
     try {

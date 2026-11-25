@@ -100,7 +100,7 @@ export class BallGame extends Game {
     this.time -= dt;
     hud.set("Time", Math.max(0, Math.ceil(this.time)));
     hud.set("Goals", this.score);
-    if (this.time <= 0) { this.over = true; this.ctx.hud.end(this.score > 0 ? "Full time!" : "Full time", `You scored ${this.score} ${this.score === 1 ? "goal" : "goals"}.`); return; }
+    if (this.time <= 0) { this.over = true; this.ctx.hud.end(this.score > 0 ? "Full time!" : "Full time", `You scored ${this.score} ${this.score === 1 ? "goal" : "goals"}.`, this.score); return; }
     const p = this.player.root.position;
     input.poll();
     if (this.resetT > 0) { this.resetT -= dt; if (this.resetT <= 0) this.resetPlay(); }

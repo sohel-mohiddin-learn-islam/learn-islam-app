@@ -5,7 +5,7 @@ import type { Gender, Kit } from "./characters";
 export interface Hud {
   set(slot: string, value: string | number): void;
   toast(msg: string, ms?: number): void;
-  end(title: string, detail: string): void;
+  end(title: string, detail: string, score?: number): void;
 }
 
 export interface Controls {

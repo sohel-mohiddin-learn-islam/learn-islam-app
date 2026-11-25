@@ -153,7 +153,7 @@ export class Archery extends Game {
   }
   next() {
     this.flying = null; this.wait = 1.0; this.newWind();
-    if (this.arrows <= 0) { this.done = true; setTimeout(() => this.ctx.hud.end(this.score >= 70 ? "Master archer!" : "Round complete", `You scored ${this.score} out of 100.`), 900); }
+    if (this.arrows <= 0) { this.done = true; setTimeout(() => this.ctx.hud.end(this.score >= 70 ? "Master archer!" : "Round complete", `You scored ${this.score} out of 100.`, this.score), 900); }
   }
 }
 void S;

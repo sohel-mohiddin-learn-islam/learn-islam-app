@@ -55,3 +55,17 @@ export async function getDailyHadith(): Promise<DailyHadith | null> {
     return null;
   }
 }
+
+/** The verse of any given day (same rule as the home screen), used to schedule the coming days' notifications. */
+export async function getVerseForDate(d: Date): Promise<DailyVerse | null> {
+  try {
+    const day = Math.floor((d.getTime() - new Date(d.getFullYear(), 0, 0).getTime()) / 86400000);
+    const n = ((day * 17 + d.getFullYear() * 7) % 6236) + 1;
+    const r = await fetch(`https://api.alquran.cloud/v1/ayah/${n}/editions/quran-uthmani,en.sahih`);
+    const j = await r.json();
+    const [ar, en] = j.data;
+    return { arabic: ar.text, english: en.text, ref: `${ar.surah.englishName} (${ar.surah.number}:${ar.numberInSurah})` };
+  } catch {
+    return null;
+  }
+}

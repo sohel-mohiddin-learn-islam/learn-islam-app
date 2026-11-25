@@ -303,7 +303,19 @@ export default function Settings() {
               </div>
               <Toggle on={prefs.ramadan} onChange={(v) => setPrefs({ ramadan: v })} />
             </div>
-            <p className="text-xs text-foreground/50">Reminders need notifications to be allowed (use "Enable Prayer Notifications" on the home screen).</p>
+            <div className="flex items-center gap-3">
+              <div className="flex-1">
+                <p className="font-semibold">Daily Qur'an verse</p>
+                <p className="text-sm text-foreground/60">A new verse with its translation as a notification every morning.</p>
+                {prefs.ayah && (
+                  <select value={prefs.ayahHour} onChange={(e) => setPrefs({ ayahHour: Number(e.target.value) })} className="mt-2 bg-muted rounded-lg px-3 py-1.5 text-sm">
+                    {[5, 6, 7, 8, 9, 12, 15, 18, 20, 21].map((h) => <option key={h} value={h}>{`${h % 12 === 0 ? 12 : h % 12}:00 ${h < 12 ? "AM" : "PM"}`}</option>)}
+                  </select>
+                )}
+              </div>
+              <Toggle on={prefs.ayah} onChange={(v) => setPrefs({ ayah: v })} />
+            </div>
+            <p className="text-xs text-foreground/50">Prayer reminders (5 minutes before each prayer) are planned a week ahead whenever you open the app. Reminders need notifications to be allowed (use "Enable Prayer Notifications" on the home screen).</p>
           </div>
         );
 

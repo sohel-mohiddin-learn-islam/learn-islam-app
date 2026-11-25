@@ -242,6 +242,12 @@ service cloud.firestore {
       }
     }
 
+    // Game scores: everyone signed in can see the leaderboard, each person writes only their own row
+    match /gameScores/{uid} {
+      allow read: if signedIn();
+      allow create, update: if signedIn() && request.auth.uid == uid;
+    }
+
     // Group calls: a room that group members join (mesh WebRTC signalling)
     match /gcalls/{callId} {
       allow read: if signedIn() && request.auth.uid in resource.data.members;

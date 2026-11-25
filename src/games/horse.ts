@@ -82,7 +82,7 @@ export class Horse extends Game {
     if (this.over) return;
     this.t += dt; this.time -= dt;
     hud.set("Time", Math.max(0, Math.ceil(this.time))); hud.set("Score", Math.floor(this.score));
-    if (this.time <= 0 || this.z > 1250) { this.over = true; hud.end("Ride finished!", `You scored ${Math.floor(this.score)} — ${this.jumps} jumps and ${this.rings} rings.`); return; }
+    if (this.time <= 0 || this.z > 1250) { this.over = true; hud.end("Ride finished!", `You scored ${Math.floor(this.score)} — ${this.jumps} jumps and ${this.rings} rings.`, Math.floor(this.score)); return; }
     const target = 12 + Math.min(6, this.t * 0.1);
     this.speed += (target * (this.stumble > 0 ? 0.45 : 1) - this.speed) * Math.min(1, dt * 1.5);
     this.stumble -= dt;
