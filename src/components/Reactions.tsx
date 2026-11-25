@@ -66,7 +66,7 @@ export function useLongPress(cb: () => void, ms = 380) {
   };
 }
 
-import { useRef, useState } from "react";
+import { useState } from "react";
 import type { ReactNode } from "react";
 import { reactToMessage } from "@/lib/reactions";
 
