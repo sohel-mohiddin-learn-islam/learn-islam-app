@@ -85,7 +85,7 @@ export default function GroupChat() {
           {live.type === "video" ? "📹" : "📞"} Call in progress · {live.active.length} in call · Tap to join
         </button>
       )}
-      <div className="flex-1 overflow-y-auto px-4 py-3 space-y-2" style={font ? { fontFamily: font } : undefined}>
+      <div className="flex-1 overflow-y-auto overflow-x-hidden px-4 py-3 space-y-2" style={font ? { fontFamily: font } : undefined}>
         {shown.length === 0 && <p className="text-center text-foreground/50 py-10">Say salam to the group 👋</p>}
         {shown.map((m) => {
           const mine = m.from === user.uid;
@@ -121,7 +121,7 @@ export default function GroupChat() {
         </div>
       )}
       {fwd && <ForwardSheet text={fwd} onClose={() => setFwd(null)} />}
-      <div className="flex gap-2 p-3 border-t border-border items-center">
+      <div className="flex gap-2 p-3 border-t border-border items-center w-full max-w-full overflow-hidden">
         <label className={`text-2xl cursor-pointer ${photoBusy ? "opacity-40" : ""}`} aria-label="Send a photo">
           📷
           <input type="file" accept="image/*" className="hidden" disabled={photoBusy} onChange={async (e) => {
@@ -133,8 +133,8 @@ export default function GroupChat() {
             setPhotoBusy(false);
           }} />
         </label>
-        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder={g.disappear ? "Message… (disappearing)" : "Message…"} className="flex-1 bg-muted rounded-full px-4 py-2 outline-none" />
-        <button onClick={send} disabled={!text.trim()} className="text-primary font-semibold px-2 disabled:opacity-40">Send</button>
+        <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder={g.disappear ? "Message… (disappearing)" : "Message…"} className="flex-1 min-w-0 w-full bg-muted rounded-full px-4 py-2 outline-none" />
+        <button onClick={send} disabled={!text.trim()} className="text-primary font-semibold px-2 shrink-0 disabled:opacity-40">Send</button>
       </div>
     </div>
   );

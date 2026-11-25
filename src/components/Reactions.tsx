@@ -66,7 +66,7 @@ export function useLongPress(cb: () => void, ms = 380) {
   };
 }
 
-import { useState } from "react";
+import { useRef, useState } from "react";
 import type { ReactNode } from "react";
 import { reactToMessage } from "@/lib/reactions";
 
@@ -89,6 +89,20 @@ export function Reactable({ path, uid, mine, reactions, children, text, onReply,
   const [confirm, setConfirm] = useState(false);
   const [note, setNote] = useState("");
   const lp = useLongPress(() => { setConfirm(false); setOpen(true); });
+  // swipe a message to the right to reply (like Instagram)
+  const [dx, setDx] = useState(0);
+  const sw = useRef<{ x: number; y: number; on: boolean } | null>(null);
+  const swipe = onReply ? {
+    onTouchStart: (e: React.TouchEvent) => { sw.current = { x: e.touches[0].clientX, y: e.touches[0].clientY, on: false }; },
+    onTouchMove: (e: React.TouchEvent) => {
+      const s0 = sw.current; if (!s0) return;
+      const mx = e.touches[0].clientX - s0.x, my = e.touches[0].clientY - s0.y;
+      if (!s0.on) { if (Math.abs(mx) > 12 && Math.abs(mx) > Math.abs(my) * 1.5) s0.on = true; else return; }
+      setDx(Math.max(0, Math.min(70, mx)));
+    },
+    onTouchEnd: () => { const go = dx >= 55; sw.current = null; setDx(0); if (go) { try { navigator.vibrate?.(15); } catch { /* ignore */ } onReply?.(); } },
+    onTouchCancel: () => { sw.current = null; setDx(0); },
+  } : {};
   const pick = (id: string | null) => { reactToMessage(path, uid, id).catch(() => {}); };
   const close = () => { setOpen(false); setConfirm(false); };
   const act = (fn?: () => void) => () => { close(); fn?.(); };
@@ -126,7 +140,10 @@ export function Reactable({ path, uid, mine, reactions, children, text, onReply,
           </div>
         </div>
       )}
-      <div {...lp} className="select-none">{children}</div>
+      <div {...lp} {...swipe} className="select-none relative" style={{ transform: dx ? `translateX(${dx}px)` : undefined, transition: dx ? "none" : "transform .18s" }}>
+        {dx > 8 && <span className="absolute -left-9 top-1/2 -translate-y-1/2 w-7 h-7 rounded-full bg-muted flex items-center justify-center text-sm" style={{ opacity: Math.min(1, dx / 55) }}>↩</span>}
+        {children}
+      </div>
       {note && <span className="text-[11px] text-foreground/60">{note}</span>}
       <ReactionChips reactions={reactions} uid={uid} onTap={() => { setConfirm(false); setOpen(true); }} align={mine ? "right" : "left"} />
     </div>
