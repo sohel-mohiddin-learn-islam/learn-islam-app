@@ -1,5 +1,6 @@
 import VerifiedBadge from "@/components/VerifiedBadge";
-import { Reactable } from "@/components/Reactions";
+import { Reactable, ReplyQuote } from "@/components/Reactions";
+import ForwardSheet from "@/components/ForwardSheet";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -50,6 +51,8 @@ export default function Chat() {
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [messages, setMessages] = useState<Message[]>([]);
   const [text, setText] = useState("");
+  const [replyTo, setReplyTo] = useState<{ id: string; from: string; text: string } | null>(null);
+  const [fwd, setFwd] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [sending, setSending] = useState(false);
   const endRef = useRef<HTMLDivElement>(null);
@@ -113,8 +116,9 @@ export default function Chat() {
     setSending(true);
     setError("");
     try {
-      await sendMessage(user.uid, other, text);
+      await sendMessage(user.uid, other, text, replyTo);
       setText("");
+      setReplyTo(null);
       if (!messages.length) setListenKey((k) => k + 1); // the chat exists now: start listening
     } catch (e: any) {
       setError(e?.message || "Could not send the message.");
@@ -150,7 +154,7 @@ export default function Chat() {
           return (
             <div key={m.id}>
               <div className={`flex ${mine ? "justify-end" : "justify-start"}`}>
-                <Reactable path={["chats", [user.uid, other].sort().join("_"), "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions} onDeleteMe={() => hideMsg(m.id)} onDeleteAll={mine ? () => { deleteChatMessage(user.uid, other, m.id).catch(() => {}); } : undefined}>
+                <Reactable path={["chats", [user.uid, other].sort().join("_"), "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions} text={reel ? undefined : m.text} onReply={() => setReplyTo({ id: m.id, from: m.from, text: reel ? "🎬 Reel" : m.text })} onForward={() => setFwd(m.text)} onDeleteMe={() => hideMsg(m.id)} onDeleteAll={mine ? () => { deleteChatMessage(user.uid, other, m.id).catch(() => {}); } : undefined}>
                 {reel && !hidden ? (
                   <ReelPreview
                     id={reel.id}
@@ -166,6 +170,7 @@ export default function Chat() {
                     className={`px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? (bubble ? "text-white" : "bg-primary text-primary-foreground") : "bg-muted"}`}
                     style={mine && bubble ? { backgroundColor: bubble } : undefined}
                   >
+                    {m.replyTo && !hidden && <ReplyQuote name={m.replyTo.from === user.uid ? "You" : title} text={m.replyTo.text} />}
                     {hidden ? <i className="opacity-70">Message hidden</i> : m.text}
                   </div>
                 )}
@@ -181,6 +186,13 @@ export default function Chat() {
       </div>
 
       {error && <p className="px-4 pb-1 text-sm text-red-400">{error}</p>}
+      {replyTo && (
+        <div className="flex items-center gap-2 px-4 py-2 border-t border-border bg-muted/50 text-sm">
+          <div className="flex-1 min-w-0 border-l-4 border-primary pl-2"><div className="font-semibold text-xs">Replying to {replyTo.from === user.uid ? "yourself" : title}</div><div className="truncate text-foreground/70">{replyTo.text}</div></div>
+          <button onClick={() => setReplyTo(null)} className="text-xl px-1" aria-label="Cancel reply">✕</button>
+        </div>
+      )}
+      {fwd && <ForwardSheet text={fwd} onClose={() => setFwd(null)} />}
       <div className="flex gap-2 p-3 border-t border-border">
         <input
           value={text}

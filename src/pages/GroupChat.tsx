@@ -1,4 +1,5 @@
-import { Reactable } from "@/components/Reactions";
+import { Reactable, ReplyQuote } from "@/components/Reactions";
+import ForwardSheet from "@/components/ForwardSheet";
 import { useEffect, useRef, useState } from "react";
 import { useLocation, useRoute } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -18,6 +19,8 @@ export default function GroupChat() {
   const [messages, setMessages] = useState<Message[]>([]);
   const [names, setNames] = useState<Record<string, UserProfile>>({});
   const [text, setText] = useState("");
+  const [replyTo, setReplyTo] = useState<{ id: string; from: string; text: string } | null>(null);
+  const [fwd, setFwd] = useState<string | null>(null);
   const [error, setError] = useState("");
   const [live, setLive] = useState<GCall | null>(null);
   const [, setTick] = useState(0);
@@ -54,7 +57,7 @@ export default function GroupChat() {
   const send = async () => {
     if (!text.trim()) return;
     setError("");
-    try { await sendGroupMessage(user.uid, g, text); setText(""); } catch (e: any) { setError(e?.message || "Could not send."); }
+    try { await sendGroupMessage(user.uid, g, text, replyTo); setText(""); setReplyTo(null); } catch (e: any) { setError(e?.message || "Could not send."); }
   };
 
   return (
@@ -87,12 +90,13 @@ export default function GroupChat() {
           return (
             <div key={m.id} className={`flex flex-col ${mine ? "items-end" : "items-start"}`}>
               {!mine && <span className="text-xs text-foreground/50 ml-1">{names[m.from]?.displayName || "…"}</span>}
-              <Reactable path={["groups", gid, "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions} onDeleteMe={() => hideMsg(m.id)} onDeleteAll={mine ? () => { deleteGroupMessage(gid, m.id); } : undefined}>
+              <Reactable path={["groups", gid, "messages", m.id]} uid={user.uid} mine={mine} reactions={m.reactions} text={reel ? undefined : m.text} onReply={() => setReplyTo({ id: m.id, from: m.from, text: reel ? "🎬 Reel" : m.text })} onForward={() => setFwd(m.text)} onDeleteMe={() => hideMsg(m.id)} onDeleteAll={mine ? () => { deleteGroupMessage(gid, m.id); } : undefined}>
               <div
                 className={`px-3 py-2 rounded-2xl whitespace-pre-wrap break-words ${mine ? (bubble ? "text-white" : "bg-primary text-primary-foreground") : "bg-muted"}`}
                 style={mine && bubble ? { backgroundColor: bubble } : undefined}
                 onClick={reel ? () => { try { sessionStorage.setItem("reel-start", reel.id); } catch { /* ignore */ } setLocation("/reels"); } : undefined}
               >
+                {m.replyTo && !hidden && <ReplyQuote name={m.replyTo.from === user.uid ? "You" : (names[m.replyTo.from]?.displayName || "…")} text={m.replyTo.text} />}
                 {hidden ? <i className="opacity-70">Message hidden</i> : reel ? `🎬 Reel${reel.by ? " by " + reel.by : ""} — tap to watch` : m.text}
               </div>
               </Reactable>
@@ -102,6 +106,13 @@ export default function GroupChat() {
         <div ref={end} />
       </div>
       {error && <p className="px-4 pb-1 text-sm text-red-400">{error}</p>}
+      {replyTo && (
+        <div className="flex items-center gap-2 px-4 py-2 border-t border-border bg-muted/50 text-sm">
+          <div className="flex-1 min-w-0 border-l-4 border-primary pl-2"><div className="font-semibold text-xs">Replying to {replyTo.from === user.uid ? "yourself" : (names[replyTo.from]?.displayName || "…")}</div><div className="truncate text-foreground/70">{replyTo.text}</div></div>
+          <button onClick={() => setReplyTo(null)} className="text-xl px-1" aria-label="Cancel reply">✕</button>
+        </div>
+      )}
+      {fwd && <ForwardSheet text={fwd} onClose={() => setFwd(null)} />}
       <div className="flex gap-2 p-3 border-t border-border">
         <input value={text} onChange={(e) => setText(e.target.value)} onKeyDown={(e) => e.key === "Enter" && send()} placeholder={g.disappear ? "Message… (disappearing)" : "Message…"} className="flex-1 bg-muted rounded-full px-4 py-2 outline-none" />
         <button onClick={send} disabled={!text.trim()} className="text-primary font-semibold px-2 disabled:opacity-40">Send</button>

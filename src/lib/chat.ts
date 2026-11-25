@@ -90,7 +90,7 @@ export async function moveChat(me: string, other: string, toGeneral: boolean) {
   }
 }
 
-export type Message = { id: string; from: string; text: string; createdAt: number; expiresAt?: number; reactions?: Record<string, string> };
+export type Message = { id: string; from: string; text: string; createdAt: number; expiresAt?: number; reactions?: Record<string, string>; replyTo?: { id: string; from: string; text: string } };
 
 export const chatIdFor = (a: string, b: string) => [a, b].sort().join("_");
 
@@ -108,7 +108,8 @@ export async function assertCanMessage(me: string, other: string) {
   }
 }
 
-export async function sendMessage(me: string, other: string, text: string) {
+export type ReplyRef = { id: string; from: string; text: string };
+export async function sendMessage(me: string, other: string, text: string, reply?: ReplyRef | null) {
   const clean = text.trim();
   if (!clean) return;
   await assertCanMessage(me, other);
@@ -131,6 +132,7 @@ export async function sendMessage(me: string, other: string, text: string) {
     from: me,
     text: clean.slice(0, 2000),
     createdAt: serverTimestamp(),
+    ...(reply ? { replyTo: { id: reply.id, from: reply.from, text: reply.text.slice(0, 120) } } : {}),
     ...(disappear ? { expiresAt: Date.now() + disappear * 1000 } : {}),
   });
   // alert the other person (shows in their notifications and as a phone alert while the app is running)

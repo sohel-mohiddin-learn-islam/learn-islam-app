@@ -89,13 +89,14 @@ export function watchGroupMessages(gid: string, cb: (m: Message[]) => void): Uns
   );
 }
 
-export async function sendGroupMessage(me: string, g: Group, text: string) {
+export async function sendGroupMessage(me: string, g: Group, text: string, reply?: { id: string; from: string; text: string } | null) {
   const clean = text.trim();
   if (!clean) return;
   await addDoc(collection(db, "groups", g.id, "messages"), {
     from: me,
     text: clean.slice(0, 2000),
     createdAt: serverTimestamp(),
+    ...(reply ? { replyTo: { id: reply.id, from: reply.from, text: reply.text.slice(0, 120) } } : {}),
     ...(g.disappear ? { expiresAt: Date.now() + g.disappear * 1000 } : {}),
   });
   await updateDoc(doc(db, "groups", g.id), {

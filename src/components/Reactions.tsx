@@ -70,35 +70,64 @@ import { useState } from "react";
 import type { ReactNode } from "react";
 import { reactToMessage } from "@/lib/reactions";
 
-/** Wraps a chat bubble: long-press / double-tap for reactions and delete options; chips show under it. */
-export function Reactable({ path, uid, mine, reactions, children, onDeleteMe, onDeleteAll }: { path: string[]; uid: string; mine: boolean; reactions?: Record<string, string>; children: ReactNode; onDeleteMe?: () => void; onDeleteAll?: () => void }) {
+/** Quoted message shown inside a bubble that replies to another one. */
+export function ReplyQuote({ name, text }: { name: string; text: string }) {
+  return (
+    <div className="mb-1 rounded-lg border-l-4 border-white/60 bg-black/10 px-2 py-1 text-xs opacity-90 max-w-full">
+      <div className="font-semibold truncate">{name}</div>
+      <div className="line-clamp-2 break-words">{text}</div>
+    </div>
+  );
+}
+
+/** Wraps a chat bubble. Long-press / double-tap opens: reaction bar + Reply, Forward, Copy, Translate, Unsend, Delete for you. */
+export function Reactable({ path, uid, mine, reactions, children, text, onReply, onForward, onDeleteMe, onDeleteAll }: {
+  path: string[]; uid: string; mine: boolean; reactions?: Record<string, string>; children: ReactNode; text?: string;
+  onReply?: () => void; onForward?: () => void; onDeleteMe?: () => void; onDeleteAll?: () => void;
+}) {
   const [open, setOpen] = useState(false);
   const [confirm, setConfirm] = useState(false);
+  const [note, setNote] = useState("");
   const lp = useLongPress(() => { setConfirm(false); setOpen(true); });
   const pick = (id: string | null) => { reactToMessage(path, uid, id).catch(() => {}); };
   const close = () => { setOpen(false); setConfirm(false); };
+  const act = (fn?: () => void) => () => { close(); fn?.(); };
+  const copy = async () => {
+    close();
+    try { await navigator.clipboard.writeText(text || ""); setNote("Copied"); } catch { setNote("Couldn't copy"); }
+    window.setTimeout(() => setNote(""), 1500);
+  };
+  const translate = () => { close(); window.open(`https://translate.google.com/?sl=auto&tl=en&op=translate&text=${encodeURIComponent(text || "")}`, "_blank", "noopener,noreferrer"); };
+  const Item = ({ label, icon, onClick, danger }: { label: string; icon: string; onClick: () => void; danger?: boolean }) => (
+    <button className={`w-full text-left px-4 py-2.5 flex items-center gap-3 active:bg-muted ${danger ? "text-red-500 font-medium" : ""}`} onClick={onClick}><span className="w-5 text-center">{icon}</span>{label}</button>
+  );
   return (
     <div className={`max-w-[78%] flex flex-col ${mine ? "items-end" : "items-start"}`} style={{ WebkitTouchCallout: "none" }}>
       {open && (
         <div className="mb-1 flex flex-col gap-1.5 items-center">
           {!confirm && <ReactionPicker mine={reactions?.[uid]} onPick={pick} onClose={close} />}
-          {(onDeleteMe || onDeleteAll) && (
-            <div className="relative z-[61] rounded-2xl bg-card border border-border shadow-xl overflow-hidden text-sm min-w-[190px]">
-              {!confirm ? (
-                <button className="w-full text-left px-4 py-2.5 text-red-500 font-medium active:bg-muted" onClick={() => setConfirm(true)}>🗑️ Delete message…</button>
-              ) : (
-                <>
-                  <p className="px-4 pt-2.5 pb-1 text-xs text-foreground/60">Delete this message?</p>
-                  {onDeleteMe && <button className="w-full text-left px-4 py-2.5 active:bg-muted" onClick={() => { onDeleteMe(); close(); }}>Delete for me</button>}
-                  {onDeleteAll && <button className="w-full text-left px-4 py-2.5 text-red-500 font-medium active:bg-muted border-t border-border" onClick={() => { onDeleteAll(); close(); }}>Delete for everyone</button>}
-                  <button className="w-full text-left px-4 py-2.5 border-t border-border active:bg-muted" onClick={close}>Cancel</button>
-                </>
-              )}
-            </div>
-          )}
+          <div className="relative z-[61] rounded-2xl bg-card border border-border shadow-xl overflow-hidden text-sm min-w-[210px]">
+            {!confirm ? (
+              <>
+                {onReply && <Item icon="↩️" label="Reply" onClick={act(onReply)} />}
+                {onForward && <Item icon="➡️" label="Forward" onClick={act(onForward)} />}
+                {text && <Item icon="📋" label="Copy" onClick={copy} />}
+                {text && <Item icon="🌐" label="Translate" onClick={translate} />}
+                {onDeleteAll && <Item icon="↩" label="Unsend" danger onClick={() => setConfirm(true)} />}
+                {onDeleteMe && <Item icon="🗑️" label="Delete for you" danger onClick={act(onDeleteMe)} />}
+              </>
+            ) : (
+              <>
+                <p className="px-4 pt-2.5 pb-1 text-xs text-foreground/60">Unsend this message for everyone?</p>
+                <button className="w-full text-left px-4 py-2.5 text-red-500 font-medium active:bg-muted" onClick={act(onDeleteAll)}>Unsend</button>
+                <button className="w-full text-left px-4 py-2.5 border-t border-border active:bg-muted" onClick={close}>Cancel</button>
+              </>
+            )}
+          </div>
         </div>
       )}
       <div {...lp} className="select-none">{children}</div>
+      {note && <span className="text-[11px] text-foreground/60">{note}</span>}
       <ReactionChips reactions={reactions} uid={uid} onTap={() => { setConfirm(false); setOpen(true); }} align={mine ? "right" : "left"} />
     </div>
   );
