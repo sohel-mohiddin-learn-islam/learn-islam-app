@@ -29,6 +29,7 @@ type Reel = {
   caption?: string;
   userName?: string;
   userId?: string;
+  extra?: any;
 };
 
 // shared sound setting for all reels
@@ -335,6 +336,19 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
               )
             )}
           </p>
+          {(reel.extra?.location || reel.extra?.aiLabel || reel.extra?.audioName || reel.extra?.link || reel.extra?.tagged?.length) && (
+            <div className="mt-1.5 flex flex-wrap gap-1.5 text-xs">
+              {reel.extra?.location && <span className="bg-black/40 rounded-full px-2 py-0.5">📍 {reel.extra.location}</span>}
+              {reel.extra?.aiLabel && <span className="bg-black/40 rounded-full px-2 py-0.5">✨ AI info</span>}
+              {reel.extra?.audioName && <span className="bg-black/40 rounded-full px-2 py-0.5">🎵 {reel.extra.audioName}</span>}
+              {reel.extra?.link && /^https?:\/\//.test(reel.extra.link) && (
+                <a href={reel.extra.link} target="_blank" rel="noopener noreferrer" className="bg-black/40 rounded-full px-2 py-0.5 text-sky-300 max-w-[60vw] truncate">🔗 {reel.extra.link.replace(/^https?:\/\//, "")}</a>
+              )}
+              {(reel.extra?.tagged || []).map((t: any) => (
+                <button key={t.uid} onClick={() => setLocation(`/user/${t.uid}`)} className="bg-black/40 rounded-full px-2 py-0.5">👤 {t.name}</button>
+              ))}
+            </div>
+          )}
         </div>
       )}
 
@@ -347,14 +361,14 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
           )}
         <button onClick={() => { if (!pickOpen) toggleLike(); }} {...likeHold} onDoubleClick={undefined} className="flex flex-col items-center select-none" aria-label="Like (hold to react)">
           <span className="text-3xl drop-shadow-lg">{liked ? (myReaction ? <ReactionGlyph id={myReaction} size={34} /> : "❤️") : "🤍"}</span>
-          {isCommunity && <span className="text-xs drop-shadow">{compact(counts.likes)}</span>}
+          {isCommunity && !(reel.extra?.hideLikes && !isOwn) && <span className="text-xs drop-shadow">{compact(counts.likes)}</span>}
         </button>
         </div>
 
         {isCommunity && (
-          <button onClick={() => setShowComments(true)} className="flex flex-col items-center" aria-label="Comments">
+          <button onClick={() => { if (!reel.extra?.commentsOff) setShowComments(true); }} className={`flex flex-col items-center ${reel.extra?.commentsOff ? "opacity-40" : ""}`} aria-label="Comments">
             <span className="text-3xl drop-shadow-lg">💬</span>
-            <span className="text-xs drop-shadow">{compact(counts.comments)}</span>
+            <span className="text-xs drop-shadow">{reel.extra?.commentsOff ? "Off" : compact(counts.comments)}</span>
           </button>
         )}
 
@@ -365,7 +379,7 @@ function ReelItem({ reel, isOwn, onDelete, followingIds, onFollowed, onNotIntere
             aria-label="Share"
           >
             <span className="text-3xl drop-shadow-lg">📤</span>
-            <span className="text-xs drop-shadow">{compact(counts.shares)}</span>
+            {!(reel.extra?.hideShares && !isOwn) && <span className="text-xs drop-shadow">{compact(counts.shares)}</span>}
           </button>
         )}
 
@@ -548,6 +562,7 @@ export default function Reels() {
               typeof post.videoUrl === "string" &&
               post.videoUrl.length > 0 &&
               !post.archived &&
+              (!post.publishAt || post.publishAt <= Date.now() || post.userId === user?.uid) &&
               !hidden.includes(post.userId)
           )
           .map((post: any) => ({
@@ -558,6 +573,7 @@ export default function Reels() {
             caption: post.caption || "",
             userName: post.userName || "Learn Islam User",
             userId: post.userId,
+            extra: { audience: post.audience, location: post.location, link: post.link, audioName: post.audioName, aiLabel: post.aiLabel, hideLikes: post.hideLikes, hideShares: post.hideShares, commentsOff: post.commentsOff, tagged: post.tagged, publishAt: post.publishAt },
           }));
 
         setCommunityReels(firebaseReels);
@@ -601,6 +617,7 @@ export default function Reels() {
   const allReels = ordered
     .filter((r) => !prefs.notInterested.includes(r.id))
     .filter((r) => !r.userId || !privateOwners.includes(r.userId) || r.userId === user?.uid || followingIds.includes(r.userId))
+    .filter((r) => r.extra?.audience !== "followers" || !r.userId || r.userId === user?.uid || followingIds.includes(r.userId))
     .filter((r) => tab !== "friends" || (r.userId && followingIds.includes(r.userId)));
 
   return (

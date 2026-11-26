@@ -171,6 +171,30 @@ const FIRESTORE_DATABASES = ["default", "(default)"];
 const firestoreRest = (database: string) =>
   `https://firestore.googleapis.com/v1/projects/learn-islam-891c3/databases/${encodeURIComponent(database)}/documents`;
 
+/** Extra Instagram-style options saved on a post. */
+export type PostExtra = {
+  audience?: "everyone" | "followers";
+  location?: string;
+  link?: string;
+  audioName?: string;
+  aiLabel?: boolean;
+  hideLikes?: boolean;
+  hideShares?: boolean;
+  commentsOff?: boolean;
+  tagged?: { uid: string; name: string }[];
+  publishAt?: number | null;
+};
+
+const fsValue = (v: any): any => {
+  if (v === null || v === undefined) return { nullValue: null };
+  if (typeof v === "boolean") return { booleanValue: v };
+  if (typeof v === "number") return { integerValue: String(Math.round(v)) };
+  if (Array.isArray(v)) return { arrayValue: { values: v.map(fsValue) } };
+  if (typeof v === "object") return { mapValue: { fields: Object.fromEntries(Object.entries(v).map(([k, x]) => [k, fsValue(x)])) } };
+  return { stringValue: String(v) };
+};
+const cleanExtra = (e?: PostExtra) => Object.fromEntries(Object.entries(e || {}).filter(([, v]) => v !== undefined && v !== "" && v !== false && !(Array.isArray(v) && !v.length) && v !== null));
+
 const str = (v: string | null | undefined) => (v ? { stringValue: v } : { nullValue: null });
 
 /**
@@ -184,6 +208,7 @@ async function createPostNative(params: {
   caption: string;
   videoUrl: string;
   thumbnailUrl: string | null;
+  extra?: PostExtra;
 }) {
   const user = auth.currentUser;
   if (!user) throw new Error("Please sign in first.");
@@ -200,6 +225,7 @@ async function createPostNative(params: {
       createdAt: { timestampValue: new Date().toISOString() },
       likesCount: { integerValue: "0" },
       commentsCount: { integerValue: "0" },
+      ...Object.fromEntries(Object.entries(cleanExtra(params.extra)).map(([k, v]) => [k, fsValue(v)])),
     },
   };
 
@@ -233,6 +259,7 @@ export async function createPost(params: {
   caption: string;
   videoUrl: string;
   thumbnailUrl?: string | null;
+  extra?: PostExtra;
 }) {
   const thumbnailUrl = params.thumbnailUrl || autoThumbnailUrl(params.videoUrl) || null;
 
@@ -251,6 +278,7 @@ export async function createPost(params: {
       createdAt: serverTimestamp(),
       likesCount: 0,
       commentsCount: 0,
+      ...cleanExtra(params.extra),
     }),
     60000,
     "Could not save the post (the database did not answer in 60 seconds)."
