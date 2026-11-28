@@ -2,6 +2,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { useLocation } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { uploadImage, uploadVideo } from "@/lib/posts";
+import { deviceInfo } from "@/lib/analytics";
 import { safeUrl } from "@/lib/safeUrl";
 import { addNaat, deleteNaat, getNaats, type Naat } from "@/lib/storyTools";
 import { ADMIN_EMAIL, PRICE_PER_DAY, approveAd, checkPayment, createAd, getAllAds, getMyAds, getPending, hasPaymentServer, payForAd, rejectAd, removeAd, setPending, startBrowserPayment, type Ad } from "@/lib/ads";
@@ -19,6 +20,9 @@ export default function Ads() {
   const [text, setText] = useState("");
   const [link, setLink] = useState("");
   const [days, setDays] = useState(3);
+  const [goal, setGoal] = useState<"website" | "profile" | "message">("website");
+  const [aud, setAud] = useState<"all" | "country">("all");
+  const [country, setCountry] = useState(deviceInfo().country !== "Unknown" ? deviceInfo().country : "India");
   const [file, setFile] = useState<File | null>(null);
   const [busy, setBusy] = useState("");
   const [percent, setPercent] = useState(0);
@@ -104,6 +108,7 @@ export default function Ads() {
   const submit = async () => {
     setError("");
     if (!title.trim() || !file) return setError("Add a title and a video or image for your ad.");
+    if (goal === "website" && !link.trim()) return setError("Add your website link, or choose “Visit profile” / “Message” as the goal.");
     if (link && !/^https?:\/\//i.test(link)) return setError("The link must start with https://");
     try {
       const isVideo = file.type.startsWith("video/");
@@ -119,7 +124,7 @@ export default function Ads() {
       setBusy("Opening payment…");
       const form = {
         ownerId: user.uid, ownerName: user.displayName || "Learn Islam User", title: title.trim(), text: text.trim(),
-        mediaUrl, mediaType: (isVideo ? "video" : "image") as "video" | "image", link: link.trim(), days, amount: total,
+        mediaUrl, mediaType: (isVideo ? "video" : "image") as "video" | "image", link: goal === "website" ? link.trim() : "", days, amount: total, goal, audience: aud, country: aud === "country" ? country : "",
       };
       if (hasPaymentServer) {
         const linkId = await startBrowserPayment(total, `Ad: ${title.trim()} (${days} days)`, user.email, user.displayName);
@@ -207,8 +212,29 @@ export default function Ads() {
             <textarea value={text} onChange={(e) => setText(e.target.value)} maxLength={200} placeholder="Short description (optional)" rows={3} className={field + " resize-none"} />
             <p className="text-right text-[11px] text-white/40 mt-1">{text.length}/200</p>
           </div>
-          <input value={link} onChange={(e) => setLink(e.target.value)} inputMode="url" placeholder="Website link (optional) — https://…" className={field} />
+          <input value={link} onChange={(e) => setLink(e.target.value)} inputMode="url" placeholder={goal === "website" ? "Website link — https://…" : "Website link (not needed for this goal)"} disabled={goal !== "website"} className={field + (goal !== "website" ? " opacity-40" : "")} />
         </div>
+
+        <p className="text-sm font-semibold mb-2">What should people do?</p>
+        <div className="grid grid-cols-3 gap-2 mb-3">
+          {([["website", "🌐", "Visit website"], ["profile", "👤", "Visit profile"], ["message", "💬", "Message me"]] as const).map(([k, ic, t]) => (
+            <button key={k} type="button" onClick={() => setGoal(k)} className={`rounded-2xl py-3 px-1 text-center border text-xs transition ${goal === k ? "bg-emerald-400 text-black border-emerald-300 font-bold" : "bg-white/[0.06] border-white/10"}`}>
+              <span className="block text-2xl mb-1">{ic}</span>{t}
+            </button>
+          ))}
+        </div>
+        <p className="text-sm font-semibold mb-2">Who should see it?</p>
+        <div className="grid grid-cols-2 gap-2 mb-3">
+          {([["all", "🌍", "Everyone"], ["country", "📍", "One country"]] as const).map(([k, ic, t]) => (
+            <button key={k} type="button" onClick={() => setAud(k)} className={`rounded-2xl py-3 text-center border text-sm transition ${aud === k ? "bg-emerald-400 text-black border-emerald-300 font-bold" : "bg-white/[0.06] border-white/10"}`}>{ic} {t}</button>
+          ))}
+        </div>
+        {aud === "country" && (
+          <select value={country} onChange={(e) => setCountry(e.target.value)} className={field + " mb-3"}>
+            {["India", "Pakistan", "Bangladesh", "Nigeria", "Turkey", "United States", "United Arab Emirates", "Saudi Arabia", "United Kingdom", "Indonesia", "Malaysia", "Egypt", "Sri Lanka", "Nepal"].map((c) => <option key={c} value={c} className="text-black">{c}</option>)}
+          </select>
+        )}
+        <p className="text-[11px] text-white/45 mb-5">Country targeting uses each person's phone region settings, so it is approximate.</p>
 
         {/* live preview */}
         <p className="text-sm font-semibold mb-2">Live preview</p>
@@ -219,7 +245,7 @@ export default function Ads() {
             <div className="absolute inset-x-0 bottom-0 p-3 pt-10 bg-gradient-to-t from-black/90 to-transparent">
               <p className="font-bold leading-tight">{title.trim() || "Your headline"}</p>
               {text.trim() && <p className="text-xs text-white/75 mt-0.5 line-clamp-2">{text.trim()}</p>}
-              {/^https?:\/\//i.test(link) && <span className="inline-block mt-2 text-xs font-semibold bg-white text-black rounded-full px-3 py-1">Learn more</span>}
+              {(goal !== "website" || /^https?:\/\//i.test(link)) && <span className="inline-block mt-2 text-xs font-semibold bg-white text-black rounded-full px-3 py-1">{goal === "profile" ? "Visit profile" : goal === "message" ? "Message" : "Learn more"}</span>}
             </div>
           </div>
         </div>
@@ -238,6 +264,7 @@ export default function Ads() {
         <div className="rounded-2xl bg-white/[0.06] border border-white/10 p-4 mb-4">
           <div className="flex justify-between text-sm py-1"><span className="text-white/60">Rate</span><span>₹{PRICE_PER_DAY} / day</span></div>
           <div className="flex justify-between text-sm py-1"><span className="text-white/60">Duration</span><span>{days} {days === 1 ? "day" : "days"}</span></div>
+          <div className="flex justify-between text-sm py-1"><span className="text-white/60">Audience</span><span>{aud === "all" ? "Everyone" : country}</span></div>
           <div className="flex justify-between text-sm py-1"><span className="text-white/60">Runs until (if approved today)</span><span>{ends}</span></div>
           <div className="flex justify-between items-end pt-3 mt-2 border-t border-white/10"><span className="font-semibold">Total</span><span className="text-3xl font-extrabold text-emerald-300">₹{total}</span></div>
         </div>
